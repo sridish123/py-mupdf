@@ -43,7 +43,7 @@ install:
 - cp fitz/_error.c mupdf/source/fitz/error.c
 script:
 - export CIBW_SKIP="cp33-* *i686"
-- export CIBW_TEST_COMMAND="python {project}/test-geo.py"
+- export CIBW_TEST_COMMAND="{project}/test.sh"
 - cibuildwheel --output-dir wheelhouse
 
 deploy:
