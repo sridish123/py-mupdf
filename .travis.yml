@@ -23,7 +23,7 @@ matrix:
       HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .."
     - export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
   - os: osx
-    language: generic
+    language: shell
     services:
     - docker
     env: PIP=pip3

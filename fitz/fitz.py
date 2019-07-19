@@ -106,9 +106,9 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.14.0"
-VersionBind = "1.14.18"
-VersionDate = "2019-07-09 04:46:07"
-version = (VersionBind, VersionFitz, "20190709044607")
+VersionBind = "1.14.19"
+VersionDate = "2019-07-18 20:01:17"
+version = (VersionBind, VersionFitz, "20190718200117")
 
 
 class Matrix():
@@ -1731,7 +1731,7 @@ def CheckFont(page, fontname):
             return f
         if f[3].lower() == fontname.lower():
             return f
-    return None
+    Py_RETURN_NONE
 
 def CheckFontInfo(doc, xref):
     """Return a font info if present in the document.
@@ -1739,7 +1739,7 @@ def CheckFontInfo(doc, xref):
     for f in doc.FontInfos:
         if xref == f[0]:
             return f
-    return None
+    Py_RETURN_NONE
 
 def UpdateFontInfo(doc, info):
     xref = info[0]
@@ -2552,6 +2552,14 @@ open(filename, filetype='type') - from file"""
 
         return _fitz.Document_isStream(self, xref)
 
+
+    def getSigFlags(self):
+        r"""getSigFlags(self) -> int"""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_getSigFlags(self)
+
     @property
 
     def isFormPDF(self):
@@ -2798,7 +2806,7 @@ open(filename, filetype='type') - from file"""
 
         self.setToC(new_toc)
         self._reset_page_refs()
-        return None
+        Py_RETURN_NONE
 
 
     def deletePageRange(self, from_page = -1, to_page = -1):
@@ -2828,7 +2836,7 @@ open(filename, filetype='type') - from file"""
 
         self.setToC(new_toc)
         self._reset_page_refs()
-        return None
+        Py_RETURN_NONE
 
     def saveIncr(self):
         """ Save PDF incrementally"""
@@ -4343,7 +4351,7 @@ class Annot(object):
     def widget(self):
         annot_type = self.type[0]
         if annot_type != ANNOT_WIDGET:
-            return None
+            Py_RETURN_NONE
         w = Widget()
         w.field_type        = self.widget_type[0]
         w.field_type_string = self.widget_type[1]
