@@ -107,8 +107,8 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 VersionFitz = "1.14.0"
 VersionBind = "1.14.19"
-VersionDate = "2019-07-21 03:55:10"
-version = (VersionBind, VersionFitz, "20190721035510")
+VersionDate = "2019-07-29 13:56:12"
+version = (VersionBind, VersionFitz, "20190729135612")
 
 
 class Matrix():
