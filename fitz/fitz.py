@@ -105,13 +105,209 @@ import math
 fitz_py2 = str is bytes           # if true, this is Python 2
 
 
-VersionFitz = "1.14.0"
-VersionBind = "1.14.20"
-VersionDate = "2019-07-30 16:41:33"
-version = (VersionBind, VersionFitz, "20190730164133")
+VersionFitz = "1.16.0"
+VersionBind = "1.16.0"
+VersionDate = "2019-08-06 15:20:38"
+version = (VersionBind, VersionFitz, "20190806152038")
+
+PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
+
+PDF_ANNOT_LINK = _fitz.PDF_ANNOT_LINK
+
+PDF_ANNOT_FREE_TEXT = _fitz.PDF_ANNOT_FREE_TEXT
+
+PDF_ANNOT_LINE = _fitz.PDF_ANNOT_LINE
+
+PDF_ANNOT_SQUARE = _fitz.PDF_ANNOT_SQUARE
+
+PDF_ANNOT_CIRCLE = _fitz.PDF_ANNOT_CIRCLE
+
+PDF_ANNOT_POLYGON = _fitz.PDF_ANNOT_POLYGON
+
+PDF_ANNOT_POLYLINE = _fitz.PDF_ANNOT_POLYLINE
+
+PDF_ANNOT_HIGHLIGHT = _fitz.PDF_ANNOT_HIGHLIGHT
+
+PDF_ANNOT_UNDERLINE = _fitz.PDF_ANNOT_UNDERLINE
+
+PDF_ANNOT_SQUIGGLY = _fitz.PDF_ANNOT_SQUIGGLY
+
+PDF_ANNOT_STRIKEOUT = _fitz.PDF_ANNOT_STRIKEOUT
+
+PDF_ANNOT_REDACT = _fitz.PDF_ANNOT_REDACT
+
+PDF_ANNOT_STAMP = _fitz.PDF_ANNOT_STAMP
+
+PDF_ANNOT_CARET = _fitz.PDF_ANNOT_CARET
+
+PDF_ANNOT_INK = _fitz.PDF_ANNOT_INK
+
+PDF_ANNOT_POPUP = _fitz.PDF_ANNOT_POPUP
+
+PDF_ANNOT_FILEATTACHMENT = _fitz.PDF_ANNOT_FILEATTACHMENT
+
+PDF_ANNOT_SOUND = _fitz.PDF_ANNOT_SOUND
+
+PDF_ANNOT_MOVIE = _fitz.PDF_ANNOT_MOVIE
+
+PDF_ANNOT_WIDGET = _fitz.PDF_ANNOT_WIDGET
+
+PDF_ANNOT_SCREEN = _fitz.PDF_ANNOT_SCREEN
+
+PDF_ANNOT_PRINTERMARK = _fitz.PDF_ANNOT_PRINTERMARK
+
+PDF_ANNOT_TRAPNET = _fitz.PDF_ANNOT_TRAPNET
+
+PDF_ANNOT_WATERMARK = _fitz.PDF_ANNOT_WATERMARK
+
+PDF_ANNOT_3D = _fitz.PDF_ANNOT_3D
+
+PDF_ANNOT_UNKNOWN = _fitz.PDF_ANNOT_UNKNOWN
+
+PDF_ANNOT_IS_Invisible = _fitz.PDF_ANNOT_IS_Invisible
+
+PDF_ANNOT_IS_Hidden = _fitz.PDF_ANNOT_IS_Hidden
+
+PDF_ANNOT_IS_Print = _fitz.PDF_ANNOT_IS_Print
+
+PDF_ANNOT_IS_NoZoom = _fitz.PDF_ANNOT_IS_NoZoom
+
+PDF_ANNOT_IS_NoRotate = _fitz.PDF_ANNOT_IS_NoRotate
+
+PDF_ANNOT_IS_NoView = _fitz.PDF_ANNOT_IS_NoView
+
+PDF_ANNOT_IS_ReadOnly = _fitz.PDF_ANNOT_IS_ReadOnly
+
+PDF_ANNOT_IS_Locked = _fitz.PDF_ANNOT_IS_Locked
+
+PDF_ANNOT_IS_ToggleNoView = _fitz.PDF_ANNOT_IS_ToggleNoView
+
+PDF_ANNOT_IS_LockedContents = _fitz.PDF_ANNOT_IS_LockedContents
+
+PDF_ANNOT_LE_NONE = _fitz.PDF_ANNOT_LE_NONE
+
+PDF_ANNOT_LE_SQUARE = _fitz.PDF_ANNOT_LE_SQUARE
+
+PDF_ANNOT_LE_CIRCLE = _fitz.PDF_ANNOT_LE_CIRCLE
+
+PDF_ANNOT_LE_DIAMOND = _fitz.PDF_ANNOT_LE_DIAMOND
+
+PDF_ANNOT_LE_OPEN_ARROW = _fitz.PDF_ANNOT_LE_OPEN_ARROW
+
+PDF_ANNOT_LE_CLOSED_ARROW = _fitz.PDF_ANNOT_LE_CLOSED_ARROW
+
+PDF_ANNOT_LE_BUTT = _fitz.PDF_ANNOT_LE_BUTT
+
+PDF_ANNOT_LE_R_OPEN_ARROW = _fitz.PDF_ANNOT_LE_R_OPEN_ARROW
+
+PDF_ANNOT_LE_R_CLOSED_ARROW = _fitz.PDF_ANNOT_LE_R_CLOSED_ARROW
+
+PDF_ANNOT_LE_SLASH = _fitz.PDF_ANNOT_LE_SLASH
+
+PDF_WIDGET_TYPE_UNKNOWN = _fitz.PDF_WIDGET_TYPE_UNKNOWN
+
+PDF_WIDGET_TYPE_BUTTON = _fitz.PDF_WIDGET_TYPE_BUTTON
+
+PDF_WIDGET_TYPE_CHECKBOX = _fitz.PDF_WIDGET_TYPE_CHECKBOX
+
+PDF_WIDGET_TYPE_COMBOBOX = _fitz.PDF_WIDGET_TYPE_COMBOBOX
+
+PDF_WIDGET_TYPE_LISTBOX = _fitz.PDF_WIDGET_TYPE_LISTBOX
+
+PDF_WIDGET_TYPE_RADIOBUTTON = _fitz.PDF_WIDGET_TYPE_RADIOBUTTON
+
+PDF_WIDGET_TYPE_SIGNATURE = _fitz.PDF_WIDGET_TYPE_SIGNATURE
+
+PDF_WIDGET_TYPE_TEXT = _fitz.PDF_WIDGET_TYPE_TEXT
+
+PDF_WIDGET_TX_FORMAT_NONE = _fitz.PDF_WIDGET_TX_FORMAT_NONE
+
+PDF_WIDGET_TX_FORMAT_NUMBER = _fitz.PDF_WIDGET_TX_FORMAT_NUMBER
+
+PDF_WIDGET_TX_FORMAT_SPECIAL = _fitz.PDF_WIDGET_TX_FORMAT_SPECIAL
+
+PDF_WIDGET_TX_FORMAT_DATE = _fitz.PDF_WIDGET_TX_FORMAT_DATE
+
+PDF_WIDGET_TX_FORMAT_TIME = _fitz.PDF_WIDGET_TX_FORMAT_TIME
+
+PDF_FIELD_IS_READ_ONLY = _fitz.PDF_FIELD_IS_READ_ONLY
+
+PDF_FIELD_IS_REQUIRED = _fitz.PDF_FIELD_IS_REQUIRED
+
+PDF_FIELD_IS_NO_EXPORT = _fitz.PDF_FIELD_IS_NO_EXPORT
+
+PDF_TX_FIELD_IS_MULTILINE = _fitz.PDF_TX_FIELD_IS_MULTILINE
+
+PDF_TX_FIELD_IS_PASSWORD = _fitz.PDF_TX_FIELD_IS_PASSWORD
+
+PDF_TX_FIELD_IS_FILE_SELECT = _fitz.PDF_TX_FIELD_IS_FILE_SELECT
+
+PDF_TX_FIELD_IS_DO_NOT_SPELL_CHECK = _fitz.PDF_TX_FIELD_IS_DO_NOT_SPELL_CHECK
+
+PDF_TX_FIELD_IS_DO_NOT_SCROLL = _fitz.PDF_TX_FIELD_IS_DO_NOT_SCROLL
+
+PDF_TX_FIELD_IS_COMB = _fitz.PDF_TX_FIELD_IS_COMB
+
+PDF_TX_FIELD_IS_RICH_TEXT = _fitz.PDF_TX_FIELD_IS_RICH_TEXT
+
+PDF_BTN_FIELD_IS_NO_TOGGLE_TO_OFF = _fitz.PDF_BTN_FIELD_IS_NO_TOGGLE_TO_OFF
+
+PDF_BTN_FIELD_IS_RADIO = _fitz.PDF_BTN_FIELD_IS_RADIO
+
+PDF_BTN_FIELD_IS_PUSHBUTTON = _fitz.PDF_BTN_FIELD_IS_PUSHBUTTON
+
+PDF_BTN_FIELD_IS_RADIOS_IN_UNISON = _fitz.PDF_BTN_FIELD_IS_RADIOS_IN_UNISON
+
+PDF_CH_FIELD_IS_COMBO = _fitz.PDF_CH_FIELD_IS_COMBO
+
+PDF_CH_FIELD_IS_EDIT = _fitz.PDF_CH_FIELD_IS_EDIT
+
+PDF_CH_FIELD_IS_SORT = _fitz.PDF_CH_FIELD_IS_SORT
+
+PDF_CH_FIELD_IS_MULTI_SELECT = _fitz.PDF_CH_FIELD_IS_MULTI_SELECT
+
+PDF_CH_FIELD_IS_DO_NOT_SPELL_CHECK = _fitz.PDF_CH_FIELD_IS_DO_NOT_SPELL_CHECK
+
+PDF_CH_FIELD_IS_COMMIT_ON_SEL_CHANGE = _fitz.PDF_CH_FIELD_IS_COMMIT_ON_SEL_CHANGE
+
+CS_RGB = _fitz.CS_RGB
+
+CS_GRAY = _fitz.CS_GRAY
+
+CS_CMYK = _fitz.CS_CMYK
+
+PDF_ENCRYPT_KEEP = _fitz.PDF_ENCRYPT_KEEP
+
+PDF_ENCRYPT_NONE = _fitz.PDF_ENCRYPT_NONE
+
+PDF_ENCRYPT_RC4_40 = _fitz.PDF_ENCRYPT_RC4_40
+
+PDF_ENCRYPT_RC4_128 = _fitz.PDF_ENCRYPT_RC4_128
+
+PDF_ENCRYPT_AES_128 = _fitz.PDF_ENCRYPT_AES_128
+
+PDF_ENCRYPT_AES_256 = _fitz.PDF_ENCRYPT_AES_256
+
+PDF_ENCRYPT_UNKNOWN = _fitz.PDF_ENCRYPT_UNKNOWN
+
+PDF_PERM_PRINT = _fitz.PDF_PERM_PRINT
+
+PDF_PERM_MODIFY = _fitz.PDF_PERM_MODIFY
+
+PDF_PERM_COPY = _fitz.PDF_PERM_COPY
+
+PDF_PERM_ANNOTATE = _fitz.PDF_PERM_ANNOTATE
+
+PDF_PERM_FORM = _fitz.PDF_PERM_FORM
+
+PDF_PERM_ACCESSIBILITY = _fitz.PDF_PERM_ACCESSIBILITY
+
+PDF_PERM_ASSEMBLE = _fitz.PDF_PERM_ASSEMBLE
+
+PDF_PERM_PRINT_HQ = _fitz.PDF_PERM_PRINT_HQ
 
 
-class Matrix():
+class Matrix(object):
     """Matrix() - all zeros\nMatrix(a, b, c, d, e, f)\nMatrix(zoom-x, zoom-y) - zoom\nMatrix(shear-x, shear-y, 1) - shear\nMatrix(degree) - rotate\nMatrix(Matrix) - new copy\nMatrix(sequence) - from 'sequence'"""
     def __init__(self, *args):
         if not args:
@@ -369,7 +565,7 @@ class IdentityMatrix(Matrix):
 
 Identity = IdentityMatrix()
 
-class Point():
+class Point(object):
     """Point() - all zeros\nPoint(x, y)\nPoint(Point) - new copy\nPoint(sequence) - from 'sequence'"""
     def __init__(self, *args):
         if not args:
@@ -532,7 +728,7 @@ class Point():
     def __hash__(self):
         return hash(tuple(self))
 
-class Rect():
+class Rect(object):
     """Rect() - all zeros\nRect(x0, y0, x1, y1)\nRect(top-left, x1, y1)\nRect(x0, y0, bottom-right)\nRect(top-left, bottom-right)\nRect(Rect or IRect) - new copy\nRect(sequence) - from 'sequence'"""
     def __init__(self, *args):
         if not args:
@@ -861,7 +1057,7 @@ class IRect(Rect):
     def __and__(self, x):
         return Rect.__and__(self, x).round()
 
-class Quad():
+class Quad(object):
     """Quad() - all zero points\nQuad(ul, ur, ll, lr)\nQuad(quad) - new copy\nQuad(sequence) - from 'sequence'"""
     def __init__(self, *args):
         if not args:
@@ -1013,28 +1209,9 @@ class Quad():
 
 
 #------------------------------------------------------------------------------
-# Font definitions for new PyMuPDF widgets.
-# IMPORTANT: do not change anything here! Line breaks are required, as well
-# as are the spaces after the font ref names.
-#------------------------------------------------------------------------------
-Widget_fontobjects = """<</CoBI <</Type/Font/Subtype/Type1/BaseFont/Courier-BoldOblique/Encoding/WinAnsiEncoding>>\n/CoBo <</Type/Font/Subtype/Type1/BaseFont/Courier-Bold/Encoding/WinAnsiEncoding>>\n/CoIt <</Type/Font/Subtype/Type1/BaseFont/Courier-Oblique/Encoding/WinAnsiEncoding>>\n/Cour <</Type/Font/Subtype/Type1/BaseFont/Courier/Encoding/WinAnsiEncoding>>\n/HeBI <</Type/Font/Subtype/Type1/BaseFont/Helvetica-BoldOblique/Encoding/WinAnsiEncoding>>\n/HeBo <</Type/Font/Subtype/Type1/BaseFont/Helvetica-Bold/Encoding/WinAnsiEncoding>>\n/HeIt <</Type/Font/Subtype/Type1/BaseFont/Helvetica-Oblique/Encoding/WinAnsiEncoding>>\n/Helv <</Type/Font/Subtype/Type1/BaseFont/Helvetica/Encoding/WinAnsiEncoding>>\n/Symb <</Type/Font/Subtype/Type1/BaseFont/Symbol/Encoding/WinAnsiEncoding>>\n/TiBI <</Type/Font/Subtype/Type1/BaseFont/Times-BoldItalic/Encoding/WinAnsiEncoding>>\n/TiBo <</Type/Font/Subtype/Type1/BaseFont/Times-Bold/Encoding/WinAnsiEncoding>>\n/TiIt <</Type/Font/Subtype/Type1/BaseFont/Times-Italic/Encoding/WinAnsiEncoding>>\n/TiRo <</Type/Font/Subtype/Type1/BaseFont/Times-Roman/Encoding/WinAnsiEncoding>>\n/ZaDb <</Type/Font/Subtype/Type1/BaseFont/ZapfDingbats/Encoding/WinAnsiEncoding>>>>"""
-
-def _Widget_fontdict():
-    """Turns the above font definitions into a dictionary. Assumes certain line breaks and spaces.
-    """
-    flist = Widget_fontobjects[2:-2].splitlines()
-    fdict = {}
-    for f in flist:
-        k, v = f.split(" ")
-        fdict[k[1:]] = v
-    return fdict
-
-Widget_fontdict = _Widget_fontdict()   # needed so we can use it as a property
-
-#------------------------------------------------------------------------------
 # Class describing a PDF form field ("widget")
 #------------------------------------------------------------------------------
-class Widget():
+class Widget(object):
     def __init__(self):
         self.border_color       = None
         self.border_style       = "S"
@@ -1042,51 +1219,44 @@ class Widget():
         self.border_dashes      = None
         self.choice_values      = None           # choice fields only
         self.field_name         = None           # field name
+        self.field_label        = None           # field label
         self.field_value        = None
         self.field_flags        = None
+        self.field_display      = 0
         self.fill_color         = None
         self.button_caption     = None           # button caption
         self.rect               = None           # annot value
+        self.is_signed          = None           # True / False if signature
         self.text_color         = (0, 0, 0)
         self.text_font          = "Helv"
         self.text_fontsize      = 0
         self.text_maxlen        = 0              # text fields only
-        self.text_type          = 0              # text fields only
+        self.text_format        = 0              # text fields only
         self._text_da           = ""             # /DA = default apparance
-        self.field_type         = 3              # valid range 0 through 6
+        self.field_type         = 0              # valid range 1 through 7
         self.field_type_string  = None           # field type as string
         self._text_da           = ""             # /DA = default apparance
-        self._dr_xref           = 0              # xref of /DR entry
+        self.xref               = 0              # annot value
+
 
     def _validate(self):
         """Validate the class entries.
         """
-        checker = (self._check0, self._check1, self._check2, self._check3,
-                   self._check4, self._check5)
-        if not 0 <= self.field_type <= 5:
-            raise NotImplementedError("unsupported widget type")
-        if type(self.rect) is not Rect:
-            raise ValueError("invalid rect")
-        if self.rect.isInfinite or self.rect.isEmpty:
-            raise ValueError("rect must be finite and not empty")
+        if (self.rect.isInfinite
+            or self.rect.isEmpty
+           ):
+            raise ValueError("bad rect")
+
         if not self.field_name:
             raise ValueError("field name missing")
 
-        if self.border_color:
-            if not len(self.border_color) in range(1,5) or \
-               type(self.border_color) not in (list, tuple):
-               raise ValueError("border_color must be 1 - 4 floats")
-
-        if self.fill_color:
-            if not len(self.fill_color) in range(1,5) or \
-               type(self.fill_color) not in (list, tuple):
-               raise ValueError("fill_color must be 1 - 4 floats")
-
+        if self.field_label == "Unnamed":
+            self.field_label = None
+        CheckColor(self.border_color)
+        CheckColor(self.fill_color)
         if not self.text_color:
             self.text_color = (0, 0, 0)
-        if not len(self.text_color) in range(1,5) or \
-            type(self.text_color) not in (list, tuple):
-            raise ValueError("text_color must be 1 - 4 floats")
+        CheckColor(self.text_color)
 
         if not self.border_width:
             self.border_width = 0
@@ -1094,28 +1264,37 @@ class Widget():
         if not self.text_fontsize:
             self.text_fontsize = 0
 
-        checker[self.field_type]()
+        self.border_style = self.border_style.upper()[0:1]
+
+        self._checker()  # any field_type specific checks
+
 
     def _adjust_font(self):
-        """Ensure the font name is from our list and correctly spelled.
+        """Ensure text_font is from our list and correctly spelled.
         """
-        fnames = [k for k in Widget_fontdict.keys()]
-        fl = list(map(str.lower, fnames))
-        if (not self.text_font) or self.text_font.lower() not in fl:
-            self.text_font = "helv"
-        i = fl.index(self.text_font.lower())
-        self.text_font = fnames[i]
+        if not self.text_font:
+            self.text_font = "Helv"
+            return
+        valid_fonts = ("Cour", "TiRo", "Helv", "ZaDb")
+        for f in valid_fonts:
+            if self.text_font.lower() == f.lower():
+                self.text_font = f
+                return
+        self.text_font = "Helv"
         return
 
+
     def _parse_da(self):
-        """Extract font name, size and color from default appearance string (/DA object). Equivalent to 'pdf_parse_default_appearance' function in MuPDF's 'pdf-annot.c'.
+        """Extract font name, size and color from default appearance string (/DA object).
+
+        Equivalent to 'pdf_parse_default_appearance' function in MuPDF's 'pdf-annot.c'.
         """
         if not self._text_da:
             return
         font = "Helv"
         fsize = 0
         col = (0, 0, 0)
-        dat = self._text_da.split()              # split on any whitespace
+        dat = self._text_da.split()  # split on any whitespace
         for i, item in enumerate(dat):
             if item == "Tf":
                 font = dat[i - 2][1:]
@@ -1133,38 +1312,50 @@ class Widget():
         self.text_font     = font
         self.text_fontsize = fsize
         self.text_color    = col
-        self._text_da = " ".join([c for c in dat if c != ""])
+        self._text_da = ""
         return
 
-# any widget type specific checks
-    def _check0(self):
-        return
 
-    def _check1(self):
-        return
+    def _checker(self):
+        """Any widget type checks.
+        """
+        if self.field_type not in range(1, 8):
+            raise ValueError("bad field type")
 
-    def _check2(self):
-        return
 
-    def _check3(self):
-        if not 0 <= self.text_type <= 4:
-            raise ValueError("text subtype not in range 0 - 4")
-        return
+    def update(self):
+        """Reflect Python object in the PDF.
+        """
+        self._validate()
+        doc = self.parent.parent
 
-    def _check4(self):
-        if type(self.choice_values) not in (tuple, list):
-            raise ValueError("field type requires a value list")
-        if len(self.choice_values) < 2:
-            raise ValueError("too few choice values")
-        return
+        self._adjust_font()  # ensure valid text_font name
 
-    def _check5(self):
-        if type(self.choice_values) not in (tuple, list):
-            raise ValueError("field type requires a value list")
-        if len(self.choice_values) < 2:
-            raise ValueError("too few choice values")
-        return
+# now create the /DA string
+        self._text_da = ""
+        if   len(self.text_color) == 3:
+            fmt = "{:g} {:g} {:g} rg /{f:s} {s:g} Tf" + self._text_da
+        elif len(self.text_color) == 1:
+            fmt = "{:g} g /{f:s} {s:g} Tf" + self._text_da
+        elif len(self.text_color) == 4:
+            fmt = "{:g} {:g} {:g} {:g} k /{f:s} {s:g} Tf" + self._text_da
+        self._text_da = fmt.format(*self.text_color, f=self.text_font,
+                                    s=self.text_fontsize)
+# finally update the widget
 
+        TOOLS._save_widget(self._annot, self)
+        self._text_da = ""
+
+
+    def __repr__(self):
+        return "'%s' widget on %s" % (self.field_type_string, str(self.parent))
+
+    def __del__(self):
+        self._annot.__del__()
+
+    @property
+    def next(self):
+        return self._annot.next
 
 
 #------------------------------------------------------------------------------
@@ -1440,7 +1631,7 @@ symbol_glyphs = (
  (254, 0.494), (183, 0.46)
  )
 
-class linkDest():
+class linkDest(object):
     """link or outline destination details"""
     def __init__(self, obj, rlink):
         isExt = obj.isExternal
@@ -1998,10 +2189,8 @@ open(filename, filetype='type') - from file"""
             self.name = ""
 
         self.isClosed    = False
-        self.isEncrypted = 0
+        self.isEncrypted = False
         self.metadata    = None
-        self.openErrCode = 0
-        self.openErrMsg  = ''
         self.FontInfos   = []
         self.Graftmaps   = {}
         self.ShownPages  = {}
@@ -2010,11 +2199,9 @@ open(filename, filetype='type') - from file"""
         _fitz.Document_swiginit(self, _fitz.new_Document(filename, stream, filetype, rect, width, height, fontsize))
 
         if self.thisown:
-            self.openErrCode = self._getGCTXerrcode()
-            self.openErrMsg  = self._getGCTXerrmsg()
             self._graft_id = TOOLS.gen_id()
-            if self.needsPass:
-                self.isEncrypted = 1
+            if self.needsPass is True:
+                self.isEncrypted = True
             else: # we won't init until doc is decrypted
                 self.initData()
 
@@ -2033,8 +2220,6 @@ open(filename, filetype='type') - from file"""
         self.metadata    = None
         self.stream      = None
         self.isClosed    = True
-        self.openErrCode = 0
-        self.openErrMsg  = ''
         self.FontInfos   = []
         for gmap in self.Graftmaps:
             self.Graftmaps[gmap] = None
@@ -2363,13 +2548,13 @@ open(filename, filetype='type') - from file"""
         return _fitz.Document_isDirty(self)
 
 
-    def _getGCTXerrcode(self):
-        r"""Retrieve last MuPDF error code."""
-        return _fitz.Document__getGCTXerrcode(self)
+    def can_save_incrementally(self):
+        r"""Check if can be saved incrementally."""
+        if self.isClosed:
+            raise ValueError("document closed")
 
-    def _getGCTXerrmsg(self):
-        r"""Retrieve last MuPDF error message."""
-        return _fitz.Document__getGCTXerrmsg(self)
+        return _fitz.Document_can_save_incrementally(self)
+
 
     def authenticate(self, password):
         r"""Decrypt document with a password."""
@@ -2379,7 +2564,7 @@ open(filename, filetype='type') - from file"""
         val = _fitz.Document_authenticate(self, password)
 
         if val: # the doc is decrypted successfully and we init the outline
-            self.isEncrypted = 0
+            self.isEncrypted = False
             self.initData()
             self.thisown = True
 
@@ -2387,11 +2572,11 @@ open(filename, filetype='type') - from file"""
         return val
 
 
-    def save(self, filename, garbage=0, clean=0, deflate=0, incremental=0, ascii=0, expand=0, linear=0, pretty=0, decrypt=1):
-        r"""save(self, filename, garbage=0, clean=0, deflate=0, incremental=0, ascii=0, expand=0, linear=0, pretty=0, decrypt=1) -> PyObject *"""
+    def save(self, filename, garbage=0, clean=0, deflate=0, incremental=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
+        r"""save(self, filename, garbage=0, clean=0, deflate=0, incremental=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None) -> PyObject *"""
 
         if self.isClosed or self.isEncrypted:
-            raise ValueError("operation illegal for closed / encrypted doc")
+            raise ValueError("document closed or encrypted")
         if type(filename) == str:
             pass
         elif type(filename) == unicode:
@@ -2407,25 +2592,25 @@ open(filename, filetype='type') - from file"""
                 raise ValueError("incremental needs original file")
 
 
-        return _fitz.Document_save(self, filename, garbage, clean, deflate, incremental, ascii, expand, linear, pretty, decrypt)
+        return _fitz.Document_save(self, filename, garbage, clean, deflate, incremental, ascii, expand, linear, pretty, encryption, permissions, owner_pw, user_pw)
 
 
-    def write(self, garbage=0, clean=0, deflate=0, ascii=0, expand=0, linear=0, pretty=0, decrypt=1):
+    def write(self, garbage=0, clean=0, deflate=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
         r"""Write document to a bytes object."""
 
         if self.isClosed or self.isEncrypted:
-            raise ValueError("operation illegal for closed / encrypted doc")
+            raise ValueError("document closed or encrypted")
         if self.pageCount < 1:
             raise ValueError("cannot write with zero pages")
 
 
-        return _fitz.Document_write(self, garbage, clean, deflate, ascii, expand, linear, pretty, decrypt)
+        return _fitz.Document_write(self, garbage, clean, deflate, ascii, expand, linear, pretty, encryption, permissions, owner_pw, user_pw)
 
 
     def insertPDF(self, docsrc, from_page=-1, to_page=-1, start_at=-1, rotate=-1, links=1):
         r"""Copy page range ['from', 'to'] of source PDF, starting as page number 'start_at'."""
         if self.isClosed or self.isEncrypted:
-            raise ValueError("operation illegal for closed / encrypted doc")
+            raise ValueError("document closed or encrypted")
         if id(self) == id(docsrc):
             raise ValueError("source must not equal target PDF")
         sa = start_at
@@ -2456,7 +2641,7 @@ open(filename, filetype='type') - from file"""
         r"""Build sub-pdf with page numbers in 'list'."""
 
         if self.isClosed or self.isEncrypted:
-            raise ValueError("operation illegal for closed / encrypted doc")
+            raise ValueError("document closed or encrypted")
         if not self.isPDF:
             raise ValueError("not a PDF")
         if not hasattr(pyliste, "__getitem__"):
@@ -2478,9 +2663,11 @@ open(filename, filetype='type') - from file"""
     @property
 
     def permissions(self):
-        r"""Get permissions dictionary."""
-        if self.isClosed:
-            raise ValueError("document closed")
+        r"""Get document permissions."""
+
+        if self.isEncrypted:
+            return 0
+
 
         return _fitz.Document_permissions(self)
 
@@ -2626,20 +2813,20 @@ open(filename, filetype='type') - from file"""
         return _fitz.Document__delXmlMetadata(self)
 
 
-    def _getXrefString(self, xref, compressed=0):
-        r"""_getXrefString(self, xref, compressed=0) -> PyObject *"""
+    def _getXrefString(self, xref, compressed=0, ascii=0):
+        r"""_getXrefString(self, xref, compressed=0, ascii=0) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document__getXrefString(self, xref, compressed)
+        return _fitz.Document__getXrefString(self, xref, compressed, ascii)
 
 
-    def _getTrailerString(self, compressed=0):
-        r"""_getTrailerString(self, compressed=0) -> PyObject *"""
+    def _getTrailerString(self, compressed=0, ascii=0):
+        r"""_getTrailerString(self, compressed=0, ascii=0) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document__getTrailerString(self, compressed)
+        return _fitz.Document__getTrailerString(self, compressed, ascii)
 
 
     def _getXrefStream(self, xref):
@@ -2807,6 +2994,7 @@ open(filename, filetype='type') - from file"""
         self._reset_page_refs()
 
 
+
     def deletePageRange(self, from_page = -1, to_page = -1):
         """Delete pages from a PDF.
         """
@@ -2837,7 +3025,7 @@ open(filename, filetype='type') - from file"""
 
     def saveIncr(self):
         """ Save PDF incrementally"""
-        return self.save(self.name, incremental = True)
+        return self.save(self.name, incremental=True, encryption=PDF_ENCRYPT_KEEP)
 
     def __repr__(self):
         m = "closed " if self.isClosed else ""
@@ -3136,41 +3324,15 @@ class Page(object):
         if not doc.isPDF:
             raise ValueError("not a PDF")
         widget._validate()
-
-    # Check if PDF already has our fonts.
-    # If none insert all of them in a new object and store the xref.
-    # Else only add any missing fonts.
-    # To determine the situation, /DR object is checked.
-        xref = 0
-        ff = doc.FormFonts               # /DR object: existing fonts
-        if not widget.text_font:         # ensure default
-            widget.text_font = "Helv"
-        if not widget.text_font in ff:   # if no existent font ...
-            if not doc.isFormPDF or not ff:   # a fresh /AcroForm PDF!
-                xref = doc._getNewXref()      # insert all our fonts
-                doc._updateObject(xref, Widget_fontobjects)
-            else:                        # add any missing fonts
-                for k in Widget_fontdict.keys():
-                    if not k in ff:      # add our font if missing
-                        doc._addFormFont(k, Widget_fontdict[k])
-            widget._adjust_font()        # ensure correct font spelling
-        widget._dr_xref = xref           # non-zero causes /DR creation
-
-    # now create the /DA string
-        if   len(widget.text_color) == 3:
-            fmt = "{:g} {:g} {:g} rg /{f:s} {s:g} Tf " + widget._text_da
-        elif len(widget.text_color) == 1:
-            fmt = "{:g} g /{f:s} {s:g} Tf " + widget._text_da
-        elif len(widget.text_color) == 4:
-            fmt = "{:g} {:g} {:g} {:g} k /{f:s} {s:g} Tf " + widget._text_da
-        widget._text_da = fmt.format(*widget.text_color, f=widget.text_font,
-                                     s=widget.text_fontsize)
-    # create the widget at last
         annot = self._addWidget(widget)
-        if annot:
-            annot.thisown = True
-            annot.parent = weakref.proxy(self) # owning page object
-            self._annot_refs[id(annot)] = annot
+        if not annot:
+            return None
+        annot.thisown = True
+        annot.parent = weakref.proxy(self) # owning page object
+        self._annot_refs[id(annot)] = annot
+        widget.parent = self
+        widget._annot = annot
+        widget.update()
         return annot
 
 
@@ -3210,7 +3372,7 @@ class Page(object):
 
         return val
 
-    firstLink = property(loadLinks)
+    firstLink = property(loadLinks, doc="First link on page")
     @property
 
     def firstAnnot(self):
@@ -3222,6 +3384,28 @@ class Page(object):
             val.thisown = True
             val.parent = weakref.proxy(self) # owning page object
             self._annot_refs[id(val)] = val
+
+
+        return val
+
+    @property
+
+    def firstWidget(self):
+        r"""firstWidget(self) -> Annot"""
+        CheckParent(self)
+
+        val = _fitz.Page_firstWidget(self)
+
+        if not val:
+            return None
+        val.thisown = True
+        val.parent = weakref.proxy(self) # owning page object
+        self._annot_refs[id(val)] = val
+
+        widget = Widget()
+        TOOLS._fill_widget(val, widget)
+        val = widget
+
 
         return val
 
@@ -3415,6 +3599,34 @@ class Page(object):
         return _fitz.Page__setContents(self, xref)
 
 
+    @property
+    def _isWrapped(self):
+        """Check if /Contents is wrapped in string pair "q" / "Q".
+        """
+        xrefs = self._getContents()
+        doc = self.parent
+        if len(xrefs) == 0:
+            return True
+        if len(xrefs) == 1:
+            cont = doc._getXrefStream(xrefs[0]).split()
+            if len(cont) < 1:
+                return True
+            if cont[0] != b"q" or cont[-1] != b"Q":
+                return False
+            return True
+        else:
+            cont = doc._getXrefStream(xrefs[0]).split()
+            if len(cont) < 1 or cont[0] != b"q":
+                return False
+            cont = doc._getXrefStream(xrefs[-1]).split()
+            if len(cont) < 1 or cont[-1] != b"Q":
+                return False
+            return True
+
+    def _wrapContents(self):
+        TOOLS._insert_contents(self, b"q\n", False)
+        TOOLS._insert_contents(self, b"\nQ", True)
+
     def __str__(self):
         CheckParent(self)
         x = self.parent.name
@@ -3533,14 +3745,14 @@ Pixmap(Document, xref) - from a PDF image"""
         r"""gammaWith(self, gamma)"""
         return _fitz.Pixmap_gammaWith(self, gamma)
 
-    def tintWith(self, red, green, blue):
-        r"""tintWith(self, red, green, blue)"""
+    def tintWith(self, black, white):
+        r"""tintWith(self, black, white)"""
 
         if not self.colorspace or self.colorspace.n > 3:
             print("warning: colorspace invalid for function")
             return
 
-        return _fitz.Pixmap_tintWith(self, red, green, blue)
+        return _fitz.Pixmap_tintWith(self, black, white)
 
 
     def clearWith(self, *args):
@@ -3678,12 +3890,6 @@ Pixmap(Document, xref) - from a PDF image"""
 # Register Pixmap in _fitz:
 _fitz.Pixmap_swigregister(Pixmap)
 
-CS_RGB = _fitz.CS_RGB
-
-CS_GRAY = _fitz.CS_GRAY
-
-CS_CMYK = _fitz.CS_CMYK
-
 class Colorspace(object):
     r"""Proxy of C fz_colorspace_s struct."""
 
@@ -3785,162 +3991,8 @@ class Outline(object):
 # Register Outline in _fitz:
 _fitz.Outline_swigregister(Outline)
 
-ANNOT_TEXT = _fitz.ANNOT_TEXT
-
-ANNOT_LINK = _fitz.ANNOT_LINK
-
-ANNOT_FREETEXT = _fitz.ANNOT_FREETEXT
-
-ANNOT_LINE = _fitz.ANNOT_LINE
-
-ANNOT_SQUARE = _fitz.ANNOT_SQUARE
-
-ANNOT_CIRCLE = _fitz.ANNOT_CIRCLE
-
-ANNOT_POLYGON = _fitz.ANNOT_POLYGON
-
-ANNOT_POLYLINE = _fitz.ANNOT_POLYLINE
-
-ANNOT_HIGHLIGHT = _fitz.ANNOT_HIGHLIGHT
-
-ANNOT_UNDERLINE = _fitz.ANNOT_UNDERLINE
-
-ANNOT_SQUIGGLY = _fitz.ANNOT_SQUIGGLY
-
-ANNOT_STRIKEOUT = _fitz.ANNOT_STRIKEOUT
-
-ANNOT_STAMP = _fitz.ANNOT_STAMP
-
-ANNOT_CARET = _fitz.ANNOT_CARET
-
-ANNOT_INK = _fitz.ANNOT_INK
-
-ANNOT_POPUP = _fitz.ANNOT_POPUP
-
-ANNOT_FILEATTACHMENT = _fitz.ANNOT_FILEATTACHMENT
-
-ANNOT_SOUND = _fitz.ANNOT_SOUND
-
-ANNOT_MOVIE = _fitz.ANNOT_MOVIE
-
-ANNOT_WIDGET = _fitz.ANNOT_WIDGET
-
-ANNOT_SCREEN = _fitz.ANNOT_SCREEN
-
-ANNOT_PRINTERMARK = _fitz.ANNOT_PRINTERMARK
-
-ANNOT_TRAPNET = _fitz.ANNOT_TRAPNET
-
-ANNOT_WATERMARK = _fitz.ANNOT_WATERMARK
-
-ANNOT_3D = _fitz.ANNOT_3D
-
-ANNOT_XF_Invisible = _fitz.ANNOT_XF_Invisible
-
-ANNOT_XF_Hidden = _fitz.ANNOT_XF_Hidden
-
-ANNOT_XF_Print = _fitz.ANNOT_XF_Print
-
-ANNOT_XF_NoZoom = _fitz.ANNOT_XF_NoZoom
-
-ANNOT_XF_NoRotate = _fitz.ANNOT_XF_NoRotate
-
-ANNOT_XF_NoView = _fitz.ANNOT_XF_NoView
-
-ANNOT_XF_ReadOnly = _fitz.ANNOT_XF_ReadOnly
-
-ANNOT_XF_Locked = _fitz.ANNOT_XF_Locked
-
-ANNOT_XF_ToggleNoView = _fitz.ANNOT_XF_ToggleNoView
-
-ANNOT_XF_LockedContents = _fitz.ANNOT_XF_LockedContents
-
-ANNOT_LE_None = _fitz.ANNOT_LE_None
-
-ANNOT_LE_Square = _fitz.ANNOT_LE_Square
-
-ANNOT_LE_Circle = _fitz.ANNOT_LE_Circle
-
-ANNOT_LE_Diamond = _fitz.ANNOT_LE_Diamond
-
-ANNOT_LE_OpenArrow = _fitz.ANNOT_LE_OpenArrow
-
-ANNOT_LE_ClosedArrow = _fitz.ANNOT_LE_ClosedArrow
-
-ANNOT_LE_Butt = _fitz.ANNOT_LE_Butt
-
-ANNOT_LE_ROpenArrow = _fitz.ANNOT_LE_ROpenArrow
-
-ANNOT_LE_RClosedArrow = _fitz.ANNOT_LE_RClosedArrow
-
-ANNOT_LE_Slash = _fitz.ANNOT_LE_Slash
-
-ANNOT_WG_NOT_WIDGET = _fitz.ANNOT_WG_NOT_WIDGET
-
-ANNOT_WG_PUSHBUTTON = _fitz.ANNOT_WG_PUSHBUTTON
-
-ANNOT_WG_CHECKBOX = _fitz.ANNOT_WG_CHECKBOX
-
-ANNOT_WG_RADIOBUTTON = _fitz.ANNOT_WG_RADIOBUTTON
-
-ANNOT_WG_TEXT = _fitz.ANNOT_WG_TEXT
-
-ANNOT_WG_LISTBOX = _fitz.ANNOT_WG_LISTBOX
-
-ANNOT_WG_COMBOBOX = _fitz.ANNOT_WG_COMBOBOX
-
-ANNOT_WG_SIGNATURE = _fitz.ANNOT_WG_SIGNATURE
-
-ANNOT_WG_TEXT_UNRESTRAINED = _fitz.ANNOT_WG_TEXT_UNRESTRAINED
-
-ANNOT_WG_TEXT_NUMBER = _fitz.ANNOT_WG_TEXT_NUMBER
-
-ANNOT_WG_TEXT_SPECIAL = _fitz.ANNOT_WG_TEXT_SPECIAL
-
-ANNOT_WG_TEXT_DATE = _fitz.ANNOT_WG_TEXT_DATE
-
-ANNOT_WG_TEXT_TIME = _fitz.ANNOT_WG_TEXT_TIME
-
-WIDGET_Ff_ReadOnly = _fitz.WIDGET_Ff_ReadOnly
-
-WIDGET_Ff_Required = _fitz.WIDGET_Ff_Required
-
-WIDGET_Ff_NoExport = _fitz.WIDGET_Ff_NoExport
-
-WIDGET_Ff_Multiline = _fitz.WIDGET_Ff_Multiline
-
-WIDGET_Ff_Password = _fitz.WIDGET_Ff_Password
-
-WIDGET_Ff_FileSelect = _fitz.WIDGET_Ff_FileSelect
-
-WIDGET_Ff_DoNotSpellCheck = _fitz.WIDGET_Ff_DoNotSpellCheck
-
-WIDGET_Ff_DoNotScroll = _fitz.WIDGET_Ff_DoNotScroll
-
-WIDGET_Ff_Comb = _fitz.WIDGET_Ff_Comb
-
-WIDGET_Ff_RichText = _fitz.WIDGET_Ff_RichText
-
-WIDGET_Ff_NoToggleToOff = _fitz.WIDGET_Ff_NoToggleToOff
-
-WIDGET_Ff_Radio = _fitz.WIDGET_Ff_Radio
-
-WIDGET_Ff_Pushbutton = _fitz.WIDGET_Ff_Pushbutton
-
-WIDGET_Ff_RadioInUnison = _fitz.WIDGET_Ff_RadioInUnison
-
-WIDGET_Ff_Combo = _fitz.WIDGET_Ff_Combo
-
-WIDGET_Ff_Edit = _fitz.WIDGET_Ff_Edit
-
-WIDGET_Ff_Sort = _fitz.WIDGET_Ff_Sort
-
-WIDGET_Ff_MultiSelect = _fitz.WIDGET_Ff_MultiSelect
-
-WIDGET_Ff_CommitOnSelCHange = _fitz.WIDGET_Ff_CommitOnSelCHange
-
 class Annot(object):
-    r"""Proxy of C fz_annot_s struct."""
+    r"""Proxy of C pdf_annot_s struct."""
 
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc='The membership flag')
 
@@ -3995,10 +4047,7 @@ class Annot(object):
 
     def update(self, fontsize=0.0, text_color=None, border_color=None, fill_color=None, rotate=-1):
         r"""Update the appearance of an annotation."""
-
-        if self.type[0] == ANNOT_WIDGET:
-            print("Use updateWidget method for form fields.")
-            return False
+        CheckParent(self)
 
         val = _fitz.Annot_update(self, fontsize, text_color, border_color, fill_color, rotate)
 
@@ -4053,7 +4102,7 @@ class Annot(object):
         ap     = self._getAP()              # get the annot operator source
         ap_updated = False                  # assume we did nothing
 
-        if type == ANNOT_FREETEXT:
+        if type == PDF_ANNOT_FREE_TEXT:
             CheckColor(fill_color)
             CheckColor(border_color)
             CheckColor(text_color)
@@ -4093,10 +4142,10 @@ class Annot(object):
                 ap = b"\n".join(ap_tab)         # updated AP stream
 
         if bfill != "":
-            if type == ANNOT_POLYGON:
+            if type == PDF_ANNOT_POLYGON:
                 ap = ap[:-1] + bfill + b"b" # close, fill, and stroke
                 ap_updated = True
-            elif type == ANNOT_POLYLINE:
+            elif type == PDF_ANNOT_POLYLINE:
                 ap = ap[:-1] + bfill + b"B" # fill and stroke
                 ap_updated = True
 
@@ -4117,7 +4166,7 @@ class Annot(object):
         #----------------------------------------------------------------------
         # the following handles line end symbols for 'Polygon' and 'Polyline
         #----------------------------------------------------------------------
-        if max(line_end_le, line_end_ri) > 0 and type in (ANNOT_POLYGON, ANNOT_POLYLINE):
+        if max(line_end_le, line_end_ri) > 0 and type in (PDF_ANNOT_POLYGON, PDF_ANNOT_POLYLINE):
 
             le_funcs = (None, TOOLS._le_square, TOOLS._le_circle,
                         TOOLS._le_diamond, TOOLS._le_openarrow,
@@ -4201,38 +4250,6 @@ class Annot(object):
 
         return _fitz.Annot_setOpacity(self, opacity)
 
-    @property
-
-    def widget_type(self):
-        r"""widget_type(self) -> PyObject *"""
-        CheckParent(self)
-
-        return _fitz.Annot_widget_type(self)
-
-    @property
-
-    def widget_value(self):
-        r"""widget_value(self) -> PyObject *"""
-        CheckParent(self)
-
-        return _fitz.Annot_widget_value(self)
-
-    @property
-
-    def widget_name(self):
-        r"""widget_name(self) -> PyObject *"""
-        CheckParent(self)
-
-        return _fitz.Annot_widget_name(self)
-
-    @property
-
-    def widget_choices(self):
-        r"""widget_choices(self) -> PyObject *"""
-        CheckParent(self)
-
-        return _fitz.Annot_widget_choices(self)
-
 
     def fileInfo(self):
         r"""Retrieve attached file information."""
@@ -4315,81 +4332,30 @@ class Annot(object):
         CheckParent(self)
 
         val = _fitz.Annot_next(self)
-        if val:
-            val.thisown = True
-            val.parent = self.parent # copy owning page object from previous annot
-            val.parent._annot_refs[id(val)] = val
+
+        if not val:
+            return None
+        val.thisown = True
+        val.parent = self.parent  # copy owning page object from previous annot
+        val.parent._annot_refs[id(val)] = val
+
+        if val.type[0] != PDF_ANNOT_WIDGET:
+            return val
+
+        widget = Widget()
+        TOOLS._fill_widget(val, widget)
+        val = widget
+
 
         return val
 
 
-    def getPixmap(self, matrix=None, colorspace=None, alpha=0):
-        r"""getPixmap(self, matrix=None, colorspace=None, alpha=0) -> Pixmap"""
+    def getPixmap(self, matrix=None, colorspace=None, alpha=1):
+        r"""getPixmap(self, matrix=None, colorspace=None, alpha=1) -> Pixmap"""
         CheckParent(self)
 
         return _fitz.Annot_getPixmap(self, matrix, colorspace, alpha)
 
-
-    def _updateWidget(self, Widget):
-        r"""_updateWidget(self, Widget) -> PyObject *"""
-        CheckParent(self)
-
-        return _fitz.Annot__updateWidget(self, Widget)
-
-
-    def _getWidget(self, Widget):
-        r"""_getWidget(self, Widget) -> PyObject *"""
-        CheckParent(self)
-
-        return _fitz.Annot__getWidget(self, Widget)
-
-
-    @property
-    def widget(self):
-        annot_type = self.type[0]
-        if annot_type != ANNOT_WIDGET:
-            return None
-        w = Widget()
-        w.field_type        = self.widget_type[0]
-        w.field_type_string = self.widget_type[1]
-        w.field_value       = self.widget_value
-        w.field_name        = self.widget_name
-        w.choice_values     = self.widget_choices
-        w.rect              = self.rect
-        w.text_font         = None
-        self._getWidget(w)
-        return w
-
-    def updateWidget(self, widget):
-        if self.widget_type[0] != widget.field_type:
-            raise ValueError("cannot change widget type")
-        widget._validate()
-        doc = self.parent.parent
-        xref = 0
-        ff = doc.FormFonts
-        if not widget.text_font:         # ensure default
-            widget.text_font = "Helv"
-        if not widget.text_font in ff:   # if no existent font ...
-            if not doc.isFormPDF or not ff:   # a fresh /AcroForm PDF!
-                xref = doc._getNewXref()      # insert all our fonts
-                doc._updateObject(xref, Widget_fontobjects)
-            else:                        # add any missing fonts
-                for k in Widget_fontdict.keys():
-                    if not k in ff:      # add our font if missing
-                        doc._addFormFont(k, Widget_fontdict[k])
-            widget._adjust_font()        # ensure correct font spelling
-        widget._dr_xref = xref           # non-zero causes /DR creation
-    # now create the /DA string
-        if   len(widget.text_color) == 3:
-            fmt = "{:g} {:g} {:g} rg /{f:s} {s:g} Tf " + widget._text_da
-        elif len(widget.text_color) == 1:
-            fmt = "{:g} g /{f:s} {s:g} Tf " + widget._text_da
-        elif len(widget.text_color) == 4:
-            fmt = "{:g} {:g} {:g} {:g} k /{f:s} {s:g} Tf " + widget._text_da
-        widget._text_da = fmt.format(*widget.text_color, f=widget.text_font,
-                                    s=widget.text_fontsize)
-    # update the widget at last
-        self._updateWidget(widget)
 
     def _erase(self):
         try:
@@ -4488,7 +4454,7 @@ class Link(object):
         if hasattr(self, "parent") and self.parent is None:
             raise ValueError("orphaned object: parent is None")
         if self.parent.parent.isClosed or self.parent.parent.isEncrypted:
-            raise ValueError("operation illegal for closed / encrypted doc")
+            raise ValueError("document closed or encrypted")
         doc = self.parent.parent
 
         if self.isExternal or self.uri.startswith("#"):
@@ -4580,8 +4546,8 @@ class DisplayList(object):
         return val
 
 
-    def getPixmap(self, matrix=None, colorspace=None, alpha=0, clip=None):
-        r"""getPixmap(self, matrix=None, colorspace=None, alpha=0, clip=None) -> Pixmap"""
+    def getPixmap(self, matrix=None, colorspace=None, alpha=1, clip=None):
+        r"""getPixmap(self, matrix=None, colorspace=None, alpha=1, clip=None) -> Pixmap"""
         return _fitz.DisplayList_getPixmap(self, matrix, colorspace, alpha, clip)
 
     def getTextPage(self, flags=3):
@@ -4764,27 +4730,26 @@ class Tools(object):
         r"""Empty the glyph cache."""
         return _fitz.Tools_glyph_cache_empty(self)
 
+    def _fill_widget(self, annot, widget):
+        r"""_fill_widget(self, annot, widget) -> PyObject *"""
+        val = _fitz.Tools__fill_widget(self, annot, widget)
+
+        widget.rect = Rect(annot.rect)
+        widget.xref = annot.xref
+        widget.parent = annot.parent
+        widget._annot = annot  # backpointer to annot object
+
+
+        return val
+
+
+    def _save_widget(self, annot, widget):
+        r"""_save_widget(self, annot, widget) -> PyObject *"""
+        return _fitz.Tools__save_widget(self, annot, widget)
+
     def _insert_contents(self, fzpage, newcont, overlay):
         r"""_insert_contents(self, fzpage, newcont, overlay) -> PyObject *"""
         return _fitz.Tools__insert_contents(self, fzpage, newcont, overlay)
-    @property
-
-    def fitz_stdout(self):
-        r"""fitz_stdout(self) -> PyObject *"""
-        return _fitz.Tools_fitz_stdout(self)
-
-    def fitz_stdout_reset(self):
-        r"""Empty fitz output log."""
-        return _fitz.Tools_fitz_stdout_reset(self)
-    @property
-
-    def fitz_stderr(self):
-        r"""fitz_stderr(self) -> PyObject *"""
-        return _fitz.Tools_fitz_stderr(self)
-
-    def fitz_stderr_reset(self):
-        r"""Empty fitz error log."""
-        return _fitz.Tools_fitz_stderr_reset(self)
 
     def mupdf_version(self):
         r"""Return compiled MuPDF version."""

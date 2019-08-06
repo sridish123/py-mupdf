@@ -4,7 +4,7 @@ import math
 import os
 import warnings
 import io
-warnings.simplefilter("once")
+
 """
 The following is a collection of functions to extend PyMupdf.
 """
@@ -429,7 +429,7 @@ def getPageText(doc, pno, output="text"):
     return doc[pno].getText(output)
 
 def getPixmap(page, matrix=None, colorspace=csRGB, clip=None,
-              alpha=False):
+              alpha=True):
     """Create pixmap of page.
 
     Args:
@@ -2009,7 +2009,7 @@ def getCharWidths(doc, xref, limit = 256, idx = 0):
 
     return glyphs
 
-class Shape():
+class Shape(object):
     """Create a new shape.
     """
 

@@ -73,7 +73,9 @@ Specifically for **PDF files**, PyMuPDF also provides update access to **low-lev
 
 Other features include embedding vector images (SVG, PDF) such as logos or watermarks, "posterizing" a PDF or creating "booklet" and "4-up" versions.
 
-You can now also create and update **Form PDFs** and **form fields** with support for text, checkbox, listbox and combobox widgets.
+You can also create and update **Form PDFs** and **form fields** with support for text, checkbox, listbox and combobox widgets.
+
+Starting with version 1.16.0, PDF password protection is **fully supported**: owner and user passwords can be set or changed, encryption methods / permission levels can be set, changed or removed.
 
 To some degree, PyMuPDF can also be used as an [image converter](https://github.com/pymupdf/PyMuPDF/wiki/How-to-Convert-Images): it can read a broad range of input formats and can produce **Portable Network Graphics (PNG)**, **Portable Anymaps** (**PNM**, etc.), **Portable Arbitrary Maps (PAM)**, **Adobe Postscript** and **Adobe Photoshop** documents, making the use of other graphics packages obselete in many cases. But interfacing with e.g. PIL/Pillow for image input and output is easy as well.
 

@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: PyMuPDF
-Version: 1.14.20
+Version: 1.16.0
 Author: Ruikai Liu
 Author-email: lrk700@gmail.com
 Maintainer: Jorj X. McKie
@@ -9,18 +9,18 @@ Home-page: https://github.com/pymupdf/PyMuPDF
 Download-url: https://github.com/pymupdf/PyMuPDF
 Summary: PyMuPDF is a Python binding for the PDF rendering library MuPDF
 Description:
-        Release date: July 18, 2019
+        Release date: August 2, 2019
         
         Authors
         =======
         
-        * Ruikai Liu
         * Jorj X. McKie
+        * Ruikai Liu
         
         Introduction
         ============
         
-        This is **version 1.14.20 of PyMuPDF**, a Python binding for `MuPDF <http://mupdf.com/>`_ - "a lightweight PDF and XPS viewer".
+        This is **version 1.16.0 of PyMuPDF**, a Python binding for `MuPDF <http://mupdf.com/>`_ - "a lightweight PDF and XPS viewer".
         
         MuPDF can access files in PDF, XPS, OpenXPS, epub, comic and fiction book formats, and it is known for both, its top performance and high rendering quality.
         
@@ -33,14 +33,16 @@ Description:
         Installation
         ============
         
-        For all MS Windows versions as well as popular Max OS and Linux versions, we are providing Python wheels - see the download section of this site and the current `release directory <https://github.com/pymupdf/PyMuPDF/releases/latest>`_ of our home page. Other platforms need to download and generate the MuPDF library first and then set up PyMuPDF. Do visit our GitHub home, which has more details on this, including latest bugfixes, pre-releases, etc.
+        For all MS Windows versions as well as popular Max OS and Linux versions, we are providing Python wheels - see the download section of this site and the current `release directory <https://github.com/pymupdf/PyMuPDF/releases/latest>`_ of our home page. For Windows users, `zip-based installation <https://github.com/JorjMcKie/PyMuPDF-Optional-Material>`_ options are also available. Other platforms need to download and generate the MuPDF library first and then set up PyMuPDF. Do visit our GitHub home, which has more details on this, including latest bugfixes, pre-releases, etc.
         
         Usage and Documentation
         ========================
         
         For all document types you can render pages in raster (PNG) or vector (SVG) formats, extract text and access meta information, links, annotations and bookmarks, as well as decrypt the document. For PDF files, most of these objects can also be created, modified or deleted. Plus you can rotate, re-arrange, duplicate, create, or delete pages and join or split documents.
         
-        Specifically for PDF files, PyMuPDF provides update access to low-level structure information, supports handling of embedded files and modification of page contents (like inserting images, fonts, text, annotations and drawings). When saving changes to password protected PDFs you can now choose, whether to keep or remove encryption.
+        Since v1.16.0, PDF password protection is fully supported: PDF documents can be encrypted or decrypted, and the encryption method and permissions levels can be freely set.
+        
+        Specifically for PDF files, PyMuPDF provides update access to low-level structure information, supports handling of embedded files and modification of page contents (like inserting images, fonts, text, annotations and drawings).
         
         Other features include embedding vector images (SVG, PDF) such as logos or watermarks, joining or splitting single PDF pages (including things like posterizing and 2-up / 4-up processing).
         
@@ -74,4 +76,5 @@ Classifier: Programming Language :: Python :: 3.4
 Classifier: Programming Language :: Python :: 3.5
 Classifier: Programming Language :: Python :: 3.6
 Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
 Classifier: Topic :: Utilities
