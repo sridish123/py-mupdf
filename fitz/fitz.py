@@ -107,8 +107,8 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 VersionFitz = "1.16.0"
 VersionBind = "1.16.0"
-VersionDate = "2019-08-06 15:20:38"
-version = (VersionBind, VersionFitz, "20190806152038")
+VersionDate = "2019-08-07 07:23:34"
+version = (VersionBind, VersionFitz, "20190807072334")
 
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
 
