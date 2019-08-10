@@ -429,7 +429,7 @@ def getPageText(doc, pno, output="text"):
     return doc[pno].getText(output)
 
 def getPixmap(page, matrix=None, colorspace=csRGB, clip=None,
-              alpha=True):
+              alpha=False):
     """Create pixmap of page.
 
     Args:

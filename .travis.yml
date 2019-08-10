@@ -8,7 +8,7 @@ cache:
   - "$HOME/Library/Caches/Homebrew"
 env:
   global:
-  - MUPDF='https://mupdf.com/downloads/archive/mupdf-1.16.0-source.tar.gz'
+  - MUPDF='https://mupdf.com/downloads/archive/mupdf-1.14.0-source.tar.gz'
   - COPYFILE_DISABLE=1
 matrix:
   include:
@@ -23,6 +23,7 @@ matrix:
       HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .."
     - export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
   - os: osx
+    osx_image: xcode10.2
     language: shell
     services:
     - docker
@@ -39,6 +40,8 @@ install:
 - "$PIP install cibuildwheel"
 - mkdir mupdf && wget -q $MUPDF -O - | tar zx -C mupdf --strip-components=1
 - cp fitz/_config.h mupdf/include/mupdf/fitz/config.h
+- cp fitz/_pdf-device.c mupdf/source/pdf/pdf-device.c
+- cp fitz/_error.c mupdf/source/fitz/error.c
 
 script:
 - export CIBW_SKIP="cp33-* *i686"

@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-import sys
 from fitz.fitz import *
 
 # define the supported colorspaces for convenience
@@ -79,7 +78,8 @@ fitz.Rect.getArea = fitz.utils.getRectArea
 fitz.IRect.getRectArea = fitz.utils.getRectArea
 fitz.IRect.getArea = fitz.utils.getRectArea
 
-fitz.__doc__ = """PyMuPDF %s: Python bindings for the MuPDF %s library.
+fitz.__doc__ = """
+PyMuPDF %s: Python bindings for the MuPDF %s library.
 Version date: %s.
 Built for Python %i.%i on %s (%i-bit).
 """ % (
