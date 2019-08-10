@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import sys
 from fitz.fitz import *
 
 # define the supported colorspaces for convenience
