@@ -1,4 +1,4 @@
-# PyMuPDF 1.14.20
+# PyMuPDF 1.16.0
 
 ![logo](https://github.com/pymupdf/PyMuPDF/blob/master/demo/pymupdf.jpg)
 
@@ -14,7 +14,7 @@ On **[PyPI](https://pypi.org/project/PyMuPDF)** since August 2016: [![](https://
 
 # Introduction
 
-This is **version 1.14.20 of PyMuPDF (formerly python-fitz)**, a Python binding with support for [MuPDF 1.14.x](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
+This is **version 1.16.0 of PyMuPDF (formerly python-fitz)**, a Python binding with support for [MuPDF 1.16.x](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
 
 MuPDF can access files in PDF, XPS, OpenXPS, CBZ, EPUB and FB2 (e-books) formats, and it is known for its top performance and high rendering quality.
 
@@ -44,7 +44,7 @@ To do this, you must download and generate MuPDF. This process depends very much
 * Since PyMuPDF v1.14.17, the sources provided in this repository **no longer contain** the interface files ``fitz.py`` and ``fitz.wrap.c`` - they are generated **"on the fly"** by ``setup.py`` using the interface generator [SWIG](http://www.swig.org/). So you need SWIG being installed on your system. Please refer to issue #312 for a background.
 
 * If you do **not (want to) use SWIG** for generating PyMuPDF, please download the **sources from PyPI** - they continue to contain the interface files.
-    - Side note: those files have been generated using **SWIG v4.0.0**, which implements important improvements regarding security and also generates a much simpler ``fitz.py``. Our wheels are based on this SWIG version, too.
+    - Side note: those files have been generated using **SWIG v4.0.0**, which implements improvements regarding security and also generates a simpler ``fitz.py``. Our wheels are based on this SWIG version, too.
 
 Once this is done, adjust directories in ``setup.py`` and run ``python setup.py install``.
 
