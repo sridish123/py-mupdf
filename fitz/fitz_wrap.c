@@ -2731,7 +2731,6 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
 
 #include <fitz.h>
 #include <pdf.h>
-#include <zlib.h>
 #include <time.h>
 char *JM_Python_str_AsChar(PyObject *str);
 pdf_obj *pdf_lookup_page_loc(fz_context *ctx, pdf_document *doc, int needle, pdf_obj **parentp, int *indexp);
@@ -3027,7 +3026,7 @@ int JM_is_valid_quad(fz_quad q)
 //-----------------------------------------------------------------------------
 // PySequence to quad. Default: quad of four (0, 0) points.
 // Four floats are treated as coordinates of a rect, and its corners will
-// define the quad.
+// define the quad. Four pairs of floats are taken to make a quad.
 //-----------------------------------------------------------------------------
 fz_quad JM_quad_from_py(PyObject *r)
 {
@@ -3086,6 +3085,16 @@ fz_quad JM_quad_from_py(PyObject *r)
     q.ll = p[2];
     q.lr = p[3];
     return q;
+}
+
+PyObject *JM_py_from_quad(fz_quad quad)
+{
+    PyObject *pquad = PyList_New(4);
+    PyList_SET_ITEM(pquad, 0, Py_BuildValue("[ff]", quad.ul.x, quad.ul.y));
+    PyList_SET_ITEM(pquad, 1, Py_BuildValue("[ff]", quad.ur.x, quad.ur.y));
+    PyList_SET_ITEM(pquad, 2, Py_BuildValue("[ff]", quad.ll.x, quad.ll.y));
+    PyList_SET_ITEM(pquad, 3, Py_BuildValue("[ff]", quad.lr.x, quad.lr.y));
+    return pquad;
 }
 
 //-----------------------------------------------------------------------------
@@ -3457,11 +3466,18 @@ const char *JM_image_extension(int type)
 //----------------------------------------------------------------------------
 PyObject *JM_BinFromBuffer(fz_context *ctx, fz_buffer *buffer)
 {
+
+#if  PY_VERSION_HEX < 0x03000000
+ #define PyBytes_FromString(x) PyString_FromString(x)
+ #define PyBytes_FromStringAndSize(c, l) PyString_FromStringAndSize(c, l)
+#endif
+
     PyObject *bytes = PyBytes_FromString("");
     if (buffer)
     {
         char *c = NULL;
         size_t len = fz_buffer_storage(gctx, buffer, &c);
+        Py_DECREF(bytes);
         bytes = PyBytes_FromStringAndSize(c, (Py_ssize_t) len);
     }
     return bytes;
@@ -3477,6 +3493,7 @@ PyObject *JM_BArrayFromBuffer(fz_context *ctx, fz_buffer *buffer)
     if (buffer)
     {
         size_t len = fz_buffer_storage(ctx, buffer, &c);
+        Py_DECREF(bytes);
         bytes = PyByteArray_FromStringAndSize(c, (Py_ssize_t) len);
     }
     return bytes;
@@ -3497,6 +3514,7 @@ PyObject *JM_B64FromBuffer(fz_context *ctx, fz_buffer *buffer)
         fz_output *out = fz_new_output_with_buffer(ctx, res);
         fz_write_base64(ctx, out, (const unsigned char *) c, (int) len, 0);
         size_t nlen = fz_buffer_storage(ctx, res, &b64);
+        Py_DECREF(bytes);
         bytes = PyBytes_FromStringAndSize(b64, (Py_ssize_t) nlen);
         fz_drop_buffer(ctx, res);
         fz_drop_output(ctx, out);
@@ -3505,33 +3523,26 @@ PyObject *JM_B64FromBuffer(fz_context *ctx, fz_buffer *buffer)
 }
 
 //----------------------------------------------------------------------------
-// deflate char* into a buffer
-// this is a copy of function "deflatebuf" of pdf_write.c
+// compress char* into a new buffer
 //----------------------------------------------------------------------------
-fz_buffer *JM_deflatebuf(fz_context *ctx, unsigned char *p, size_t n)
+fz_buffer *JM_compress_buffer(fz_context *ctx, fz_buffer *inbuffer)
 {
     fz_buffer *buf = NULL;
-    uLongf csize;
-    int t;
-    uLong longN = (uLong) n;
-    unsigned char *data = NULL;
-    size_t cap;
     fz_try(ctx)
     {
-        if (n != (size_t)longN) THROWMSG("buffer too large to deflate");
-        cap = compressBound(longN);
-        data = fz_malloc(ctx, cap);
-        buf = fz_new_buffer_from_data(ctx, data, cap);
-        csize = (uLongf)cap;
-        t = compress(data, &csize, p, longN);
-        if (t != Z_OK) THROWMSG("cannot deflate buffer");
+        size_t compressed_length = 0;
+        unsigned char *data = fz_new_deflated_data_from_buffer(ctx,
+                              &compressed_length, inbuffer, FZ_DEFLATE_BEST);
+        if (data == NULL || compressed_length == 0)
+            return NULL;
+        buf = fz_new_buffer_from_data(ctx, data, compressed_length);
+        fz_resize_buffer(ctx, buf, compressed_length);
     }
     fz_catch(ctx)
     {
         fz_drop_buffer(ctx, buf);
         fz_rethrow(ctx);
     }
-    fz_resize_buffer(ctx, buf, csize);
     return buf;
 }
 
@@ -3541,17 +3552,18 @@ fz_buffer *JM_deflatebuf(fz_context *ctx, unsigned char *p, size_t n)
 //----------------------------------------------------------------------------
 void JM_update_stream(fz_context *ctx, pdf_document *doc, pdf_obj *obj, fz_buffer *buffer, int compress)
 {
-    size_t len, nlen;
-    unsigned char *data = NULL;
+    
     fz_buffer *nres = NULL;
-    len = fz_buffer_storage(ctx, buffer, &data);
-    nlen = len;
-    if (len > 20)       // ignore small stuff
+    size_t len = fz_buffer_storage(ctx, buffer, NULL);
+    size_t nlen = len;
+
+    if (len > 30)       // ignore small stuff
     {
-        nres = JM_deflatebuf(ctx, data, len);
+        nres = JM_compress_buffer(ctx, buffer);
         nlen = fz_buffer_storage(ctx, nres, NULL);
     }
-    if (nlen < len && compress==1)  // was it worth the effort?
+
+    if (nlen < len && nres && compress==1)  // was it worth the effort?
     {
         pdf_dict_put(ctx, obj, PDF_NAME(Filter), PDF_NAME(FlateDecode));
         pdf_update_stream(ctx, doc, obj, nres, 1);
@@ -9178,13 +9190,13 @@ SWIGINTERN PyObject *fz_pixmap_s_setAlpha(struct fz_pixmap_s *self,PyObject *alp
 SWIGINTERN PyObject *fz_pixmap_s__getImageData(struct fz_pixmap_s *self,int format){
             fz_output *out = NULL;
             fz_buffer *res = NULL;
-            // the following will be returned:
             PyObject *barray = NULL;
             fz_try(gctx)
             {
                 size_t size = fz_pixmap_stride(gctx, self) * self->h;
                 res = fz_new_buffer(gctx, size);
                 out = fz_new_output_with_buffer(gctx, res);
+
                 switch(format)
                 {
                     case(1):
@@ -10111,12 +10123,9 @@ SWIGINTERN PyObject *fz_stext_page_s_search(struct fz_stext_page_s *self,char co
             int count = fz_search_stext_page(gctx, self, needle, result, hit_max);
             for (i = 0; i < count; i++)
             {
-                PyList_Append(liste,
-                              Py_BuildValue("(ff),(ff),(ff),(ff)",
-                                            quad->ul.x, quad->ul.y,
-                                            quad->ur.x, quad->ur.y,
-                                            quad->ll.x, quad->ll.y,
-                                            quad->lr.x, quad->lr.y));
+                PyObject *pquad = JM_py_from_quad(*quad);
+                PyList_Append(liste, pquad);
+                Py_DECREF(pquad);
                 quad += 1;
             }
             JM_Free(result);
@@ -10268,7 +10277,7 @@ SWIGINTERN PyObject *fz_stext_page_s__getCharList(struct fz_stext_page_s *self,i
                 int flags = JM_char_font_flags(gctx, ch->font, line, ch);
                 PyObject *uchar = PyUnicode_FromStringAndSize(data, len);
                 PyObject *ufont = JM_UnicodeFromASCII(fz_font_name(gctx, ch->font));
-                PyObject *item = Py_BuildValue("fffffffiOO",
+                PyObject *item = Py_BuildValue("fffffffiOiO",
                                                 ch->origin.x,
                                                 ch->origin.y,
                                                 r.x0,
@@ -10278,6 +10287,7 @@ SWIGINTERN PyObject *fz_stext_page_s__getCharList(struct fz_stext_page_s *self,i
                                                 ch->size,
                                                 flags,
                                                 ufont,
+                                                ch->color,
                                                 uchar);
                 PyList_Append(list, item);
                 Py_DECREF(uchar);

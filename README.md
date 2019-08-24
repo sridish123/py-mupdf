@@ -37,7 +37,7 @@ To do this, you must download and generate MuPDF. This process depends very much
 * Be sure to download the official MuPDF source release from [here](https://mupdf.com/downloads/archive). Do **not use** MuPDF's [GitHub repo](https://github.com/ArtifexSoftware/mupdf). It contains their current **development source**, which is **not compatible** with this PyMuPDF version most of the time.
 
 * The repo's `fitz` folder contains a few files whose names start with an underscore `"_"`. These files contain configuration data and hotfixes. Each one must be copy-renamed to its correct target location of the MuPDF source that you have downloaded, **before you generate MuPDF**. Currently, these files are:
-  - fitz configuration file `_mupdf_config.h` copy-replace to: `mupdf/include/mupdf/fitz/config.h`. It contains configuration data like e.g. which fonts to support.
+  - fitz configuration file `_config.h` copy-replace to: `mupdf/include/mupdf/fitz/config.h`. It contains configuration data like e.g. which fonts to support.
 
   - Now MuPDF can be generated.
 
@@ -75,7 +75,7 @@ Other features include embedding vector images (SVG, PDF) such as logos or water
 
 You can also create and update **Form PDFs** and **form fields** with support for text, checkbox, listbox and combobox widgets.
 
-Starting with version 1.16.0, PDF password protection is **fully supported**: owner and user passwords can be set or changed, encryption methods / permission levels can be set, changed or removed.
+Starting with version 1.16.0, PDF password protection is **fully supported**: passwords, encryption methods and permission levels can be set, changed or removed.
 
 To some degree, PyMuPDF can also be used as an [image converter](https://github.com/pymupdf/PyMuPDF/wiki/How-to-Convert-Images): it can read a broad range of input formats and can produce **Portable Network Graphics (PNG)**, **Portable Anymaps** (**PNM**, etc.), **Portable Arbitrary Maps (PAM)**, **Adobe Postscript** and **Adobe Photoshop** documents, making the use of other graphics packages obselete in many cases. But interfacing with e.g. PIL/Pillow for image input and output is easy as well.
 
