@@ -19524,7 +19524,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools__update_da", _wrap_Tools__update_da, METH_VARARGS, "Tools__update_da(self, annot, da_str) -> PyObject *"},
 	 { "Tools__insert_contents", _wrap_Tools__insert_contents, METH_VARARGS, "Make a new /Contents object for a page from bytes, and return its xref."},
 	 { "Tools_mupdf_version", _wrap_Tools_mupdf_version, METH_O, "Return compiled MuPDF version."},
-	 { "Tools_mupdf_warnings", _wrap_Tools_mupdf_warnings, METH_O, "Return MuPDF warnings."},
+	 { "Tools_mupdf_warnings", _wrap_Tools_mupdf_warnings, METH_O, "Tools_mupdf_warnings(self) -> PyObject *"},
 	 { "Tools_reset_mupdf_warnings", _wrap_Tools_reset_mupdf_warnings, METH_O, "Reset MuPDF warnings."},
 	 { "Tools__transform_rect", _wrap_Tools__transform_rect, METH_VARARGS, "Transform rectangle with matrix."},
 	 { "Tools__intersect_rect", _wrap_Tools__intersect_rect, METH_VARARGS, "Intersect two rectangles."},

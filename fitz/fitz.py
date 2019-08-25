@@ -107,8 +107,8 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 VersionFitz = "1.16.0"
 VersionBind = "1.16.0"
-VersionDate = "2019-08-24 04:37:33"
-version = (VersionBind, VersionFitz, "20190824043733")
+VersionDate = "2019-08-25 01:01:00"
+version = (VersionBind, VersionFitz, "20190825010100")
 
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
 
@@ -5022,12 +5022,12 @@ class Tools(object):
     def mupdf_version(self):
         r"""Return compiled MuPDF version."""
         return _fitz.Tools_mupdf_version(self)
+    property
 
     def mupdf_warnings(self):
-        r"""Return MuPDF warnings."""
+        r"""mupdf_warnings(self) -> PyObject *"""
         val = _fitz.Tools_mupdf_warnings(self)
-
-        return "\n".join(val)
+        val = "\n".join(val)
 
         return val
 
