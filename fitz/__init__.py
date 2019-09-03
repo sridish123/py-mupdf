@@ -22,10 +22,6 @@ if fitz.VersionFitz != fitz.TOOLS.mupdf_version():
             "MuPDF library mismatch %s <> %s"
             % (fitz.VersionFitz, fitz.TOOLS.mupdf_version())
         )
-    print(
-        "Warning: MuPDF library patch level mismatch %s <> %s"
-        % (fitz.VersionFitz, fitz.TOOLS.mupdf_version())
-    )
 
 
 # copy functions to their respective fitz classes
