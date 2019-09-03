@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import sys
 from fitz.fitz import *
 
@@ -15,8 +15,15 @@ TOOLS = fitz.Tools()
 fitz.TOOLS = TOOLS
 
 if fitz.VersionFitz != fitz.TOOLS.mupdf_version():
-    raise ValueError(
-        "MuPDF library mismatch %s <> %s"
+    v1 = fitz.VersionFitz.split(".")
+    v2 = fitz.TOOLS.mupdf_version().split(".")
+    if v1[:-1] != v2[:-1]:
+        raise ValueError(
+            "MuPDF library mismatch %s <> %s"
+            % (fitz.VersionFitz, fitz.TOOLS.mupdf_version())
+        )
+    print(
+        "Warning: MuPDF library patch level mismatch %s <> %s"
         % (fitz.VersionFitz, fitz.TOOLS.mupdf_version())
     )
 
