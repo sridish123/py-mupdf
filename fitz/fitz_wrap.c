@@ -2725,9 +2725,6 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
 #define JM_BinFromCharSize(x, y) PyByteArray_FromStringAndSize(x, (Py_ssize_t) y)
 # endif
 
-// define Python None object
-#define NONE Py_None
-
 #include <fitz.h>
 #include <pdf.h>
 #include <time.h>
@@ -3641,7 +3638,7 @@ void hexlify(int n, unsigned char *in, unsigned char *out)
 fz_buffer *JM_BufferFromBytes(fz_context *ctx, PyObject *stream)
 {
     if (!stream) return NULL;
-    if (stream == NONE) return NULL;
+    if (stream == Py_None) return NULL;
     char *c = NULL;
     PyObject *mybytes = NULL;
     size_t len = 0;
@@ -6440,7 +6437,7 @@ SWIGINTERN struct fz_document_s *new_fz_document_s(char const *filename,PyObject
 
             fz_try(gctx)
             {
-                if (stream != NONE)  // stream given, **MUST** be bytes!
+                if (stream != Py_None)  // stream given, **MUST** be bytes!
                 {
                     c = PyBytes_AS_STRING(stream); // just a pointer, no new obj
                     len = (size_t) PyBytes_Size(stream);
@@ -7685,12 +7682,12 @@ SWIGINTERN PyObject *fz_document_s_FormFonts(struct fz_document_s *self){
                     }
                 }
             }
-            fz_catch(gctx) NONE;       // any problem yields None
+            fz_catch(gctx) Py_RETURN_NONE;       // any problem yields None
             return liste;
         }
 SWIGINTERN PyObject *fz_document_s__addFormFont(struct fz_document_s *self,char *name,char *font){
             pdf_document *pdf = pdf_specifics(gctx, self);
-            if (!pdf) NONE;           // not a PDF
+            if (!pdf) Py_RETURN_NONE;  // not a PDF
             pdf_obj *fonts = NULL;
             fz_try(gctx)
             {
@@ -7812,7 +7809,7 @@ SWIGINTERN PyObject *fz_document_s__getTrailerString(struct fz_document_s *self,
                     pdf_print_obj(gctx, out, obj, compressed, ascii);
                     text = JM_StrFromBuffer(gctx, res);
                 }
-                else text = NONE;
+                else text = Py_None;
             }
             fz_always(gctx)
             {
@@ -7824,7 +7821,7 @@ SWIGINTERN PyObject *fz_document_s__getTrailerString(struct fz_document_s *self,
         }
 SWIGINTERN PyObject *fz_document_s__getXrefStream(struct fz_document_s *self,int xref){
             pdf_document *pdf = pdf_specifics(gctx, self);
-            PyObject *r = NONE;
+            PyObject *r = Py_None;
             pdf_obj *obj = NULL;
             fz_var(obj);
             fz_buffer *res = NULL;
@@ -9514,7 +9511,7 @@ SWIGINTERN PyObject *pdf_annot_s_xref(struct pdf_annot_s *self){
             return Py_BuildValue("i", i);
         }
 SWIGINTERN PyObject *pdf_annot_s__getAP(struct pdf_annot_s *self){
-            PyObject *r = NONE;
+            PyObject *r = Py_None;
             fz_buffer *res = NULL;
             fz_try(gctx)
             {
@@ -9577,7 +9574,7 @@ SWIGINTERN PyObject *pdf_annot_s_setRect(struct pdf_annot_s *self,PyObject *rect
             Py_RETURN_NONE;
         }
 SWIGINTERN PyObject *pdf_annot_s_vertices(struct pdf_annot_s *self){
-            PyObject *res = NONE;
+            PyObject *res = Py_None;
             pdf_obj *o;
             //----------------------------------------------------------------
             // The following objects occur in different annotation types.

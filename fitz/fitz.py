@@ -78,8 +78,8 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 VersionFitz = "1.16.0"
 VersionBind = "1.16.2"
-VersionDate = "2019-09-09 13:15:28"
-version = (VersionBind, VersionFitz, "20190909131528")
+VersionDate = "2019-09-09 17:38:32"
+version = (VersionBind, VersionFitz, "20190909173832")
 
 EPSILON = _fitz.EPSILON
 
