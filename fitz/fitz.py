@@ -77,9 +77,11 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.1"
-VersionDate = "2019-09-03 19:21:33"
-version = (VersionBind, VersionFitz, "20190903192133")
+VersionBind = "1.16.2"
+VersionDate = "2019-09-09 13:15:28"
+version = (VersionBind, VersionFitz, "20190909131528")
+
+EPSILON = _fitz.EPSILON
 
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
 
@@ -451,8 +453,8 @@ class Matrix(object):
         if len(args) == 1:                       # either an angle or a sequ
             if hasattr(args[0], "__float__"):
                 theta = math.radians(args[0])
-                c = round(math.cos(theta), 12)
-                s = round(math.sin(theta), 12)
+                c = math.cos(theta)
+                s = math.sin(theta)
                 self.a = self.d = c
                 self.b = s
                 self.c = -s
@@ -523,11 +525,10 @@ class Matrix(object):
         theta = float(theta)
         while theta < 0: theta += 360
         while theta >= 360: theta -= 360
-        epsilon = 1e-5
-        if abs(0 - theta) < epsilon:
+        if abs(0 - theta) < EPSILON:
             pass
 
-        elif abs(90.0 - theta) < epsilon:
+        elif abs(90.0 - theta) < EPSILON:
             a = self.a
             b = self.b
             self.a = self.c
@@ -535,13 +536,13 @@ class Matrix(object):
             self.c = -a
             self.d = -b
 
-        elif abs(180.0 - theta) < epsilon:
+        elif abs(180.0 - theta) < EPSILON:
             self.a = -self.a
             self.b = -self.b
             self.c = -self.c
             self.d = -self.d
 
-        elif abs(270.0 - theta) < epsilon:
+        elif abs(270.0 - theta) < EPSILON:
             a = self.a
             b = self.b
             self.a = -self.c
@@ -551,8 +552,8 @@ class Matrix(object):
 
         else:
             rad = math.radians(theta)
-            s = round(math.sin(rad), 12)
-            c = round(math.cos(rad), 12)
+            s = math.sin(rad)
+            c = math.cos(rad)
             a = self.a
             b = self.b
             self.a = c * a + s * self.c
@@ -656,9 +657,8 @@ class Matrix(object):
 
     @property
     def isRectilinear(self):
-        epsilon = 1e-5
-        return (abs(self.b) < epsilon and abs(self.c) < epsilon) or \
-            (abs(self.a) < epsilon and abs(self.d) < epsilon);
+        return (abs(self.b) < EPSILON and abs(self.c) < EPSILON) or \
+            (abs(self.a) < EPSILON and abs(self.d) < EPSILON);
 
 
 class IdentityMatrix(Matrix):
@@ -728,7 +728,7 @@ class Point(object):
     def unit(self):
         """Return unit vector of a point."""
         s = self.x * self.x + self.y * self.y
-        if s < 1e-5:
+        if s < EPSILON:
             return Point(0,0)
         s = math.sqrt(s)
         return Point(self.x / s, self.y / s)
@@ -737,7 +737,7 @@ class Point(object):
     def abs_unit(self):
         """Return unit vector of a point with positive coordinates."""
         s = self.x * self.x + self.y * self.y
-        if s < 1e-5:
+        if s < EPSILON:
             return Point(0,0)
         s = math.sqrt(s)
         return Point(abs(self.x) / s, abs(self.y) / s)
@@ -1115,7 +1115,7 @@ class Rect(object):
     def intersects(self, x):
         """Check if intersection with rectangle x is not empty."""
         r1 = Rect(x)
-        if self.isEmpty or self.isInfinite or r1.isEmpty:
+        if self.isEmpty or self.isInfinite or r1.isEmpty or r1.isInfinite:
             return False
         r = Rect(self)
         if r.intersect(r1).isEmpty:
@@ -1232,18 +1232,17 @@ class Quad(object):
         Notes:
             Some rotation matrix can thus transform it into a rectangle.
         """
-        eps = 1.0e-5
 
         a = TOOLS._angle_between(self.ul, self.ur, self.lr)
-        if abs(a.y - 1) > eps:
+        if abs(a.y - 1) > EPSILON:
             return False
 
         a = TOOLS._angle_between(self.ur, self.lr, self.ll)
-        if abs(a.y - 1) > eps:
+        if abs(a.y - 1) > EPSILON:
             return False
 
         a = TOOLS._angle_between(self.lr, self.ll, self.ul)
-        if abs(a.y - 1) > eps:
+        if abs(a.y - 1) > EPSILON:
             return False
 
         return True
@@ -1286,12 +1285,11 @@ class Quad(object):
         """
         if self.isRectangular:
             return False
-        eps = 1e-5
         ul = Point()
         ur = (self.ur - self.ul).abs_unit
         lr = (self.lr - self.ul).abs_unit
         ll = (self.ll - self.ul).abs_unit
-        if max(ur.y, lr.y, ll.y) - min(ur.y, lr.y, ll.y) < eps:
+        if max(ur.y, lr.y, ll.y) - min(ur.y, lr.y, ll.y) < EPSILON:
             return True
         return False
 
@@ -1633,7 +1631,7 @@ def _toc_remove_page(toc, first, last):
     count = last - first + 1  # number of pages to remove
 # step 1: remove numbers from toc
     for t in toc:
-        if first <= t[2] <= last:  # skip these entries
+        if first <= t[2] <= last:  # skip entries between first and last
             continue
         if t[2] < first:  # keep smaller page numbers
             toc2.append(t)
@@ -1651,9 +1649,9 @@ def _toc_remove_page(toc, first, last):
 
 # step 2: deal with hierarchy lvl gaps > 1
     for t in toc2:
-        while t[0] - old_lvl > 1:
-            old_lvl += 1
-            toc3.append([old_lvl] + t[1:])
+        while t[0] - old_lvl > 1:  # lvl gap too large
+            old_lvl += 1  # increase previous lvl
+            toc3.append([old_lvl] + t[1:])  # insert a filler item
         old_lvl = t[0]
         toc3.append(t)
 
@@ -2118,6 +2116,22 @@ def UpdateFontInfo(doc, info):
 
 def DUMMY(*args, **kw):
     return
+
+
+def planishLine(p1, p2):
+    """Return matrix which flattens out the line from p1 to p2.
+
+    Args:
+        p1, p2: point_like
+    Returns:
+        Matrix which maps p1 to Point(0,0) and p2 to a point on the x axis at
+        the same distance to Point(0,0). Will always combine a rotation and a
+        transformation.
+    """ 
+    p1 = Point(p1)
+    p2 = Point(p2)
+    return TOOLS._hor_matrix(p1, p2)
+
 
 def ImageProperties(img):
     """ Return basic properties of an image.
@@ -5096,7 +5110,7 @@ class Tools(object):
         Notes:
             Given two points C, P calculate matrix that rotates and translates the
             vector C -> P such that C is mapped to Point(0, 0), and P to some point
-            on the x axis.
+            on the x axis maintaining the distance between the points.
             If C == P, the null matrix will result.
         Returns:
             Matrix m such that C * m = (0, 0) and (P * m).y = 0.

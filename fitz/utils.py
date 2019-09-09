@@ -2258,7 +2258,7 @@ class Shape(object):
     def drawCircle(self, center, radius):
         """Draw a circle given its center and radius.
         """
-        if not radius > 1e-5:
+        if not radius > EPSILON:
             raise ValueError("radius must be postive")
         center = Point(center)
         p1 = center - (radius, 0)
@@ -2298,7 +2298,7 @@ class Shape(object):
         S = P - C                               # vector 'center' -> 'point'
         rad = abs(S)                            # circle radius
 
-        if not rad > 1e-5:
+        if not rad > EPSILON:
             raise ValueError("radius must be positive")
 
         alfa = self.horizontal_angle(center, point)
@@ -2790,11 +2790,11 @@ class Shape(object):
 
         more = (pos - maxpos) * progr           # difference to rect size limit
 
-        if more > 1e-5:                         # landed too much outside rect
+        if more > EPSILON:                         # landed too much outside rect
             return (-1) * more                  # return deficit, don't output
 
         more = abs(more)
-        if more < 1e-5:
+        if more < EPSILON:
             more = 0                            # don't bother with epsilons
         nres = "\nq BT\n" + cm                # initialize output buffer
         templ = "1 0 0 1 %g %g Tm /%s %g Tf "
