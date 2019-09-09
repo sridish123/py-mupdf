@@ -2687,6 +2687,10 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
 #define DEBUGMSG2
 #endif
 
+#ifndef FLT_EPSILON
+  #define FLT_EPSILON 1e-5
+#endif
+
 #define SWIG_FILE_WITH_INIT
 #define SWIG_PYTHON_2_UNICODE
 
