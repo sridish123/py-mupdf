@@ -2715,7 +2715,8 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
 #define INRANGE(v, low, high) ((low) <= v && v <= (high))
 #define MAX(a, b) ((a) < (b)) ? (b) : (a)
 #define MIN(a, b) ((a) < (b)) ? (a) : (b)
-#define JM_StrFromBuffer(ctx, x) PyUnicode_DecodeUTF8(fz_string_from_buffer(ctx, x), (Py_ssize_t) fz_buffer_storage(ctx, x, NULL), "replace")
+//#define JM_StrFromBuffer(ctx, x) PyUnicode_DecodeUTF8(fz_string_from_buffer(ctx, x), (Py_ssize_t) fz_buffer_storage(ctx, x, NULL), "replace")
+#define JM_StrFromBuffer(ctx, x) PyUnicode_FromFormat("%s", fz_string_from_buffer(ctx, x))
 #define JM_PyErr_Clear if (PyErr_Occurred()) PyErr_Clear()
 
 // binary output depends on Python major
@@ -4614,6 +4615,14 @@ int JM_char_font_flags(fz_context *ctx, fz_font *font, fz_stext_line *line, fz_s
     flags += fz_font_is_monospaced(ctx, font) * 8;
     flags += fz_font_is_bold(ctx, font) * 16;
     return flags;
+}
+
+// for faling back to replacement character 0xB7
+PyObject *JM_repl_char()
+{
+    char data[10];
+    Py_ssize_t len = (Py_ssize_t) fz_runetochar(data, 0xb7);
+    return PyUnicode_FromStringAndSize(data, len);
 }
 
 
@@ -7786,12 +7795,14 @@ SWIGINTERN PyObject *fz_document_s__getXrefString(struct fz_document_s *self,int
                 pdf_print_obj(gctx, out, pdf_resolve_indirect(gctx, obj),
                               compressed, ascii);
                 text = JM_StrFromBuffer(gctx, res);
+                if (!text) text = Py_None;
             }
             fz_always(gctx)
             {
                 pdf_drop_obj(gctx, obj);
                 fz_drop_output(gctx, out);
                 fz_drop_buffer(gctx, res);
+                PyErr_Clear();
             }
             fz_catch(gctx) return NULL;
             return text;
@@ -10330,7 +10341,6 @@ SWIGINTERN PyObject *fz_stext_page_s__getCharList(struct fz_stext_page_s *self,i
             fz_stext_char *ch;
             PyObject *uchar;
             int i = -1, j = -1, n = 0;
-            char data[10];
             for (block = self->first_block; block; block = block->next)
             {
                 i++;
@@ -10352,11 +10362,10 @@ SWIGINTERN PyObject *fz_stext_page_s__getCharList(struct fz_stext_page_s *self,i
             for (ch = line->first_char; ch; ch = ch->next)
             {
                 fz_rect r = JM_char_bbox(line, ch);
-                Py_ssize_t len = (Py_ssize_t) fz_runetochar(data, ch->c);
                 int flags = JM_char_font_flags(gctx, ch->font, line, ch);
-                uchar = PyUnicode_FromStringAndSize(data, len);
-                if (!uchar || len == 0 || PyErr_Occurred()) uchar = PyUnicode_FromString("?");
                 PyObject *ufont = JM_UnicodeFromASCII(fz_font_name(gctx, ch->font));
+                uchar = PyUnicode_FromFormat("%c", ch->c);
+                if (!uchar) uchar = JM_repl_char();
                 PyObject *item = Py_BuildValue("fffffffiOiO",
                                                 ch->origin.x,
                                                 ch->origin.y,
@@ -10370,7 +10379,7 @@ SWIGINTERN PyObject *fz_stext_page_s__getCharList(struct fz_stext_page_s *self,i
                                                 ch->color,
                                                 uchar);
                 PyList_Append(list, item);
-                Py_XDECREF(uchar);
+                Py_DECREF(uchar);
                 Py_DECREF(ufont);
                 Py_DECREF(item);
                 PyErr_Clear();

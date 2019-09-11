@@ -434,23 +434,21 @@ def searchPageFor(doc, pno, text, hit_max=16, quads=False):
     return doc[pno].searchFor(text, hit_max = hit_max, quads = quads)
 
 
-def getTextBlocks(page, images=False):
+def getTextBlocks(page, flags=None):
     """Return the text blocks on a page.
 
     Notes:
         Lines in a block are concatenated with line breaks.
     Args:
-        images: (bool) also return meta data of any images.
-        Image data are never returned with this method.
+        flags: (int) control the amount of data parsed into the textpage.
     Returns:
         A list of the blocks. Each item contains the containing rectangle coordinates,
         text lines, block type and running block number.
     """
     CheckParent(page)
     dl = page.getDisplayList()
-    flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
-    if images:
-        flags |= TEXT_PRESERVE_IMAGES
+    if flags is None:
+        flags = TEXT_PRESERVE_LIGATURES | TEXT_INHIBIT_SPACES
     tp = dl.getTextPage(flags)
     l = []
     tp._extractTextBlocks_AsList(l)
@@ -458,19 +456,24 @@ def getTextBlocks(page, images=False):
     del dl
     return l
 
-def getTextWords(page):
+def getTextWords(page, flags=None):
     """Return the text words as a list with the bbox for each word.
+
+    Args:
+        flags: (int) control the amount of data parsed into the textpage.
     """
     CheckParent(page)
     dl = page.getDisplayList()
-    tp = dl.getTextPage()
+    if flags is None:
+        flags = TEXT_PRESERVE_LIGATURES | TEXT_INHIBIT_SPACES
+    tp = dl.getTextPage(flags)
     l = []
     tp._extractTextWords_AsList(l)
     del dl
     del tp
     return l
 
-def getText(page, output="text"):
+def getText(page, output="text", flags=None):
     """ Extract a document page's text.
 
     Args:
@@ -483,16 +486,16 @@ def getText(page, output="text"):
     dl = page.getDisplayList()
     # available output types
     formats = ("text", "html", "json", "xml", "xhtml", "dict", "rawdict")
+    output = output.lower()
+    if output not in formats:
+        output = "text"
     # choose which of them also include images in the TextPage
     images = (0, 1, 1, 0, 1, 1, 1)      # controls image inclusion in text page
-    try:
-        f = formats.index(output.lower())
-    except:
-        f = 0
-    flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
-
-    if images[f] :
-        flags |= TEXT_PRESERVE_IMAGES
+    if flags is None:
+        flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE | TEXT_INHIBIT_SPACES
+        f = formats.index(output)
+        if images[f] == 1:
+            flags |= TEXT_PRESERVE_IMAGES
 
     tp = dl.getTextPage(flags)     # TextPage with or without images
 
