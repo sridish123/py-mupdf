@@ -491,9 +491,9 @@ def getText(page, output="text", flags=None):
         output = "text"
     # choose which of them also include images in the TextPage
     images = (0, 1, 1, 0, 1, 1, 1)      # controls image inclusion in text page
+    f = formats.index(output)
     if flags is None:
         flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE | TEXT_INHIBIT_SPACES
-        f = formats.index(output)
         if images[f] == 1:
             flags |= TEXT_PRESERVE_IMAGES
 
