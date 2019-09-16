@@ -1,4 +1,4 @@
-from __future__ import absolute_import, print_function
+from __future__ import absolute_import
 import sys
 from fitz.fitz import *
 
@@ -15,13 +15,10 @@ TOOLS = fitz.Tools()
 fitz.TOOLS = TOOLS
 
 if fitz.VersionFitz != fitz.TOOLS.mupdf_version():
-    v1 = fitz.VersionFitz.split(".")
-    v2 = fitz.TOOLS.mupdf_version().split(".")
-    if v1[:-1] != v2[:-1]:
-        raise ValueError(
-            "MuPDF library mismatch %s <> %s"
-            % (fitz.VersionFitz, fitz.TOOLS.mupdf_version())
-        )
+    raise ValueError(
+        "MuPDF library mismatch %s <> %s"
+        % (fitz.VersionFitz, fitz.TOOLS.mupdf_version())
+    )
 
 
 # copy functions to their respective fitz classes
@@ -56,7 +53,6 @@ fitz.Page.drawQuad = fitz.utils.drawQuad
 fitz.Page.drawSector = fitz.utils.drawSector
 fitz.Page.drawSquiggle = fitz.utils.drawSquiggle
 fitz.Page.drawZigzag = fitz.utils.drawZigzag
-fitz.Page.getImageBbox = fitz.utils.getImageBbox
 fitz.Page.getTextBlocks = fitz.utils.getTextBlocks
 fitz.Page.getTextWords = fitz.utils.getTextWords
 fitz.Page.getLinks = fitz.utils.getLinks

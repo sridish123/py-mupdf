@@ -304,101 +304,6 @@ def insertImage(page, rect, filename=None, pixmap=None, stream=None, rotate=0,
         )
 
 
-def getImageBbox(page, img):
-    """Calculate the rectangle (bbox) of a PDF image.
-
-    Args:
-        :page: the PyMuPDF page object
-        :img: a list item from doc.getPageImageList(page.number)
-
-    Returns:
-        The bbox (fitz.Rect) of the image.
-
-    Notes:
-        This function can be used to find a connection between images returned
-        by page.getText("dict") and the images referenced in the list
-        page.getImageList().
-    """
-
-    def lookup_matrix(page, imgname):
-        """Return the transformation matrix for an image name.
-
-        Args:
-            :page: the PyMuPDF page object
-            :imgname: the image reference name, must equal the name in the
-                list doc.getPageImageList(page.number).
-        Returns:
-            concatenated matrices preceeding the image invocation.
-
-        Notes:
-            We are looking up "/imgname Do" in the concatenated /contents of the
-            page first. If not found, also look it up in the streams of any
-            Form XObjects of the page. If still not found, return the zero matrix.
-        """
-        doc = page.parent  # get the PDF document
-        if not doc.isPDF:
-            raise ValueError("not PDF")
-
-        page._cleanContents()  # sanitize image invocation matrices
-        xref = page._getContents()[0]  # the (only) contents object
-        cont = doc._getXrefStream(xref)  # the contents object
-        cont = cont.replace(b"/", b" /")  # prepend slashes with a space
-        # split this, ignoring white spaces
-        cont = cont.split()
-
-        imgnm = bytes("/" + imgname, "utf8")
-        if imgnm in cont:
-            idx = cont.index(imgnm)  # the image name is found here
-        else:  # not in page /contents, so look in Form XObjects
-            cont = None
-            xreflist = doc._getPageInfo(page.number, 3)  # XObject xrefs
-            for item in xreflist:
-                cont = doc._getXrefStream(item[0]).split()
-                if imgnm not in cont:
-                    cont = None
-                    continue
-                idx = cont.index(imgnm)  # image name found here
-                break
-
-        if cont is None:  # safeguard against inconsistencies
-            return fitz.Matrix()
-
-        # list of matrices preceeding image invocation command.
-        # not really required, because clean contents has concatenated those
-        mat_list = []
-        while idx >= 0:  # start value is "/Image Do" location
-            if cont[idx] == b"q":  # finished at leading stacking command
-                break
-            if cont[idx] == b"cm":  # encountered a matrix command
-                mat = cont[idx - 6 : idx]  # list of the 6 matrix values
-                l = list(map(float, mat))  # make them floats
-                mat_list.append(fitz.Matrix(l))  # append fitz matrix
-                idx -= 6  # step backwards 6 entries
-            else:
-                idx -= 1  # step backwards
-        mat = fitz.Matrix(1, 1)  # concatenate encountered matrices to this one
-        for m in reversed(mat_list):
-            mat *= m
-        l = len(mat_list)
-        if l == 0:  # safeguard against unusual situations
-            return fitz.Matrix()  # the zero matrix
-        return m
-
-    if type(img) in (list, tuple):
-        imgname = img[7]
-    else:
-        imgname = img
-    mat = lookup_matrix(page, imgname)
-    if not bool(mat):
-        raise ValueError("image not found")
-
-    ctm = page._getTransformation()  # page transformation matrix
-    mat.preScale(1, -1)  # fiddle the matrix
-    mat.preTranslate(0, -1)  # fiddle the matrix
-    r = fitz.Rect(0, 0, 1, 1) * mat  # the bbox in PDF coordinates
-    return r * ctm  # the bbox in MuPDF coordinates
-
-
 def searchFor(page, text, hit_max = 16, quads = False):
     """ Search for a string on a page.
 
@@ -434,21 +339,23 @@ def searchPageFor(doc, pno, text, hit_max=16, quads=False):
     return doc[pno].searchFor(text, hit_max = hit_max, quads = quads)
 
 
-def getTextBlocks(page, flags=None):
+def getTextBlocks(page, images=False):
     """Return the text blocks on a page.
 
     Notes:
         Lines in a block are concatenated with line breaks.
     Args:
-        flags: (int) control the amount of data parsed into the textpage.
+        images: (bool) also return meta data of any images.
+        Image data are never returned with this method.
     Returns:
         A list of the blocks. Each item contains the containing rectangle coordinates,
         text lines, block type and running block number.
     """
     CheckParent(page)
     dl = page.getDisplayList()
-    if flags is None:
-        flags = TEXT_PRESERVE_LIGATURES | TEXT_INHIBIT_SPACES
+    flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
+    if images:
+        flags |= TEXT_PRESERVE_IMAGES
     tp = dl.getTextPage(flags)
     l = []
     tp._extractTextBlocks_AsList(l)
@@ -456,24 +363,19 @@ def getTextBlocks(page, flags=None):
     del dl
     return l
 
-def getTextWords(page, flags=None):
+def getTextWords(page):
     """Return the text words as a list with the bbox for each word.
-
-    Args:
-        flags: (int) control the amount of data parsed into the textpage.
     """
     CheckParent(page)
     dl = page.getDisplayList()
-    if flags is None:
-        flags = TEXT_PRESERVE_LIGATURES | TEXT_INHIBIT_SPACES
-    tp = dl.getTextPage(flags)
+    tp = dl.getTextPage()
     l = []
     tp._extractTextWords_AsList(l)
     del dl
     del tp
     return l
 
-def getText(page, output="text", flags=None):
+def getText(page, output="text"):
     """ Extract a document page's text.
 
     Args:
@@ -482,20 +384,25 @@ def getText(page, output="text", flags=None):
     Returns:
         the output of TextPage methods extractText, extractHTML, extractDICT, extractJSON, extractRAWDICT, extractXHTML or etractXML respectively. Default and misspelling choice is "text".
     """
+    output = output.lower()
+    if output == "words":
+        return getTextWords(page)
+    if output == "blocks":
+        return getTextBlocks(page)
     CheckParent(page)
     dl = page.getDisplayList()
     # available output types
     formats = ("text", "html", "json", "xml", "xhtml", "dict", "rawdict")
-    output = output.lower()
-    if output not in formats:
-        output = "text"
     # choose which of them also include images in the TextPage
     images = (0, 1, 1, 0, 1, 1, 1)      # controls image inclusion in text page
-    f = formats.index(output)
-    if flags is None:
-        flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE | TEXT_INHIBIT_SPACES
-        if images[f] == 1:
-            flags |= TEXT_PRESERVE_IMAGES
+    try:
+        f = formats.index(output)
+    except:
+        f = 0
+    flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
+
+    if images[f] :
+        flags |= TEXT_PRESERVE_IMAGES
 
     tp = dl.getTextPage(flags)     # TextPage with or without images
 
@@ -526,13 +433,8 @@ def getPageText(doc, pno, output="text"):
     """
     return doc[pno].getText(output)
 
-def getPixmap(page,
-              matrix=None,
-              colorspace=csRGB,
-              clip=None,
-              alpha=False,
-              annots=True,
-            ):
+def getPixmap(page, matrix=None, colorspace=csRGB, clip=None,
+              alpha=False):
     """Create pixmap of page.
 
     Args:
@@ -555,7 +457,7 @@ def getPixmap(page,
     if cs.n not in (1,3,4):
         raise ValueError("unsupported colorspace")
 
-    dl = page.getDisplayList(annots)  # create DisplayList
+    dl = page.getDisplayList()               # create DisplayList
     if clip:
         scissor = Rect(clip)
     else:
@@ -563,19 +465,12 @@ def getPixmap(page,
     pix = dl.getPixmap(matrix=matrix,
                        colorspace=cs,
                        alpha=alpha,
-                       clip=scissor,
-                      )
+                       clip=scissor)
     del dl
     return pix
 
-def getPagePixmap(doc,
-                  pno,
-                  matrix=None,
-                  colorspace=csRGB,
-                  clip=None,
-                  alpha=False,
-                  annots=True,
-                 ):
+def getPagePixmap(doc, pno, matrix=None, colorspace=csRGB,
+                  clip=None, alpha=False):
     """Create pixmap of document page by page number.
 
     Notes:
@@ -583,17 +478,12 @@ def getPagePixmap(doc,
     Args:
         pno: (int) page number
         matrix: Matrix for transformation (default: Identity).
-        colorspace: (str,Colorspace) rgb, rgb, gray - case ignored, default csRGB.
+        colorspace: (str/Colorspace) rgb, rgb, gray - case ignored, default csRGB.
         clip: (irect-like) restrict rendering to this area.
         alpha: (bool) include alpha channel
-        annots: (bool) also render annotations
     """
-    return doc[pno].getPixmap(matrix=matrix,
-                              colorspace=colorspace,
-                              clip=clip,
-                              alpha=alpha,
-                              annots=annots,
-                             )
+    return doc[pno].getPixmap(matrix=matrix, colorspace=colorspace,
+                          clip=clip, alpha=alpha)
 
 def getLinkDict(ln):
     nl = {"kind": ln.dest.kind, "xref": 0}
@@ -653,13 +543,13 @@ def getLinks(page):
     links = []
     while ln:
         nl = getLinkDict(ln)
-        #if nl["kind"] == LINK_GOTO:
-        #    if type(nl["to"]) is Point and nl["page"] >= 0:
-        #        doc = page.parent
-        #        target_page = doc[nl["page"]]
-        #        ctm = target_page._getTransformation()
-        #        point = nl["to"] * ctm
-        #        nl["to"] = point
+        if nl["kind"] == LINK_GOTO:
+            if type(nl["to"]) is Point and nl["page"] >= 0:
+                doc = page.parent
+                target_page = doc[nl["page"]]
+                ctm = target_page._getTransformation()
+                point = nl["to"] * ctm
+                nl["to"] = point
         links.append(nl)
         ln = ln.next
     if len(links) > 0:
@@ -862,30 +752,34 @@ def setToC(doc, toc):
         lvl = o[0] # level
         title = getPDFstr(o[1]) # titel
         pno = min(doc.pageCount - 1, max(0, o[2] - 1)) # page number
-        page = doc[pno]  # load the page
-        ictm = ~page._getTransformation()  # get inverse transformation matrix
-        top = Point(72, 36) * ictm  # default top location
-        dest_dict = {"to": top, "kind": LINK_GOTO}  # fall back target
-        if o[2] < 0:
-            dest_dict["kind"] = LINK_NONE
-        if len(o) > 3:  # some target is specified
-            if type(o[3]) in (int, float):  # if number, make a point from it
-                dest_dict["to"] = Point(72, o[3]) * ictm
-            else:  # if something else, make sure we have a dict
-                dest_dict = o[3] if type(o[3]) is dict else dest_dict
-                if "to" not in dest_dict:  # target point not in dict?
-                    dest_dict["to"] = top  # put default in
-                else:  # transform target to PDF coordinates
-                    point = dest_dict["to"] * ictm
-                    dest_dict["to"] = point
+        top = 0
+        if len(o) < 4:
+            p = doc.loadPage(pno)
+            top = int(round(p.bound().y1) - 36)  # default top location on page
+            p = None                             # free page resources
+        top1 = top + 0                        # accept provided top parameter
+        dest_dict = {}
+        if len(o) > 3:
+            if type(o[3]) is int or type(o[3]) is float:
+                top1 = int(round(o[3]))
+                dest_dict = o[3]
+            else:
+                dest_dict = o[3] if type(o[3]) is dict else {}
+                try:
+                    top1 = int(round(o[3]["to"].y)) # top
+                except: pass
+        else:
+            dest_dict = top
+        if  0 <= top1 <= top + 36:
+            top = top1
         d = {}
         d["first"] = -1
         d["count"] = 0
         d["last"]  = -1
         d["prev"]  = -1
         d["next"]  = -1
-        d["dest"]  = getDestStr(page.xref, dest_dict)
-        d["top"]   = dest_dict["to"]
+        d["dest"]  = getDestStr(doc._getPageObjNumber(pno)[0], dest_dict)
+        d["top"]   = top
         d["title"] = title
         d["parent"] = lvltab[lvl-1]
         d["xref"] = xref[i+1]
@@ -953,31 +847,33 @@ def do_links(doc1, doc2, from_page = -1, to_page = -1, start_at = -1):
     #--------------------------------------------------------------------------
     # define skeletons for /Annots object texts
     #--------------------------------------------------------------------------
-    annot_goto  = "<</A<</S/GoTo/D[%i 0 R /XYZ %g %g 0]>>/Rect[%s]/Subtype/Link>>"
+    annot_goto  = '''<</A<</S/GoTo/D[%i 0 R /XYZ %g %g 0]>>/Rect[%s]/Subtype/Link>>'''
 
-    annot_gotor = "<</A<</S/GoToR/D[%i /XYZ %g %g 0]/F<</F(%s)/UF(%s)/Type/Filespec>>>>/Rect[%s]/Subtype/Link>>"
+    annot_gotor = '''<</A<</S/GoToR/D[%i /XYZ %g %g 0]/F<</F(%s)/UF(%s)/Type/Filespec
+    >>>>/Rect[%s]/Subtype/Link>>'''
 
     annot_gotor_n = "<</A<</S/GoToR/D(%s)/F(%s)>>/Rect[%s]/Subtype/Link>>"
 
-    annot_launch = "<</A<</S/Launch/F<</F(%s)/UF(%s)/Type/Filespec>>>>/Rect[%s]/Subtype/Link>>"
+    annot_launch = '''<</A<</S/Launch/F<</F(%s)/UF(%s)/Type/Filespec>>
+    >>/Rect[%s]/Subtype/Link>>'''
 
-    annot_uri = "<</A<</S/URI/URI(%s)>>/Rect[%s]/Subtype/Link>>"
+    annot_uri = '''<</A<</S/URI/URI(%s)>>/Rect[%s]/Subtype/Link>>'''
 
     #--------------------------------------------------------------------------
     # internal function to create the actual "/Annots" object string
     #--------------------------------------------------------------------------
-    def cre_annot(lnk, xref_dst, pno_src, ctm):
-        """Create annotation object string for a passed-in link.
-        """
+    def cre_annot(lnk, xref_dst, list_src, height):
+        '''Create annotation object string for a passed-in link.'''
 
-        r = lnk["from"] * ctm  # rect in PDF coordinates
-        rect = "%g %g %g %g" % tuple(r)
+        # "from" rectangle is always there. Note: y-coords are from bottom!
+
+        r = lnk["from"]
+        rect = "%g %g %g %g" % (r.x0, height - r.y0, r.x1, height - r.y1)
         if lnk["kind"] == LINK_GOTO:
             txt = annot_goto
-            idx = pno_src.index(lnk["page"])
-            p = lnk["to"] * ctm  # target point in PDF coordinates
-            annot = txt % (xref_dst[idx], p.x, p.y, rect)
-
+            idx = list_src.index(lnk["page"])
+            annot = txt % (xref_dst[idx], lnk["to"].x,
+                           lnk["to"].y, rect)
         elif lnk["kind"] == LINK_GOTOR:
             if lnk["page"] >= 0:
                 txt = annot_gotor
@@ -996,11 +892,9 @@ def do_links(doc1, doc2, from_page = -1, to_page = -1, start_at = -1):
         elif lnk["kind"] == LINK_LAUNCH:
             txt = annot_launch
             annot = txt % (lnk["file"], lnk["file"], rect)
-
         elif lnk["kind"] == LINK_URI:
             txt = annot_uri
             annot = txt % (lnk["uri"], rect)
-
         else:
             annot = ""
 
@@ -1011,7 +905,7 @@ def do_links(doc1, doc2, from_page = -1, to_page = -1, start_at = -1):
     if from_page < 0:
         fp = 0
     elif from_page >= doc2.pageCount:
-        fp = doc2.pageCount - 1
+        from_page = doc2.pageCount - 1
     else:
         fp = from_page
 
@@ -1021,40 +915,39 @@ def do_links(doc1, doc2, from_page = -1, to_page = -1, start_at = -1):
         tp = to_page
 
     if start_at < 0:
-        raise ValueError("'start_at' must be >= 0")
+        raise ValueError("do_links: 'start_at' arg must be >= 0")
     sa = start_at
 
-    incr = 1 if fp <= tp else -1  # page range could be reversed
-
+    incr = 1 if fp <= tp else -1            # page range could be reversed
     # lists of source / destination page numbers
-    pno_src = list(range(fp, tp + incr, incr))
-    pno_dst = [sa + i for i in range(len(pno_src))]
-
-    # lists of source / destination page xrefs
+    list_src = list(range(fp, tp + incr, incr))
+    list_dst = [sa + i for i in range(len(list_src))]
+    # lists of source / destination page xref numbers
     xref_src = []
     xref_dst = []
-    for i in range(len(pno_src)):
-        p_src = pno_src[i]
-        p_dst = pno_dst[i]
+    for i in range(len(list_src)):
+        p_src = list_src[i]
+        p_dst = list_dst[i]
         old_xref = doc2._getPageObjNumber(p_src)[0]
         new_xref = doc1._getPageObjNumber(p_dst)[0]
         xref_src.append(old_xref)
         xref_dst.append(new_xref)
 
-    # create the links for each copied page in destination PDF
+    # create /Annots per copied page in destination PDF
     for i in range(len(xref_src)):
-        page_src = doc2[pno_src[i]]  # load source page
-        links = page_src.getLinks()  # get all its links
-        if len(links) == 0:  # no links there
+        page_src = doc2[list_src[i]]
+        links = page_src.getLinks()
+        if len(links) == 0:
             page_src = None
             continue
-        ctm = ~page_src._getTransformation()  # calc page transformation matrix
-        page_dst = doc1[pno_dst[i]]  # load destination page
-        link_tab = []  # store all link definitions here
+        height = page_src.bound().y1
+        p_annots = ""
+        page_dst = doc1[list_dst[i]]
+        link_tab = []
         for l in links:
-            if l["kind"] == LINK_GOTO and (l["page"] not in pno_src):
-                continue  # GOTO link target not in copied pages
-            annot_text = cre_annot(l, xref_dst, pno_src, ctm)
+            if l["kind"] == LINK_GOTO and (l["page"] not in list_src):
+                continue          # target not in copied pages
+            annot_text = cre_annot(l, xref_dst, list_src, height)
             if not annot_text:
                 print("cannot create /Annot for kind: " + str(l["kind"]))
             else:
@@ -2261,7 +2154,7 @@ class Shape(object):
     def drawCircle(self, center, radius):
         """Draw a circle given its center and radius.
         """
-        if not radius > EPSILON:
+        if not radius > 1e-5:
             raise ValueError("radius must be postive")
         center = Point(center)
         p1 = center - (radius, 0)
@@ -2301,7 +2194,7 @@ class Shape(object):
         S = P - C                               # vector 'center' -> 'point'
         rad = abs(S)                            # circle radius
 
-        if not rad > EPSILON:
+        if not rad > 1e-5:
             raise ValueError("radius must be positive")
 
         alfa = self.horizontal_angle(center, point)
@@ -2793,11 +2686,11 @@ class Shape(object):
 
         more = (pos - maxpos) * progr           # difference to rect size limit
 
-        if more > EPSILON:                         # landed too much outside rect
+        if more > 1e-5:                         # landed too much outside rect
             return (-1) * more                  # return deficit, don't output
 
         more = abs(more)
-        if more < EPSILON:
+        if more < 1e-5:
             more = 0                            # don't bother with epsilons
         nres = "\nq BT\n" + cm                # initialize output buffer
         templ = "1 0 0 1 %g %g Tm /%s %g Tf "
