@@ -448,10 +448,10 @@ def getTextBlocks(page, flags=None):
     CheckParent(page)
     dl = page.getDisplayList()
     if flags is None:
-        flags = TEXT_PRESERVE_LIGATURES | TEXT_INHIBIT_SPACES
+        flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
     tp = dl.getTextPage(flags)
     l = []
-    tp._extractTextBlocks_AsList(l)
+    tp.extractBLOCKS(l)
     del tp
     del dl
     return l
@@ -465,10 +465,10 @@ def getTextWords(page, flags=None):
     CheckParent(page)
     dl = page.getDisplayList()
     if flags is None:
-        flags = TEXT_PRESERVE_LIGATURES | TEXT_INHIBIT_SPACES
+        flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
     tp = dl.getTextPage(flags)
     l = []
-    tp._extractTextWords_AsList(l)
+    tp.extractWORDS(l)
     del dl
     del tp
     return l

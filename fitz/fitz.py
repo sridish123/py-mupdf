@@ -78,8 +78,8 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 VersionFitz = "1.16.0"
 VersionBind = "1.16.3"
-VersionDate = "2019-09-22 13:07:25"
-version = (VersionBind, VersionFitz, "20190922130725")
+VersionDate = "2019-09-29 09:13:24"
+version = (VersionBind, VersionFitz, "20190929091324")
 
 EPSILON = _fitz.EPSILON
 
@@ -4748,13 +4748,13 @@ class TextPage(object):
         return page_dict
 
 
-    def _extractTextBlocks_AsList(self, lines):
-        r"""_extractTextBlocks_AsList(self, lines) -> PyObject *"""
-        return _fitz.TextPage__extractTextBlocks_AsList(self, lines)
+    def extractBLOCKS(self, lines):
+        r"""Fill a given list with text block information."""
+        return _fitz.TextPage_extractBLOCKS(self, lines)
 
-    def _extractTextWords_AsList(self, lines):
-        r"""_extractTextWords_AsList(self, lines) -> PyObject *"""
-        return _fitz.TextPage__extractTextWords_AsList(self, lines)
+    def extractWORDS(self, lines):
+        r"""Fill a given list with text word information."""
+        return _fitz.TextPage_extractWORDS(self, lines)
     @property
 
     def rect(self):
