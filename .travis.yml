@@ -1,5 +1,5 @@
 language: python
-python: 3.7
+python: 3.8
 dist: xenial
 sudo: true
 
@@ -14,7 +14,7 @@ matrix:
   include:
   - os: linux
     sudo: required
-    python: '3.7'
+    python: '3.8'
     services:
     - docker
     env: PIP=pip
