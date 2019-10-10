@@ -77,9 +77,9 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.3"
-VersionDate = "2019-10-01 09:01:06"
-version = (VersionBind, VersionFitz, "20191001090106")
+VersionBind = "1.16.4"
+VersionDate = "2019-10-10 10:00:00"
+version = (VersionBind, VersionFitz, "20191010100000")
 
 EPSILON = _fitz.EPSILON
 
@@ -2815,7 +2815,7 @@ open(filename, filetype='type') - from file"""
 
 
     def getSigFlags(self):
-        r"""getSigFlags(self) -> int"""
+        r"""getSigFlags(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3113,9 +3113,37 @@ open(filename, filetype='type') - from file"""
     def __getitem__(self, i=0):
         if type(i) is not int:
             raise ValueError("bad page number(s)")
-        if i >= len(self):
+        if i >= self.pageCount:
             raise IndexError("bad page number(s)")
         return self.loadPage(i)
+
+    def pages(self, start=None, stop=None, step=None):
+        """Return a generator iterator over a page range.
+
+        Arguments have the same meaning as for the range() built-in.
+        """
+    # set the start value
+        start = start or 0
+        while start < 0:
+            start += self.pageCount
+        if start not in range(self.pageCount):
+            raise ValueError("bad start page number")
+
+    # set the stop value
+        stop = stop if stop is not None and stop <= self.pageCount else self.pageCount
+
+    # set the step value
+        if step == 0:
+            raise ValueError("arg 3 must not be zero")
+        if step is None:
+            if start > stop:
+                step = -1
+            else:
+                step = 1
+
+        for pno in range(start, stop, step):
+            yield (self.loadPage(pno))
+
 
     def __len__(self):
         return self.pageCount
@@ -3739,6 +3767,33 @@ class Page(object):
     def _wrapContents(self):
         TOOLS._insert_contents(self, b"q\n", False)
         TOOLS._insert_contents(self, b"\nQ", True)
+
+
+    def links(self, kinds=None):
+        """ Generator over the links of a page."""
+        all_links = self.getLinks()
+        for link in all_links:
+            if kinds is None or link["kind"] in kinds:
+                yield (link)
+
+
+    def annots(self, types=None):
+        """ Generator over the annotations of a page."""
+        annot = self.firstAnnot
+        while annot:
+            if types is None or annot.type[0] in types:
+                yield (annot)
+            annot = annot.next
+
+
+    def widgets(self, types=None):
+        """ Generator over the widgets of a page."""
+        widget = self.firstWidget
+        while widget:
+            if types is None or widget.field_type in types:
+                yield (widget)
+            widget = widget.next
+
 
     def __str__(self):
         CheckParent(self)

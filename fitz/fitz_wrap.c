@@ -4565,9 +4565,6 @@ PyObject *JM_annot_colors(fz_context *ctx, pdf_obj *annot_obj)
 }
 
 
-PyObject *JM_UnicodeFromASCII(const char *in);
-
-
 PyObject *JM_StrFromBuffer(fz_context *ctx, fz_buffer *buff)
 {
     if (!buff) return PyUnicode_FromString("");
@@ -4594,6 +4591,15 @@ PyObject *JM_EscapeStrFromBuffer(fz_context *ctx, fz_buffer *buff)
         val = PyUnicode_FromString("");
         PyErr_Clear();
     }
+    return val;
+}
+
+PyObject *JM_EscapeStrFromStr(fz_context *ctx, const char *c)
+{
+    if (!c) return PyUnicode_FromString("");
+    fz_buffer *buff = fz_new_buffer_from_shared_data(ctx, c, strlen(c));
+    PyObject *val = JM_EscapeStrFromBuffer(ctx, buff);
+    // fz_drop_buffer(ctx, buff);
     return val;
 }
 
@@ -4791,7 +4797,7 @@ static PyObject *JM_make_spanlist(fz_context *ctx, fz_stext_line *line, int raw,
             PyDict_SetItem(span, dictkey_flags, val);
             Py_DECREF(val);
 
-            val = Py_BuildValue("s", style.font);
+            val = JM_EscapeStrFromStr(ctx, style.font);
             PyDict_SetItem(span, dictkey_font, val);
             Py_DECREF(val);
 
@@ -6228,6 +6234,7 @@ void JM_extend_contents(fz_context *ctx, pdf_document *pdfout,
 
 
 
+/* ************ CURRENTLY NOT USED ***************
 //----------------------------------------------------------------------------
 // convert (char *) to ASCII-only (char*) (which must be freed!)
 //----------------------------------------------------------------------------
@@ -6261,6 +6268,7 @@ PyObject *JM_UnicodeFromASCII(const char *in)
     JM_Free(c);
     return p;
 }
+*/
 
 //-----------------------------------------------------------------------------
 // Store info of a font in Python list
@@ -6302,10 +6310,10 @@ void JM_gather_fonts(fz_context *ctx, pdf_document *pdf, pdf_obj *dict,
         PyObject *entry = PyList_New(6);
         PyList_SET_ITEM(entry, 0, Py_BuildValue("i", xref));
         PyList_SET_ITEM(entry, 1, Py_BuildValue("s", ext));
-        PyList_SET_ITEM(entry, 2, JM_UnicodeFromASCII(pdf_to_name(ctx, subtype)));
-        PyList_SET_ITEM(entry, 3, JM_UnicodeFromASCII(pdf_to_name(ctx, name)));
-        PyList_SET_ITEM(entry, 4, JM_UnicodeFromASCII(pdf_to_name(ctx, refname)));
-        PyList_SET_ITEM(entry, 5, JM_UnicodeFromASCII(pdf_to_name(ctx, encoding)));
+        PyList_SET_ITEM(entry, 2, JM_EscapeStrFromStr(ctx, pdf_to_name(ctx, subtype)));
+        PyList_SET_ITEM(entry, 3, JM_EscapeStrFromStr(ctx, pdf_to_name(ctx, name)));
+        PyList_SET_ITEM(entry, 4, JM_EscapeStrFromStr(ctx, pdf_to_name(ctx, refname)));
+        PyList_SET_ITEM(entry, 5, JM_EscapeStrFromStr(ctx, pdf_to_name(ctx, encoding)));
         PyList_Append(fontlist, entry);
         Py_DECREF(entry);
     }
@@ -6376,10 +6384,10 @@ void JM_gather_images(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
         PyList_SET_ITEM(entry, 2, Py_BuildValue("i", pdf_to_int(ctx, width)));
         PyList_SET_ITEM(entry, 3, Py_BuildValue("i", pdf_to_int(ctx, height)));
         PyList_SET_ITEM(entry, 4, Py_BuildValue("i", pdf_to_int(ctx, bpc)));
-        PyList_SET_ITEM(entry, 5, JM_UnicodeFromASCII(pdf_to_name(ctx, cs)));
-        PyList_SET_ITEM(entry, 6, JM_UnicodeFromASCII(pdf_to_name(ctx, altcs)));
-        PyList_SET_ITEM(entry, 7, JM_UnicodeFromASCII(pdf_to_name(ctx, refname)));
-        PyList_SET_ITEM(entry, 8, JM_UnicodeFromASCII(pdf_to_name(ctx, filter)));
+        PyList_SET_ITEM(entry, 5, JM_EscapeStrFromStr(ctx, pdf_to_name(ctx, cs)));
+        PyList_SET_ITEM(entry, 6, JM_EscapeStrFromStr(ctx, pdf_to_name(ctx, altcs)));
+        PyList_SET_ITEM(entry, 7, JM_EscapeStrFromStr(ctx, pdf_to_name(ctx, refname)));
+        PyList_SET_ITEM(entry, 8, JM_EscapeStrFromStr(ctx, pdf_to_name(ctx, filter)));
         PyList_Append(imagelist, entry);
         Py_DECREF(entry);
     }
@@ -6416,7 +6424,7 @@ void JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
 
         PyObject *entry = PyList_New(2);
         PyList_SET_ITEM(entry, 0, Py_BuildValue("i", xref));
-        PyList_SET_ITEM(entry, 1, JM_UnicodeFromASCII(pdf_to_name(ctx, refname)));
+        PyList_SET_ITEM(entry, 1, JM_EscapeStrFromStr(ctx, pdf_to_name(ctx, refname)));
         PyList_Append(imagelist, entry);
         Py_DECREF(entry);
     }
@@ -7796,7 +7804,7 @@ SWIGINTERN PyObject *fz_document_s_extractFont(struct fz_document_s *self,int xr
             char *ext = NULL;
             char *fontname = NULL;
             PyObject *nulltuple = Py_BuildValue("sssO", "", "", "", bytes);
-            PyObject *tuple;
+            PyObject *tuple, *val;
             Py_ssize_t len = 0;
             fz_try(gctx)
             {
@@ -7818,12 +7826,13 @@ SWIGINTERN PyObject *fz_document_s_extractFont(struct fz_document_s *self,int xr
                         bytes = JM_BinFromBuffer(gctx, buffer);
                         fz_drop_buffer(gctx, buffer);
                     }
-                    fontname = (char *) JM_ASCIIFromChar((char *) pdf_to_name(gctx, bname));
-                    tuple = Py_BuildValue("sssO",
-                                fontname,
-                                ext,
-                                pdf_to_name(gctx, subtype),
-                                bytes);
+                    tuple = PyTuple_New(4);
+                    PyTuple_SET_ITEM(tuple, 0, JM_EscapeStrFromStr(gctx,
+                                               pdf_to_name(gctx, bname)));
+                    PyTuple_SET_ITEM(tuple, 1, Py_BuildValue("s", ext));
+                    PyTuple_SET_ITEM(tuple, 2, Py_BuildValue("s",
+                                                pdf_to_name(gctx, subtype)));
+                    PyTuple_SET_ITEM(tuple, 3, bytes);
                 }
                 else
                 {
@@ -8010,10 +8019,10 @@ SWIGINTERN PyObject *fz_document_s_isStream(struct fz_document_s *self,int xref)
             if (!pdf) Py_RETURN_FALSE;  // not a PDF
             return JM_BOOL(pdf_obj_num_is_stream(gctx, pdf, xref));
         }
-SWIGINTERN int fz_document_s_getSigFlags(struct fz_document_s *self){
+SWIGINTERN PyObject *fz_document_s_getSigFlags(struct fz_document_s *self){
             pdf_document *pdf = pdf_specifics(gctx, self);
-            if (!pdf) return -1;           // not a PDF
-            int sigflag;
+            if (!pdf) return Py_BuildValue("i", -1);  // not a PDF
+            size_t sigflag = 0;
             fz_try(gctx)
             {
                 pdf_obj *sigflags = pdf_dict_getl(gctx,
@@ -8022,16 +8031,18 @@ SWIGINTERN int fz_document_s_getSigFlags(struct fz_document_s *self){
                                                   PDF_NAME(AcroForm),
                                                   PDF_NAME(SigFlags),
                                                   NULL);
-                if (sigflags) sigflag = pdf_to_int(gctx, sigflags);
-                else          sigflag = -1;
+                if (sigflags)
+                {
+                    sigflag = (size_t) pdf_to_int(gctx, sigflags);
+                }
             }
-            fz_catch(gctx) return -1;      // any problem yields -1
-            return sigflag;
+            fz_catch(gctx) return Py_BuildValue("i", -1);  // any problem
+            return Py_BuildValue("I", sigflag);
         }
 SWIGINTERN PyObject *fz_document_s_isFormPDF(struct fz_document_s *self){
             pdf_document *pdf = pdf_specifics(gctx, self);
-            if (!pdf) Py_RETURN_FALSE;           // not a PDF
-            int have_form = 0;                   // preset indicator
+            if (!pdf) Py_RETURN_FALSE;  // not a PDF
+            int count = 0;  // init count
             fz_try(gctx)
             {
                 pdf_obj *fields = pdf_dict_getl(gctx,
@@ -8040,10 +8051,20 @@ SWIGINTERN PyObject *fz_document_s_isFormPDF(struct fz_document_s *self){
                                                 PDF_NAME(AcroForm),
                                                 PDF_NAME(Fields),
                                                 NULL);
-                if (fields && pdf_array_len(gctx, fields) > 0) have_form = 1;
+                if (pdf_is_array(gctx, fields))
+                {
+                    count = pdf_array_len(gctx, fields);
+                };
             }
             fz_catch(gctx) Py_RETURN_FALSE;      // any problem yields false
-            return JM_BOOL(have_form);
+            if (count)
+            {
+                return Py_BuildValue("i", count);
+            }
+            else
+            {
+                Py_RETURN_FALSE;
+            }
         }
 SWIGINTERN PyObject *fz_document_s_FormFonts(struct fz_document_s *self){
             pdf_document *pdf = pdf_specifics(gctx, self);
@@ -12966,7 +12987,7 @@ SWIGINTERN PyObject *_wrap_Document_getSigFlags(PyObject *SWIGUNUSEDPARM(self), 
   void *argp1 = 0 ;
   int res1 = 0 ;
   PyObject *swig_obj[1] ;
-  int result;
+  PyObject *result = 0 ;
   
   if (!args) SWIG_fail;
   swig_obj[0] = args;
@@ -12975,8 +12996,8 @@ SWIGINTERN PyObject *_wrap_Document_getSigFlags(PyObject *SWIGUNUSEDPARM(self), 
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_getSigFlags" "', argument " "1"" of type '" "struct fz_document_s *""'"); 
   }
   arg1 = (struct fz_document_s *)(argp1);
-  result = (int)fz_document_s_getSigFlags(arg1);
-  resultobj = SWIG_From_int((int)(result));
+  result = (PyObject *)fz_document_s_getSigFlags(arg1);
+  resultobj = result;
   return resultobj;
 fail:
   return NULL;
@@ -19558,7 +19579,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document_extractImage", _wrap_Document_extractImage, METH_VARARGS, "Extract image which 'xref' is pointing to."},
 	 { "Document__delToC", _wrap_Document__delToC, METH_O, "Document__delToC(self) -> PyObject *"},
 	 { "Document_isStream", _wrap_Document_isStream, METH_VARARGS, "Document_isStream(self, xref=0) -> PyObject *"},
-	 { "Document_getSigFlags", _wrap_Document_getSigFlags, METH_O, "Document_getSigFlags(self) -> int"},
+	 { "Document_getSigFlags", _wrap_Document_getSigFlags, METH_O, "Document_getSigFlags(self) -> PyObject *"},
 	 { "Document_isFormPDF", _wrap_Document_isFormPDF, METH_O, "Document_isFormPDF(self) -> PyObject *"},
 	 { "Document_FormFonts", _wrap_Document_FormFonts, METH_O, "Document_FormFonts(self) -> PyObject *"},
 	 { "Document__addFormFont", _wrap_Document__addFormFont, METH_VARARGS, "Document__addFormFont(self, name, font) -> PyObject *"},
