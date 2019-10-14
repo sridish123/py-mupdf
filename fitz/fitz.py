@@ -77,9 +77,9 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.4"
-VersionDate = "2019-10-10 10:00:00"
-version = (VersionBind, VersionFitz, "20191010100000")
+VersionBind = "1.16.5"
+VersionDate = "2019-10-13 22:27:36"
+version = (VersionBind, VersionFitz, "20191013222736")
 
 EPSILON = _fitz.EPSILON
 
@@ -2095,6 +2095,7 @@ def CheckFont(page, fontname):
         if f[3].lower() == fontname.lower():
             return f
 
+
 def CheckFontInfo(doc, xref):
     """Return a font info if present in the document.
     """
@@ -3219,9 +3220,20 @@ class Page(object):
         return _fitz.Page_run(self, dw, m)
 
 
+    def getTextPage(self, flags=0):
+        r"""Create a TextPage directly from the page."""
+
+        CheckParent(self)
+
+
+        return _fitz.Page_getTextPage(self, flags)
+
+
     def getSVGimage(self, matrix=None):
         r"""Create an SVG image from the page."""
+
         CheckParent(self)
+
 
         return _fitz.Page_getSVGimage(self, matrix)
 
@@ -3483,7 +3495,9 @@ class Page(object):
 
     def getDisplayList(self, annots=1):
         r"""getDisplayList(self, annots=1) -> DisplayList"""
+
         CheckParent(self)
+
 
         return _fitz.Page_getDisplayList(self, annots)
 
