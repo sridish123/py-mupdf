@@ -2696,7 +2696,7 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
 #define SWIG_PYTHON_2_UNICODE
 
 // memory allocation macros
-#define JM_MEMORY 0
+#define JM_MEMORY 1
 #if  PY_VERSION_HEX < 0x03000000
 #undef JM_MEMORY
 #define JM_MEMORY 0
