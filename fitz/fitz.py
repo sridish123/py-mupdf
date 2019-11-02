@@ -77,9 +77,9 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.5"
-VersionDate = "2019-10-13 22:50:03"
-version = (VersionBind, VersionFitz, "20191013225003")
+VersionBind = "1.16.6"
+VersionDate = "2019-11-01 18:55:25"
+version = (VersionBind, VersionFitz, "20191101185525")
 
 EPSILON = _fitz.EPSILON
 
@@ -432,6 +432,16 @@ PDF_PERM_ACCESSIBILITY = _fitz.PDF_PERM_ACCESSIBILITY
 PDF_PERM_ASSEMBLE = _fitz.PDF_PERM_ASSEMBLE
 
 PDF_PERM_PRINT_HQ = _fitz.PDF_PERM_PRINT_HQ
+
+TEXT_FONT_SUPERSCRIPT = _fitz.TEXT_FONT_SUPERSCRIPT
+
+TEXT_FONT_ITALIC = _fitz.TEXT_FONT_ITALIC
+
+TEXT_FONT_SERIFED = _fitz.TEXT_FONT_SERIFED
+
+TEXT_FONT_MONOSPACED = _fitz.TEXT_FONT_MONOSPACED
+
+TEXT_FONT_BOLD = _fitz.TEXT_FONT_BOLD
 
 
 class Matrix(object):
@@ -2771,11 +2781,11 @@ open(filename, filetype='type') - from file"""
 
         val = _fitz.Document__getPageInfo(self, pno, what)
 
-        x = []
-        for v in val:
-            if v not in x:
-                x.append(v)
-        val = x
+                #x = []
+                #for v in val:
+                #    if v not in x:
+                #        x.append(v)
+                #val = x
 
         return val
 
@@ -2905,6 +2915,14 @@ open(filename, filetype='type') - from file"""
         return _fitz.Document__getTrailerString(self, compressed, ascii)
 
 
+    def _getXrefStreamRaw(self, xref):
+        r"""_getXrefStreamRaw(self, xref) -> PyObject *"""
+        if self.isClosed or self.isEncrypted:
+            raise ValueError("document closed or encrypted")
+
+        return _fitz.Document__getXrefStreamRaw(self, xref)
+
+
     def _getXrefStream(self, xref):
         r"""_getXrefStream(self, xref) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
@@ -2979,23 +2997,29 @@ open(filename, filetype='type') - from file"""
     outline = property(lambda self: self._outline)
     _getPageXref = _getPageObjNumber
 
-    def getPageFontList(self, pno):
+    def getPageFontList(self, pno, full=False):
         """Retrieve a list of fonts used on a page.
         """
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
-        if self.isPDF:
-            return self._getPageInfo(pno, 1)
-        return []
+        if not self.isPDF:
+            return ()
+        val = self._getPageInfo(pno, 1)
+        if full is False:
+            return [v[:-1] for v in val]
+        return val
 
-    def getPageImageList(self, pno):
+    def getPageImageList(self, pno, full=False):
         """Retrieve a list of images used on a page.
         """
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
-        if self.isPDF:
-            return self._getPageInfo(pno, 2)
-        return []
+        if not self.isPDF:
+            return ()
+        val = self._getPageInfo(pno, 2)
+        if full is False:
+            return [v[:-1] for v in val]
+        return val
 
     def copyPage(self, pno, to=-1):
         """Copy a page within a PDF document.
@@ -3582,16 +3606,20 @@ class Page(object):
         return val
 
 
-    def deleteAnnot(self, fannot):
-        r"""Delete annot if PDF and return next one"""
-        CheckParent(self)
+    def deleteAnnot(self, annot):
+        r"""Delete annot if PDF and return next one."""
 
-        val = _fitz.Page_deleteAnnot(self, fannot)
+        CheckParent(self)
+        CheckParent(annot)
+
+
+        val = _fitz.Page_deleteAnnot(self, annot)
+
         if val:
             val.thisown = True
             val.parent = weakref.proxy(self) # owning page object
             val.parent._annot_refs[id(val)] = val
-        fannot._erase()
+        annot._erase()
 
 
         return val
@@ -3668,7 +3696,7 @@ class Page(object):
     def insertFont(self, fontname="helv", fontfile=None, fontbuffer=None,
                    set_simple=False, wmode=0, encoding=0):
         doc = self.parent
-        if not doc:
+        if doc is None:
             raise ValueError("orphaned object: parent is None")
         idx = 0
 
@@ -3861,13 +3889,13 @@ class Page(object):
     def __del__(self):
         self._erase()
 
-    def getFontList(self):
+    def getFontList(self, full=False):
         CheckParent(self)
-        return self.parent.getPageFontList(self.number)
+        return self.parent.getPageFontList(self.number, full=full)
 
-    def getImageList(self):
+    def getImageList(self, full=False):
         CheckParent(self)
-        return self.parent.getPageImageList(self.number)
+        return self.parent.getPageImageList(self.number, full=full)
 
     @property
     def CropBox(self):
