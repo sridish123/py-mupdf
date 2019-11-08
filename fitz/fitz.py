@@ -77,9 +77,9 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.6"
-VersionDate = "2019-11-01 18:55:25"
-version = (VersionBind, VersionFitz, "20191101185525")
+VersionBind = "1.16.7"
+VersionDate = "2019-11-07 10:22:00"
+version = (VersionBind, VersionFitz, "20191107102200")
 
 EPSILON = _fitz.EPSILON
 
@@ -3607,7 +3607,7 @@ class Page(object):
 
 
     def deleteAnnot(self, annot):
-        r"""Delete annot if PDF and return next one."""
+        r"""Delete annot and return next one."""
 
         CheckParent(self)
         CheckParent(annot)
@@ -5031,12 +5031,15 @@ class Tools(object):
     def mupdf_version(self):
         r"""Return compiled MuPDF version."""
         return _fitz.Tools_mupdf_version(self)
-    property
 
-    def mupdf_warnings(self):
-        r"""mupdf_warnings(self) -> PyObject *"""
-        val = _fitz.Tools_mupdf_warnings(self)
+    def mupdf_warnings(self, reset=1):
+        r"""Return the MuPDF warnings store."""
+        val = _fitz.Tools_mupdf_warnings(self, reset)
+
         val = "\n".join(val)
+        if reset:
+            self.reset_mupdf_warnings()
+
 
         return val
 

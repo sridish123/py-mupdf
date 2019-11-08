@@ -3342,6 +3342,7 @@ void JM_mupdf_warning(void *user, const char *message)
 // redirect MuPDF errors
 void JM_mupdf_error(void *user, const char *message)
 {
+    LIST_APPEND_DROP(JM_mupdf_warnings_store, JM_EscapeStrFromStr(message));
     PySys_WriteStderr("mupdf: %s\n", message);
 }
 
@@ -4597,6 +4598,11 @@ PyObject *JM_annot_colors(fz_context *ctx, pdf_obj *annot_obj)
     return res;
 }
 
+//----------------------------------------------------------------------------
+// delete an annotation using mupdf functions, but first delete the /AP and
+// /Popup dict keys in the annot->obj. Also remove the 'Popup' annotation
+// from the page's /Annots array which may exist.
+//----------------------------------------------------------------------------
 void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
 {
     if (!annot) return;
@@ -4605,7 +4611,7 @@ void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
         pdf_obj *popup = pdf_dict_get(ctx, annot->obj, PDF_NAME(Popup));
         pdf_dict_del(ctx, annot->obj, PDF_NAME(Popup));
         pdf_dict_del(ctx, annot->obj, PDF_NAME(AP));
-        if (popup)
+        if (popup)  // now look for the popup entry
         {
             pdf_obj *annots = pdf_dict_get(ctx, page->obj, PDF_NAME(Annots));
             int i, n = pdf_array_len(ctx, annots);
@@ -4630,18 +4636,21 @@ void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
     return;
 }
 
+//----------------------------------------------------------------------------
+// locate and return the first annotation whose /IRT key points to annot.
+//----------------------------------------------------------------------------
 pdf_annot *JM_find_annot_irt(fz_context *ctx, pdf_annot *annot)
 {
-    pdf_annot *irt_annot = NULL;
+    pdf_annot *irt_annot = NULL;  // returning this
     pdf_obj *o = NULL;
     pdf_annot **annotptr;
     int found = 0;
     fz_try(ctx)
-    {
+    {   // loop thru MuPDF's internal annots array
         pdf_page *page = annot->page;
         for (annotptr = &page->annots; *annotptr; annotptr = &(*annotptr)->next)
         {
-            irt_annot = *annotptr;
+            irt_annot = *annotptr;  // check if this is what we are looking for
             o = pdf_dict_gets(ctx, irt_annot->obj, "IRT");
             if (o)
             {
@@ -4933,7 +4942,6 @@ static PyObject *JM_make_spanlist(fz_context *ctx, fz_stext_line *line, int raw,
 
 static void JM_make_image_block(fz_context *ctx, fz_stext_block *block, PyObject *block_dict)
 {
-    fz_color_params color_params = {0};
     fz_image *image = block->u.i.image;
     fz_buffer *buf = NULL, *freebuf = NULL;
     fz_compressed_buffer *buffer = fz_compressed_image_buffer(ctx, image);
@@ -4942,31 +4950,24 @@ static void JM_make_image_block(fz_context *ctx, fz_stext_block *block, PyObject
     int n = fz_colorspace_n(ctx, image->colorspace);
     int w = image->w;
     int h = image->h;
-    int type = FZ_IMAGE_UNKNOWN;
-    if (buffer) type = buffer->params.type;
     const char *ext = NULL;
-    PyObject *bytes = JM_BinFromChar("");
+    int type = FZ_IMAGE_UNKNOWN;
+    if (buffer)
+        type = buffer->params.type;
+    if (type < FZ_IMAGE_BMP || type == FZ_IMAGE_JBIG2)
+        type = FZ_IMAGE_UNKNOWN;
+    PyObject *bytes = NULL;
     fz_var(bytes);
     fz_try(ctx)
     {
-        if (type == FZ_IMAGE_JPX && !(image->mask))
-            {;}
-        else if (image->use_colorkey ||
-                image->use_decode ||
-                image->mask ||
-                type < FZ_IMAGE_BMP ||
-                type == FZ_IMAGE_JBIG2 ||
-                (n != 1 && n != 3 && type == FZ_IMAGE_JPEG))
-            type = FZ_IMAGE_UNKNOWN;
-
-        if (type != FZ_IMAGE_UNKNOWN)
+        if (buffer && type != FZ_IMAGE_UNKNOWN)
         {
             buf = buffer->buffer;
             ext = JM_image_extension(type);
         }
         else
         {
-            buf = freebuf = fz_new_buffer_from_image_as_png(ctx, image, color_params);
+            buf = freebuf = fz_new_buffer_from_image_as_png(ctx, image, fz_default_color_params);
             ext = "png";
         }
         if (PY_MAJOR_VERSION > 2)
@@ -4980,6 +4981,8 @@ static void JM_make_image_block(fz_context *ctx, fz_stext_block *block, PyObject
     }
     fz_always(ctx)
     {
+        if (!bytes)
+            bytes = JM_BinFromChar("");
         DICT_SETITEM_DROP(block_dict, dictkey_width,
                           Py_BuildValue("i", w));
         DICT_SETITEM_DROP(block_dict, dictkey_height,
@@ -5000,7 +5003,6 @@ static void JM_make_image_block(fz_context *ctx, fz_stext_block *block, PyObject
     }
     fz_catch(ctx) {;}
     return;
-
 }
 
 static void JM_make_text_block(fz_context *ctx, fz_stext_block *block, PyObject *block_dict, int raw, fz_buffer *buff)
@@ -7867,15 +7869,11 @@ SWIGINTERN PyObject *fz_document_s_extractImage(struct fz_document_s *self,int x
 
             fz_buffer *buffer = NULL, *freebuf = NULL;
             fz_var(freebuf);
-            fz_pixmap *pix = NULL;
-            fz_var(pix);
             pdf_obj *obj = NULL;
             PyObject *rc = NULL;
             const char *ext = NULL;
             fz_image *image = NULL;
             fz_var(image);
-            fz_output *out = NULL;
-            fz_var(out);
             fz_compressed_buffer *cbuf = NULL;
             int type = FZ_IMAGE_UNKNOWN, n = 0, xres = 0, yres = 0, is_jpx = 0;
             int smask = 0, width = 0, height = 0, bpc = 0;
@@ -7934,27 +7932,9 @@ SWIGINTERN PyObject *fz_document_s_extractImage(struct fz_document_s *self,int x
                     {
                         ext = JM_image_extension(type);
                     }
-                    else  // need a pixmap to make a PNG buffer
+                    else  // need to make a PNG buffer
                     {
-                        pix = fz_get_pixmap_from_image(gctx, image,
-                                                       NULL, NULL, NULL, NULL);
-                        n = pix->n;
-                        // only gray & rgb pixmaps support PNG!
-                        if (pix->colorspace &&
-                            pix->colorspace != fz_device_gray(gctx) &&
-                            pix->colorspace != fz_device_rgb(gctx))
-                        {
-                            fz_color_params color_params = {0};
-                            fz_pixmap *pix2 = fz_convert_pixmap(gctx, pix,
-                                     fz_device_rgb(gctx), NULL, NULL, color_params, 1);
-                            fz_drop_pixmap(gctx, pix);
-                            pix = pix2;
-                        }
-
-                        freebuf = fz_new_buffer(gctx, 2048);
-                        out = fz_new_output_with_buffer(gctx, freebuf);
-                        fz_write_pixmap_as_png(gctx, out, pix);
-                        buffer = freebuf;
+                        buffer = freebuf = fz_new_buffer_from_image_as_png(gctx, image, fz_default_color_params);
                         ext = "png";
                     }
 
@@ -7987,8 +7967,6 @@ SWIGINTERN PyObject *fz_document_s_extractImage(struct fz_document_s *self,int x
             {
                 fz_drop_image(gctx, image);
                 fz_drop_buffer(gctx, freebuf);
-                fz_drop_output(gctx, out);
-                fz_drop_pixmap(gctx, pix);
                 pdf_drop_obj(gctx, obj);
             }
 
@@ -8966,10 +8944,10 @@ SWIGINTERN void fz_page_s_deleteLink(struct fz_page_s *self,PyObject *linkdict){
 SWIGINTERN struct pdf_annot_s *fz_page_s_deleteAnnot(struct fz_page_s *self,struct pdf_annot_s *annot){
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
             pdf_annot *irt_annot = NULL;
-            while (1)
+            while (1)  // first loop through all /IRT annots and remove them
             {
                 irt_annot = JM_find_annot_irt(gctx, annot);
-                if (!irt_annot)
+                if (!irt_annot)  // no more there
                     break;
                 JM_delete_annot(gctx, page, irt_annot);
             }
@@ -10945,7 +10923,8 @@ SWIGINTERN PyObject *Tools__insert_contents(struct Tools *self,struct fz_page_s 
 SWIGINTERN PyObject *Tools_mupdf_version(struct Tools *self){
             return PyUnicode_FromString(FZ_VERSION);
         }
-SWIGINTERN PyObject *Tools_mupdf_warnings(struct Tools *self){
+SWIGINTERN PyObject *Tools_mupdf_warnings(struct Tools *self,int reset){
+            Py_INCREF(JM_mupdf_warnings_store);
             return JM_mupdf_warnings_store;
         }
 SWIGINTERN void Tools_reset_mupdf_warnings(struct Tools *self){
@@ -19312,19 +19291,28 @@ fail:
 SWIGINTERN PyObject *_wrap_Tools_mupdf_warnings(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
+  int arg2 = (int) 1 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  PyObject *swig_obj[1] ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!args) SWIG_fail;
-  swig_obj[0] = args;
+  if (!SWIG_Python_UnpackTuple(args, "Tools_mupdf_warnings", 1, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools_mupdf_warnings" "', argument " "1"" of type '" "struct Tools *""'"); 
   }
   arg1 = (struct Tools *)(argp1);
-  result = (PyObject *)Tools_mupdf_warnings(arg1);
+  if (swig_obj[1]) {
+    ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+    if (!SWIG_IsOK(ecode2)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Tools_mupdf_warnings" "', argument " "2"" of type '" "int""'");
+    } 
+    arg2 = (int)(val2);
+  }
+  result = (PyObject *)Tools_mupdf_warnings(arg1,arg2);
   resultobj = result;
   return resultobj;
 fail:
@@ -19732,7 +19720,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page_firstAnnot", _wrap_Page_firstAnnot, METH_O, "Points to first annotation on page"},
 	 { "Page_firstWidget", _wrap_Page_firstWidget, METH_O, "Page_firstWidget(self) -> Annot"},
 	 { "Page_deleteLink", _wrap_Page_deleteLink, METH_VARARGS, "Delete link if PDF"},
-	 { "Page_deleteAnnot", _wrap_Page_deleteAnnot, METH_VARARGS, "Delete annot if PDF and return next one."},
+	 { "Page_deleteAnnot", _wrap_Page_deleteAnnot, METH_VARARGS, "Delete annot and return next one."},
 	 { "Page_MediaBoxSize", _wrap_Page_MediaBoxSize, METH_O, "Retrieve width, height of /MediaBox."},
 	 { "Page_CropBoxPosition", _wrap_Page_CropBoxPosition, METH_O, "Retrieve position of /CropBox. Return (0,0) for non-PDF, or no /CropBox."},
 	 { "Page_rotation", _wrap_Page_rotation, METH_O, "Retrieve page rotation."},
@@ -19896,7 +19884,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools__update_da", _wrap_Tools__update_da, METH_VARARGS, "Tools__update_da(self, annot, da_str) -> PyObject *"},
 	 { "Tools__insert_contents", _wrap_Tools__insert_contents, METH_VARARGS, "Make a new /Contents object for a page from bytes, and return its xref."},
 	 { "Tools_mupdf_version", _wrap_Tools_mupdf_version, METH_O, "Return compiled MuPDF version."},
-	 { "Tools_mupdf_warnings", _wrap_Tools_mupdf_warnings, METH_O, "Tools_mupdf_warnings(self) -> PyObject *"},
+	 { "Tools_mupdf_warnings", _wrap_Tools_mupdf_warnings, METH_VARARGS, "Return the MuPDF warnings store."},
 	 { "Tools_reset_mupdf_warnings", _wrap_Tools_reset_mupdf_warnings, METH_O, "Reset MuPDF warnings."},
 	 { "Tools__transform_rect", _wrap_Tools__transform_rect, METH_VARARGS, "Transform rectangle with matrix."},
 	 { "Tools__intersect_rect", _wrap_Tools__intersect_rect, METH_VARARGS, "Intersect two rectangles."},
