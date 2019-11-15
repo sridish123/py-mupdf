@@ -119,6 +119,51 @@ def embedded_del(args):
     doc.close()
 
 
+def embedded_get(args):
+    doc = fitz.open(args.input)
+    if not doc.isPDF:
+        sys.exit("Not a PDF document.")
+    try:
+        stream = doc.embeddedFileGet(args.name)
+        d = doc.embeddedFileInfo(args.name)
+    except ValueError:
+        sys.exit("No such embedded file '%s'." % args.name)
+    filename = args.output if args.output else d["filename"]
+    output = open(filename, "wb")
+    output.write(stream)
+    output.close()
+    print("Saved entry '%s' as '%s'" % (args.name, filename))
+    doc.close()
+
+
+def embedded_add(args):
+    doc = fitz.open(args.input)
+    if not doc.isPDF:
+        sys.exit("Not a PDF document.")
+    try:
+        name = doc.embeddedFileDel(args.name)
+        sys.exit("Entry '%s' already exists in embedded files." % args.name)
+    except:
+        pass
+    if not os.path.exists(args.file) or not os.path.isfile(args.file):
+        sys.exit("No such file '%s'" % args.file)
+    stream = open(args.file, "rb").read()
+    filename = args.file
+    ufilename = filename
+    if not args.desc:
+        desc = filename
+    else:
+        desc = args.desc
+    doc.embeddedFileAdd(
+        args.name, stream, filename=filename, ufilename=ufilename, desc=desc
+    )
+    if not args.output:
+        doc.saveIncr()
+    else:
+        doc.save(args.output, garbage=3)
+    doc.close()
+
+
 def embedded_list(args):
     doc = fitz.open(args.input)
     if not doc.isPDF:
@@ -160,26 +205,26 @@ def main():
 
     # 'show' command ---------------------------------------------------------
     ps_show = subps.add_parser("show", description="Display document Information")
-    ps_show.add_argument("input", type=str, help="Input filename")
+    ps_show.add_argument("input", type=str, help="PDF filename")
     ps_show.add_argument(
-        "-cat", "--catalog", action="store_true", help="show PDF catalog"
+        "-cat", "--catalog", action="store_true", help="Show PDF catalog"
     )
     ps_show.add_argument(
-        "-tr", "--trailer", action="store_true", help="show PDF trailer"
+        "-tr", "--trailer", action="store_true", help="Show PDF trailer"
     )
     ps_show.add_argument(
-        "-meta", "--metadata", action="store_true", help="show PDF metadata"
+        "-meta", "--metadata", action="store_true", help="Show PDF metadata"
     )
-    ps_show.add_argument("-xrefs", type=str, help="show objects, format: 1,5-7,N")
-    ps_show.add_argument("-pages", type=str, help="show pages, format: 1,5-7,50-N")
+    ps_show.add_argument("-xrefs", type=str, help="Show objects, format: 1,5-7,N")
+    ps_show.add_argument("-pages", type=str, help="Show pages, format: 1,5-7,50-N")
     ps_show.set_defaults(func=show)
 
     # 'clean' command --------------------------------------------------------
     ps_clean = subps.add_parser(
         "clean", description="Optimize document or create subdocument if pages given."
     )
-    ps_clean.add_argument("input", type=str, help="Input filename")
-    ps_clean.add_argument("output", type=str, help="Output filename")
+    ps_clean.add_argument("input", type=str, help="PDF filename")
+    ps_clean.add_argument("output", type=str, help="Output PDF filename")
     ps_clean.add_argument(
         "-garbage",
         type=int,
@@ -197,18 +242,40 @@ def main():
     ps_clean.add_argument("-pages", type=str, help="Include pages, format: 1,5-7,50-N")
     ps_clean.set_defaults(func=clean)
 
-    # 'embed-list' command ---------------------------------------------------
+    # 'embed-info' command ---------------------------------------------------
     ps_show = subps.add_parser("embed-info", description="List embedded files.")
-    ps_show.add_argument("input", type=str, help="Input filename")
+    ps_show.add_argument("input", type=str, help="PDF filename")
     ps_show.add_argument("-detail", action="store_true", help="Detail information")
     ps_show.set_defaults(func=embedded_list)
 
     # 'embed-del' command ---------------------------------------------------
     ps_show = subps.add_parser("embed-del", description="Delete embedded file.")
-    ps_show.add_argument("input", type=str, help="Input filename")
-    ps_show.add_argument("-output", help="Output filename, incremental save if none")
+    ps_show.add_argument("input", type=str, help="PDF filename")
+    ps_show.add_argument(
+        "-output", help="Output PDF filename, incremental save if none"
+    )
     ps_show.add_argument("name", help="Name of entry to delete")
     ps_show.set_defaults(func=embedded_del)
+
+    # 'embed-add' command ---------------------------------------------------
+    ps_show = subps.add_parser("embed-add", description="Add an embedded file.")
+    ps_show.add_argument("input", type=str, help="PDF filename")
+    ps_show.add_argument(
+        "-output", help="Output PDF filename, incremental save if none"
+    )
+    ps_show.add_argument("-name", help="Name of new entry")
+    ps_show.add_argument("-file", help="File of new entry")
+    ps_show.add_argument("-desc", help="Description of new entry")
+    ps_show.set_defaults(func=embedded_add)
+
+    # 'embed-extract' command ---------------------------------------------------
+    ps_show = subps.add_parser(
+        "embed-extract", description="Extract and save an embedded file."
+    )
+    ps_show.add_argument("input", type=str, help="PDF filename")
+    ps_show.add_argument("-name", help="Name of entry")
+    ps_show.add_argument("-output", help="Output filename, defaults to stored name")
+    ps_show.set_defaults(func=embedded_get)
 
     # start program ----------------------------------------------------------
     args = parser.parse_args()

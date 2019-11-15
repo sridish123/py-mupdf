@@ -20236,7 +20236,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools_mupdf_version", _wrap_Tools_mupdf_version, METH_O, "Return compiled MuPDF version."},
 	 { "Tools_mupdf_warnings", _wrap_Tools_mupdf_warnings, METH_VARARGS, "Return the MuPDF warnings store."},
 	 { "Tools_reset_mupdf_warnings", _wrap_Tools_reset_mupdf_warnings, METH_O, "Reset MuPDF warnings."},
-	 { "Tools_mupdf_display_errors", _wrap_Tools_mupdf_display_errors, METH_VARARGS, "Set MuPDF error display on or off."},
+	 { "Tools_mupdf_display_errors", _wrap_Tools_mupdf_display_errors, METH_VARARGS, "Set MuPDF error display to True or False."},
 	 { "Tools__transform_rect", _wrap_Tools__transform_rect, METH_VARARGS, "Transform rectangle with matrix."},
 	 { "Tools__intersect_rect", _wrap_Tools__intersect_rect, METH_VARARGS, "Intersect two rectangles."},
 	 { "Tools__include_point_in_rect", _wrap_Tools__include_point_in_rect, METH_VARARGS, "Include point in a rect."},

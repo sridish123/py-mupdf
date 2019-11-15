@@ -78,8 +78,8 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 VersionFitz = "1.16.0"
 VersionBind = "1.16.8"
-VersionDate = "2019-11-14 10:54:21"
-version = (VersionBind, VersionFitz, "20191114105421")
+VersionDate = "2019-11-15 17:07:34"
+version = (VersionBind, VersionFitz, "20191115170734")
 
 EPSILON = _fitz.EPSILON
 
@@ -5113,7 +5113,7 @@ class Tools(object):
         return _fitz.Tools_reset_mupdf_warnings(self)
 
     def mupdf_display_errors(self, value=None):
-        r"""Set MuPDF error display on or off."""
+        r"""Set MuPDF error display to True or False."""
         return _fitz.Tools_mupdf_display_errors(self, value)
 
     def _transform_rect(self, rect, matrix):
