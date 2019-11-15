@@ -2735,6 +2735,7 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
 char *JM_Python_str_AsChar(PyObject *str);
 pdf_obj *pdf_lookup_page_loc(fz_context *ctx, pdf_document *doc, int needle, pdf_obj **parentp, int *indexp);
 PyObject *JM_mupdf_warnings_store;
+PyObject *JM_mupdf_show_errors;
 
 
 fz_context *gctx;
@@ -3343,7 +3344,8 @@ void JM_mupdf_warning(void *user, const char *message)
 void JM_mupdf_error(void *user, const char *message)
 {
     LIST_APPEND_DROP(JM_mupdf_warnings_store, JM_EscapeStrFromStr(message));
-    PySys_WriteStderr("mupdf: %s\n", message);
+    if (JM_mupdf_show_errors == Py_True)
+        PySys_WriteStderr("mupdf: %s\n", message);
 }
 
 // a simple tracer
@@ -3650,65 +3652,6 @@ void JM_update_stream(fz_context *ctx, pdf_document *doc, pdf_obj *obj, fz_buffe
         pdf_update_stream(ctx, doc, obj, buffer, 0);
     }
     fz_drop_buffer(ctx, nres);
-}
-
-//-----------------------------------------------------------------------------
-// Version of fz_new_pixmap_from_display_list (util.c) to support rendering
-// of only the 'clip' part of the displaylist rectangle
-//-----------------------------------------------------------------------------
-fz_pixmap *
-JM_pixmap_from_display_list(fz_context *ctx,
-                            fz_display_list *list,
-                            PyObject *ctm,
-                            fz_colorspace *cs,
-                            int alpha,
-                            PyObject *clip
-                           )
-{
-    fz_rect rect = fz_bound_display_list(ctx, list);
-    fz_matrix matrix = JM_matrix_from_py(ctm);
-    fz_pixmap *pix = NULL;
-    fz_var(pix);
-    fz_device *dev = NULL;
-    fz_var(dev);
-    fz_separations *seps = NULL;
-    fz_rect rclip = JM_rect_from_py(clip);
-    rect = fz_intersect_rect(rect, rclip);  // no-op if clip is not given
-
-    rect = fz_transform_rect(rect, matrix);
-    fz_irect irect = fz_round_rect(rect);
-
-    pix = fz_new_pixmap_with_bbox(ctx, cs, irect, seps, alpha);
-    if (alpha)
-        fz_clear_pixmap(ctx, pix);
-    else
-        fz_clear_pixmap_with_value(ctx, pix, 0xFF);
-
-    fz_try(ctx)
-    {
-        if (!fz_is_infinite_rect(rclip))
-        {
-            dev = fz_new_draw_device_with_bbox(ctx, matrix, pix, &irect);
-            fz_run_display_list(ctx, list, dev, fz_identity, rclip, NULL);
-        }
-        else
-        {
-            dev = fz_new_draw_device(ctx, matrix, pix);
-            fz_run_display_list(ctx, list, dev, fz_identity, fz_infinite_rect, NULL);
-        }
-
-        fz_close_device(ctx, dev);
-    }
-    fz_always(ctx)
-    {
-        fz_drop_device(ctx, dev);
-    }
-    fz_catch(ctx)
-    {
-        fz_drop_pixmap(ctx, pix);
-        fz_rethrow(ctx);
-    }
-    return pix;
 }
 
 //-----------------------------------------------------------------------------
@@ -4326,7 +4269,8 @@ PyObject *JM_image_profile(fz_context *ctx, PyObject *imagedata, int keep_image)
                                 "size", len
                               );
         if (keep_image)
-        {   // keep fz_image: hand over address, do not drop
+        {
+            // keep fz_image: hand over address, do not drop
             DICT_SETITEM_DROP(result, dictkey_image,
                               PyLong_FromVoidPtr((void *) fz_keep_image(ctx, image)));
         }
@@ -4349,6 +4293,181 @@ PyObject *JM_image_profile(fz_context *ctx, PyObject *imagedata, int keep_image)
         return PyDict_New();
     }
     return result;
+}
+
+//----------------------------------------------------------------------------
+// Version of fz_new_pixmap_from_display_list (util.c) to also support
+// rendering of only the 'clip' part of the displaylist rectangle
+//----------------------------------------------------------------------------
+fz_pixmap *
+JM_pixmap_from_display_list(fz_context *ctx,
+                            fz_display_list *list,
+                            PyObject *ctm,
+                            fz_colorspace *cs,
+                            int alpha,
+                            PyObject *clip,
+                            fz_separations *seps
+                           )
+{
+    fz_rect rect = fz_bound_display_list(ctx, list);
+    fz_matrix matrix = JM_matrix_from_py(ctm);
+    fz_pixmap *pix = NULL;
+    fz_var(pix);
+    fz_device *dev = NULL;
+    fz_var(dev);
+    fz_rect rclip = JM_rect_from_py(clip);
+    rect = fz_intersect_rect(rect, rclip);  // no-op if clip is not given
+
+    rect = fz_transform_rect(rect, matrix);
+    fz_irect irect = fz_round_rect(rect);
+
+    pix = fz_new_pixmap_with_bbox(ctx, cs, irect, seps, alpha);
+    if (alpha)
+        fz_clear_pixmap(ctx, pix);
+    else
+        fz_clear_pixmap_with_value(ctx, pix, 0xFF);
+
+    fz_try(ctx)
+    {
+        if (!fz_is_infinite_rect(rclip))
+        {
+            dev = fz_new_draw_device_with_bbox(ctx, matrix, pix, &irect);
+            fz_run_display_list(ctx, list, dev, fz_identity, rclip, NULL);
+        }
+        else
+        {
+            dev = fz_new_draw_device(ctx, matrix, pix);
+            fz_run_display_list(ctx, list, dev, fz_identity, fz_infinite_rect, NULL);
+        }
+
+        fz_close_device(ctx, dev);
+    }
+    fz_always(ctx)
+    {
+        fz_drop_device(ctx, dev);
+    }
+    fz_catch(ctx)
+    {
+        fz_drop_pixmap(ctx, pix);
+        fz_rethrow(ctx);
+    }
+    return pix;
+}
+
+//----------------------------------------------------------------------------
+// Pixmap creation directly using a short-lived displaylist, so we can support
+// separations.
+//----------------------------------------------------------------------------
+fz_pixmap *
+JM_pixmap_from_page(fz_context *ctx,
+                    fz_document *doc,
+                    fz_page *page,
+                    PyObject *ctm,
+                    fz_colorspace *cs,
+                    int alpha,
+                    int annots,
+                    PyObject *clip
+                   )
+{
+    enum { SPOTS_NONE, SPOTS_OVERPRINT_SIM, SPOTS_FULL };
+    int spots;
+    if (FZ_ENABLE_SPOT_RENDERING)
+        spots = SPOTS_OVERPRINT_SIM;
+    else
+        spots = SPOTS_NONE;
+
+    fz_separations *seps = NULL;
+    fz_pixmap *pix = NULL;
+    fz_colorspace *oi = NULL;
+    fz_var(oi);
+    fz_colorspace *colorspace = cs;
+    fz_rect rect;
+    fz_irect bbox;
+    fz_device *dev = NULL;
+    fz_var(dev);
+    fz_matrix matrix = JM_matrix_from_py(ctm);
+    rect = fz_bound_page(ctx, page);
+    fz_rect rclip = JM_rect_from_py(clip);
+    rect = fz_intersect_rect(rect, rclip);  // no-op if clip is not given
+    rect = fz_transform_rect(rect, matrix);
+    bbox = fz_round_rect(rect);
+
+    fz_try(ctx)
+    {
+        // Pixmap of the document's /OutputIntents ("output intents")
+        oi = fz_document_output_intent(ctx, doc);
+        // if present and compatible, use it instead of the parameter
+        if (oi)
+        {
+            if (fz_colorspace_n(ctx, oi) == fz_colorspace_n(ctx, cs))
+            {
+                colorspace = fz_keep_colorspace(ctx, oi);
+            }
+        }
+
+        // check if spots rendering is available and if so use separations
+        if (spots != SPOTS_NONE)
+        {
+            seps = fz_page_separations(ctx, page);
+            if (seps)
+            {
+                int i, n = fz_count_separations(ctx, seps);
+                if (spots == SPOTS_FULL)
+                    for (i = 0; i < n; i++)
+                        fz_set_separation_behavior(ctx, seps, i, FZ_SEPARATION_SPOT);
+                else
+                    for (i = 0; i < n; i++)
+                        fz_set_separation_behavior(ctx, seps, i, FZ_SEPARATION_COMPOSITE);
+            }
+            else if (fz_page_uses_overprint(ctx, page))
+            {
+                /* This page uses overprint, so we need an empty
+                 * sep object to force the overprint simulation on. */
+                seps = fz_new_separations(ctx, 0);
+            }
+            else if (oi && fz_colorspace_n(ctx, oi) != fz_colorspace_n(ctx, colorspace))
+            {
+                /* We have an output intent, and it's incompatible
+                 * with the colorspace our device needs. Force the
+                 * overprint simulation on, because this ensures that
+                 * we 'simulate' the output intent too. */
+                seps = fz_new_separations(ctx, 0);
+            }
+        }
+
+        pix = fz_new_pixmap_with_bbox(ctx, colorspace, bbox, seps, alpha);
+
+        if (alpha)
+        {
+            fz_clear_pixmap(ctx, pix);
+        }
+        else
+        {
+            fz_clear_pixmap_with_value(ctx, pix, 0xFF);
+        }
+
+        dev = fz_new_draw_device(ctx, matrix, pix);
+        if (annots)
+        {
+            fz_run_page(ctx, page, dev, fz_identity, NULL);
+        }
+        else
+        {
+            fz_run_page_contents(ctx, page, dev, fz_identity, NULL);
+        }
+        fz_close_device(ctx, dev);
+    }
+    fz_always(ctx)
+    {
+        fz_drop_device(ctx, dev);
+        fz_drop_separations(ctx, seps);
+        fz_drop_colorspace(ctx, oi);
+    }
+    fz_catch(ctx)
+    {
+        fz_rethrow(ctx);
+    }
+    return pix;
 }
 
 
@@ -8537,7 +8656,10 @@ SWIGINTERN PyObject *fz_page_s_getSVGimage(struct fz_page_s *self,PyObject *matr
             {
                 res = fz_new_buffer(gctx, 1024);
                 out = fz_new_output_with_buffer(gctx, res);
-                dev = fz_new_svg_device(gctx, out, tbounds.x1-tbounds.x0, tbounds.y1-tbounds.y0, FZ_SVG_TEXT_AS_PATH, 1);
+                dev = fz_new_svg_device(gctx, out,
+                                        tbounds.x1-tbounds.x0,  // width
+                                        tbounds.y1-tbounds.y0,  // height
+                                        FZ_SVG_TEXT_AS_PATH, 1);
                 fz_run_page(gctx, self, dev, ctm, NULL);
                 fz_close_device(gctx, dev);
                 text = JM_EscapeStrFromBuffer(gctx, res);
@@ -8870,6 +8992,53 @@ SWIGINTERN struct fz_display_list_s *fz_page_s_getDisplayList(struct fz_page_s *
             }
             fz_catch(gctx) return NULL;
             return dl;
+        }
+SWIGINTERN struct fz_pixmap_s *fz_page_s__makePixmap(struct fz_page_s *self,struct fz_document_s *doc,PyObject *ctm,struct fz_colorspace_s *cs,int alpha,int annots,PyObject *clip){
+            fz_pixmap *pix = NULL;
+            fz_try(gctx)
+            {
+                pix = JM_pixmap_from_page(gctx, doc, self, ctm,
+                                          cs, alpha, annots, clip);
+            }
+            fz_catch(gctx) return NULL;
+            return pix;
+        }
+SWIGINTERN PyObject *fz_page_s_insertString(struct fz_page_s *self,PyObject *point,char *text,float fontsize,char *fontname,PyObject *color,char *language){
+            pdf_page *page = pdf_page_from_fz_page(gctx, self);
+            fz_text_language lang = fz_text_language_from_string(language);
+            fz_rect text_rect = fz_infinite_rect;
+            fz_font *user_font = NULL;
+            fz_text *text_obj = NULL;
+            fz_try(gctx)
+            {
+                assert_PDF(page);
+                fz_matrix ctm = fz_identity;
+                pdf_page_transform(gctx, page, NULL, &ctm);
+                fz_matrix ictm = fz_invert_matrix(ctm);
+                fz_point p = fz_transform_point(JM_point_from_py(point), ictm);
+                fz_matrix trm = {1,0,0,1,p.x, p.y};
+                int wmode = 0;
+                int bidi_level = 0;
+                text_obj = fz_new_text(gctx);
+                fz_bidi_direction markup_dir = FZ_BIDI_LTR;
+                trm = fz_show_string(gctx, text_obj,
+                                     user_font,
+                                     trm,
+                                     text,
+                                     wmode,
+                                     bidi_level,
+                                     markup_dir,
+                                     lang);
+            }
+            fz_always(gctx)
+            {
+                fz_drop_text(gctx, text_obj);
+            }
+            fz_catch(gctx)
+            {
+                return NULL;
+            }
+            return JM_py_from_rect(text_rect);
         }
 SWIGINTERN PyObject *fz_page_s_setCropBox(struct fz_page_s *self,PyObject *rect){
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
@@ -10580,7 +10749,7 @@ SWIGINTERN struct fz_pixmap_s *fz_display_list_s_getPixmap(struct fz_display_lis
             fz_try(gctx)
             {
                 pix = JM_pixmap_from_display_list(gctx, self, matrix, cs,
-                                                  alpha, clip);
+                                                  alpha, clip, NULL);
             }
             fz_catch(gctx) return NULL;
             return pix;
@@ -10930,6 +11099,14 @@ SWIGINTERN PyObject *Tools_mupdf_warnings(struct Tools *self,int reset){
 SWIGINTERN void Tools_reset_mupdf_warnings(struct Tools *self){
             Py_CLEAR(JM_mupdf_warnings_store);
             JM_mupdf_warnings_store = PyList_New(0);
+        }
+SWIGINTERN PyObject *Tools_mupdf_display_errors(struct Tools *self,PyObject *value){
+            if (value == Py_True)
+                JM_mupdf_show_errors = Py_True;
+            else if (value == Py_False)
+                JM_mupdf_show_errors = Py_False;
+            Py_INCREF(JM_mupdf_show_errors);
+            return JM_mupdf_show_errors;
         }
 SWIGINTERN PyObject *Tools__transform_rect(struct Tools *self,PyObject *rect,PyObject *matrix){
             return JM_py_from_rect(fz_transform_rect(JM_rect_from_py(rect), JM_matrix_from_py(matrix)));
@@ -14426,6 +14603,151 @@ SWIGINTERN PyObject *_wrap_Page_getDisplayList(PyObject *SWIGUNUSEDPARM(self), P
   resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_fz_display_list_s, 0 |  0 );
   return resultobj;
 fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Page__makePixmap(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
+  struct fz_document_s *arg2 = (struct fz_document_s *) 0 ;
+  PyObject *arg3 = (PyObject *) 0 ;
+  struct fz_colorspace_s *arg4 = (struct fz_colorspace_s *) 0 ;
+  int arg5 = (int) 0 ;
+  int arg6 = (int) 1 ;
+  PyObject *arg7 = (PyObject *) NULL ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp4 = 0 ;
+  int res4 = 0 ;
+  int val5 ;
+  int ecode5 = 0 ;
+  int val6 ;
+  int ecode6 = 0 ;
+  PyObject *swig_obj[7] ;
+  struct fz_pixmap_s *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Page__makePixmap", 4, 7, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_page_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__makePixmap" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
+  }
+  arg1 = (struct fz_page_s *)(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2,SWIGTYPE_p_fz_document_s, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Page__makePixmap" "', argument " "2"" of type '" "struct fz_document_s *""'"); 
+  }
+  arg2 = (struct fz_document_s *)(argp2);
+  arg3 = swig_obj[2];
+  res4 = SWIG_ConvertPtr(swig_obj[3], &argp4,SWIGTYPE_p_fz_colorspace_s, 0 |  0 );
+  if (!SWIG_IsOK(res4)) {
+    SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "Page__makePixmap" "', argument " "4"" of type '" "struct fz_colorspace_s *""'"); 
+  }
+  arg4 = (struct fz_colorspace_s *)(argp4);
+  if (swig_obj[4]) {
+    ecode5 = SWIG_AsVal_int(swig_obj[4], &val5);
+    if (!SWIG_IsOK(ecode5)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "Page__makePixmap" "', argument " "5"" of type '" "int""'");
+    } 
+    arg5 = (int)(val5);
+  }
+  if (swig_obj[5]) {
+    ecode6 = SWIG_AsVal_int(swig_obj[5], &val6);
+    if (!SWIG_IsOK(ecode6)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "Page__makePixmap" "', argument " "6"" of type '" "int""'");
+    } 
+    arg6 = (int)(val6);
+  }
+  if (swig_obj[6]) {
+    arg7 = swig_obj[6];
+  }
+  {
+    result = (struct fz_pixmap_s *)fz_page_s__makePixmap(arg1,arg2,arg3,arg4,arg5,arg6,arg7);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_fz_pixmap_s, 0 |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Page_insertString(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  char *arg3 = (char *) 0 ;
+  float arg4 ;
+  char *arg5 = (char *) 0 ;
+  PyObject *arg6 = (PyObject *) 0 ;
+  char *arg7 = (char *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res3 ;
+  char *buf3 = 0 ;
+  int alloc3 = 0 ;
+  float val4 ;
+  int ecode4 = 0 ;
+  int res5 ;
+  char *buf5 = 0 ;
+  int alloc5 = 0 ;
+  int res7 ;
+  char *buf7 = 0 ;
+  int alloc7 = 0 ;
+  PyObject *swig_obj[7] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Page_insertString", 7, 7, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_page_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page_insertString" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
+  }
+  arg1 = (struct fz_page_s *)(argp1);
+  arg2 = swig_obj[1];
+  res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Page_insertString" "', argument " "3"" of type '" "char *""'");
+  }
+  arg3 = (char *)(buf3);
+  ecode4 = SWIG_AsVal_float(swig_obj[3], &val4);
+  if (!SWIG_IsOK(ecode4)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Page_insertString" "', argument " "4"" of type '" "float""'");
+  } 
+  arg4 = (float)(val4);
+  res5 = SWIG_AsCharPtrAndSize(swig_obj[4], &buf5, NULL, &alloc5);
+  if (!SWIG_IsOK(res5)) {
+    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "Page_insertString" "', argument " "5"" of type '" "char *""'");
+  }
+  arg5 = (char *)(buf5);
+  arg6 = swig_obj[5];
+  res7 = SWIG_AsCharPtrAndSize(swig_obj[6], &buf7, NULL, &alloc7);
+  if (!SWIG_IsOK(res7)) {
+    SWIG_exception_fail(SWIG_ArgError(res7), "in method '" "Page_insertString" "', argument " "7"" of type '" "char *""'");
+  }
+  arg7 = (char *)(buf7);
+  {
+    result = (PyObject *)fz_page_s_insertString(arg1,arg2,arg3,arg4,arg5,arg6,arg7);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  if (alloc5 == SWIG_NEWOBJ) free((char*)buf5);
+  if (alloc7 == SWIG_NEWOBJ) free((char*)buf7);
+  return resultobj;
+fail:
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  if (alloc5 == SWIG_NEWOBJ) free((char*)buf5);
+  if (alloc7 == SWIG_NEWOBJ) free((char*)buf7);
   return NULL;
 }
 
@@ -19342,6 +19664,32 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Tools_mupdf_display_errors(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Tools *arg1 = (struct Tools *) 0 ;
+  PyObject *arg2 = (PyObject *) NULL ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Tools_mupdf_display_errors", 1, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools_mupdf_display_errors" "', argument " "1"" of type '" "struct Tools *""'"); 
+  }
+  arg1 = (struct Tools *)(argp1);
+  if (swig_obj[1]) {
+    arg2 = swig_obj[1];
+  }
+  result = (PyObject *)Tools_mupdf_display_errors(arg1,arg2);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Tools__transform_rect(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
@@ -19715,6 +20063,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page_addFreetextAnnot", _wrap_Page_addFreetextAnnot, METH_VARARGS, "Add a 'FreeText' annotation in rectangle 'rect'."},
 	 { "Page__addWidget", _wrap_Page__addWidget, METH_VARARGS, "Page__addWidget(self, Widget) -> Annot"},
 	 { "Page_getDisplayList", _wrap_Page_getDisplayList, METH_VARARGS, "Page_getDisplayList(self, annots=1) -> DisplayList"},
+	 { "Page__makePixmap", _wrap_Page__makePixmap, METH_VARARGS, "Page__makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"},
+	 { "Page_insertString", _wrap_Page_insertString, METH_VARARGS, "Page_insertString(self, point, text, fontsize, fontname, color, language) -> PyObject *"},
 	 { "Page_setCropBox", _wrap_Page_setCropBox, METH_VARARGS, "Page_setCropBox(self, rect) -> PyObject *"},
 	 { "Page_loadLinks", _wrap_Page_loadLinks, METH_O, "Page_loadLinks(self) -> Link"},
 	 { "Page_firstAnnot", _wrap_Page_firstAnnot, METH_O, "Points to first annotation on page"},
@@ -19886,6 +20236,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools_mupdf_version", _wrap_Tools_mupdf_version, METH_O, "Return compiled MuPDF version."},
 	 { "Tools_mupdf_warnings", _wrap_Tools_mupdf_warnings, METH_VARARGS, "Return the MuPDF warnings store."},
 	 { "Tools_reset_mupdf_warnings", _wrap_Tools_reset_mupdf_warnings, METH_O, "Reset MuPDF warnings."},
+	 { "Tools_mupdf_display_errors", _wrap_Tools_mupdf_display_errors, METH_VARARGS, "Set MuPDF error display on or off."},
 	 { "Tools__transform_rect", _wrap_Tools__transform_rect, METH_VARARGS, "Transform rectangle with matrix."},
 	 { "Tools__intersect_rect", _wrap_Tools__intersect_rect, METH_VARARGS, "Intersect two rectangles."},
 	 { "Tools__include_point_in_rect", _wrap_Tools__include_point_in_rect, METH_VARARGS, "Include point in a rect."},
@@ -20716,6 +21067,7 @@ SWIG_init(void) {
   // START redirect stdout/stderr
   //-----------------------------------------------------------------------------
   JM_mupdf_warnings_store = PyList_New(0);
+  JM_mupdf_show_errors = Py_True;
   char user[] = "PyMuPDF";
   fz_set_warning_callback(gctx, JM_mupdf_warning, &user);
   fz_set_error_callback(gctx, JM_mupdf_error, &user);

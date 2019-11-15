@@ -79,5 +79,5 @@ setup(
     author="Jorj McKie, Ruikai Liu",
     author_email="jorj.x.mckie@outlook.de",
     ext_modules=[module],
-    py_modules=["fitz.fitz", "fitz.utils"],
+    py_modules=["fitz.fitz", "fitz.utils", "fitz.__main__"],
 )

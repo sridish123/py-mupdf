@@ -77,9 +77,9 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.7"
-VersionDate = "2019-11-07 10:22:00"
-version = (VersionBind, VersionFitz, "20191107102200")
+VersionBind = "1.16.8"
+VersionDate = "2019-11-14 10:54:21"
+version = (VersionBind, VersionFitz, "20191114105421")
 
 EPSILON = _fitz.EPSILON
 
@@ -1925,7 +1925,7 @@ def getPDFstr(s):
             continue
 
         if oc > 127:
-            r += "\\" + oct(oc)[-3:]
+            r += "\\%03o" % oc
             continue
 
         if oc < 8 or oc > 13 or oc == 11 or c == 127:
@@ -1964,17 +1964,18 @@ def getTJstr(text, glyphs, simple, ordering):
     if not bool(text):
         return "[<>]"
 
-    if simple:
-        if glyphs is None:             # simple and not Symbol / ZapfDingbats
-            otxt = "".join([hex(ord(c))[2:].rjust(2, "0") if ord(c)<256 else "b7" for c in text])
-        else:                          # Symbol or ZapfDingbats
-            otxt = "".join([hex(glyphs[ord(c)][0])[2:].rjust(2, "0") if ord(c)<256 else "b7" for c in text])
+    if simple:  # each char or its glyph is coded as a 2-byte hex
+        if glyphs is None:  # not Symbol, not ZapfDingbats: use char code
+            otxt = "".join(["%02x" % ord(c) if ord(c) < 256 else "b7" for c in text])
+        else:  # Symbol or ZapfDingbats: use glyphs
+            otxt = "".join(["%02x" % glyphs[ord(c)][0] if ord(c) < 256 else "b7" for c in text])
         return "[<" + otxt + ">]"
 
-    if ordering < 0:                   # not a CJK font: use the glyphs
-        otxt = "".join([hex(glyphs[ord(c)][0])[2:].rjust(4, "0") for c in text])
-    else:                              # CJK: use char codes, no glyphs
-        otxt = "".join([hex(ord(c))[2:].rjust(4, "0") for c in text])
+# non-simple fonts: each char or its glyph is coded as 4-byte hex
+    if ordering < 0:  # not a CJK font: use the glyphs
+        otxt = "".join(["%04x" % glyphs[ord(c)][0] for c in text])
+    else:  # CJK: use the char codes
+        otxt = "".join(["%04x" % ord(c) for c in text])
 
     return "[<" + otxt + ">]"
 
@@ -3123,9 +3124,61 @@ open(filename, filetype='type') - from file"""
         self.setToC(new_toc)
         self._reset_page_refs()
 
+
     def saveIncr(self):
         """ Save PDF incrementally"""
         return self.save(self.name, incremental=True, encryption=PDF_ENCRYPT_KEEP)
+
+
+    def xrefObject(self, xref, compressed=False, ascii=False):
+        """Return the object definition of an xref.
+        """
+        return self._getXrefString(xref, compressed, ascii)
+
+
+    def updateObject(self, xref, text, page=None):
+        """Repleace the object at xref with text.
+
+        Optionally reload a page.
+        """
+        return self._updateObject(xref, text, page=page)
+
+
+    def xrefStream(self, xref):
+        """Return the decompressed stream content of an xref.
+        """
+        return self._getXrefStream(xref)
+
+
+    def xrefStreamRaw(self, xref):
+        """ Return the raw stream content of an xref.
+        """
+        return self._getXrefStreamRaw(xref)
+
+
+    def updateStream(self, xref, stream, new=False):
+        """Repleace the stream at xref with stream (bytes).
+        """
+        return self._updateStream(xref, stream, new=new)
+
+
+    def PDFTrailer(self, compressed=False, ascii=False):
+        """Return the PDF trailer string.
+        """
+        return self._getTrailerString(compressed, ascii)
+
+
+    def PDFCatalog(self):
+        """Return the xref of the PDF catalog object.
+        """
+        return self._getPDFroot()
+
+
+    def metadataXML(self):
+        """Return the xref of the document XML metadata.
+        """
+        return self._getXmlMetadataXref()
+
 
     def __repr__(self):
         m = "closed " if self.isClosed else ""
@@ -3217,7 +3270,7 @@ open(filename, filetype='type') - from file"""
 _fitz.Document_swigregister(Document)
 
 class Page(object):
-    r"""Proxy of C fz_page_s struct."""
+    r"""Page of a document."""
 
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
 
@@ -3524,6 +3577,17 @@ class Page(object):
 
 
         return _fitz.Page_getDisplayList(self, annots)
+
+
+    def _makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None):
+        r"""_makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"""
+        return _fitz.Page__makePixmap(self, doc, ctm, cs, alpha, annots, clip)
+
+    def insertString(self, point, text, fontsize, fontname, color, language):
+        r"""insertString(self, point, text, fontsize, fontname, color, language) -> PyObject *"""
+        CheckParent(self)
+
+        return _fitz.Page_insertString(self, point, text, fontsize, fontname, color, language)
 
 
     def setCropBox(self, rect):
@@ -4932,7 +4996,7 @@ class Graftmap(object):
 _fitz.Graftmap_swigregister(Graftmap)
 
 class Tools(object):
-    r"""Proxy of C Tools struct."""
+    r"""A collection of tools and utilities"""
 
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
@@ -5047,6 +5111,10 @@ class Tools(object):
     def reset_mupdf_warnings(self):
         r"""Reset MuPDF warnings."""
         return _fitz.Tools_reset_mupdf_warnings(self)
+
+    def mupdf_display_errors(self, value=None):
+        r"""Set MuPDF error display on or off."""
+        return _fitz.Tools_mupdf_display_errors(self, value)
 
     def _transform_rect(self, rect, matrix):
         r"""Transform rectangle with matrix."""

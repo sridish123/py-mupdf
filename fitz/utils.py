@@ -516,47 +516,31 @@ def getPageText(doc, pno, output="text"):
     """
     return doc[pno].getText(output)
 
-def getPixmap(page,
-              matrix=None,
-              colorspace=csRGB,
-              clip=None,
-              alpha=False,
-              annots=True,
-            ):
+
+def getPixmap(page, matrix=None, colorspace=csRGB, clip=None, alpha=False,
+                annots=True):
     """Create pixmap of page.
 
     Args:
         matrix: Matrix for transformation (default: Identity).
-        colorspace: (str/Colorspace) rgb, rgb, gray - case ignored, default csRGB.
+        colorspace: (str/Colorspace) cmyk, rgb, gray - case ignored, default csRGB.
         clip: (irect-like) restrict rendering to this area.
-        alpha: (bool) include alpha channel
+        alpha: (bool) whether to include alpha channel
+        annots: (bool) whether to also render annotations
     """
     CheckParent(page)
-
-    # determine required colorspace
-    cs = colorspace
+    doc = page.parent
     if type(colorspace) is str:
         if colorspace.upper() == "GRAY":
-            cs = csGRAY
+            colorspace = csGRAY
         elif colorspace.upper() == "CMYK":
-            cs = csCMYK
+            colorspace = csCMYK
         else:
-            cs = csRGB
-    if cs.n not in (1,3,4):
+            colorspace = csRGB
+    if colorspace.n not in (1, 3, 4):
         raise ValueError("unsupported colorspace")
-
-    dl = page.getDisplayList(annots)  # create DisplayList
-    if clip:
-        scissor = Rect(clip)
-    else:
-        scissor = None
-    pix = dl.getPixmap(matrix=matrix,
-                       colorspace=cs,
-                       alpha=alpha,
-                       clip=scissor,
-                      )
-    del dl
-    return pix
+    
+    return page._makePixmap(doc, matrix, colorspace, alpha, annots, clip)
 
 def getPagePixmap(doc,
                   pno,
