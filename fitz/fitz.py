@@ -77,9 +77,9 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.8"
-VersionDate = "2019-11-18 18:12:19"
-version = (VersionBind, VersionFitz, "20191118181219")
+VersionBind = "1.16.9"
+VersionDate = "2019-12-04 12:55:58"
+version = (VersionBind, VersionFitz, "20191204125558")
 
 EPSILON = _fitz.EPSILON
 
@@ -997,8 +997,12 @@ class Rect(object):
         self.x0, self.y0, self.x1, self.y1 = TOOLS._intersect_rect(self, r)
         return self
 
+    def contains(self, x):
+        """Check if containing a point-like or rect-like x."""
+        return self.__contains__(x)
+
     def transform(self, m):
-        """Replace rectangle with its transformation by matrix m."""
+        """Replace rectangle with its transformation by matrix-like m."""
         if not len(m) == 6:
             raise ValueError("bad sequ. length")
         self.x0, self.y0, self.x1, self.y1 = TOOLS._transform_rect(self, m)
@@ -3130,6 +3134,12 @@ open(filename, filetype='type') - from file"""
         return self.save(self.name, incremental=True, encryption=PDF_ENCRYPT_KEEP)
 
 
+    def xrefLength(self):
+        """Return the length of the xref table.
+        """
+        return self._getXrefLength()
+
+
     def xrefObject(self, xref, compressed=False, ascii=False):
         """Return the object definition of an xref.
         """
@@ -3756,6 +3766,10 @@ class Page(object):
     def _insertImage(self, filename=None, pixmap=None, stream=None, overlay=1, matrix=None, _imgname=None, _imgpointer=None):
         r"""_insertImage(self, filename=None, pixmap=None, stream=None, overlay=1, matrix=None, _imgname=None, _imgpointer=None) -> PyObject *"""
         return _fitz.Page__insertImage(self, filename, pixmap, stream, overlay, matrix, _imgname, _imgpointer)
+
+    def refresh(self):
+        r"""Refresh page after link/annot/widget updates."""
+        return _fitz.Page_refresh(self)
 
     def insertFont(self, fontname="helv", fontfile=None, fontbuffer=None,
                    set_simple=False, wmode=0, encoding=0):
@@ -4471,7 +4485,7 @@ class Annot(object):
             ap_updated = True
 
         #----------------------------------------------------------------------
-        # the following handles line end symbols for 'Polygon' and 'Polyline
+        # the following handles line end symbols for 'Polygon' and 'Polyline'
         #----------------------------------------------------------------------
         if max(line_end_le, line_end_ri) > 0 and type in (PDF_ANNOT_POLYGON, PDF_ANNOT_POLYLINE):
 
@@ -4507,17 +4521,22 @@ class Annot(object):
         # always perform a clean to wrap stream by "q" / "Q"
         self._cleanContents()
 
+
         return val
 
 
-    def setColors(self, colors):
+    def setColors(self, colors=None, fill=None, stroke=None):
         r"""
         setColors(dict)
-        Changes the 'stroke' and 'fill' colors of an annotation. If provided, values must be lists of up to 4 floats.
+        Changes the 'stroke' and 'fill' colors of an annotation. If provided, values must be sequences of up to 4 floats.
         """
-        CheckParent(self)
 
-        return _fitz.Annot_setColors(self, colors)
+        CheckParent(self)
+        if type(colors) is not dict:
+            colors = {"fill": fill, "stroke": stroke}
+
+
+        return _fitz.Annot_setColors(self, colors, fill, stroke)
 
     @property
 
@@ -4604,11 +4623,15 @@ class Annot(object):
         return _fitz.Annot_border(self)
 
 
-    def setBorder(self, border):
-        r"""setBorder(self, border) -> PyObject *"""
-        CheckParent(self)
+    def setBorder(self, border=None, width=0, style=None, dashes=None):
+        r"""setBorder(self, border=None, width=0, style=None, dashes=None) -> PyObject *"""
 
-        return _fitz.Annot_setBorder(self, border)
+        CheckParent(self)
+        if type(border) is not dict:
+            border = {"width": width, "style": style, "dashes": dashes}
+
+
+        return _fitz.Annot_setBorder(self, border, width, style, dashes)
 
     @property
 
@@ -4657,11 +4680,19 @@ class Annot(object):
         return val
 
 
-    def getPixmap(self, matrix=None, colorspace=None, alpha=1):
-        r"""getPixmap(self, matrix=None, colorspace=None, alpha=1) -> Pixmap"""
-        CheckParent(self)
-
-        return _fitz.Annot_getPixmap(self, matrix, colorspace, alpha)
+    def getPixmap(self, matrix=None, colorspace="rgb", alpha=False):
+        """Return the Pixmap of the annotation.
+        """
+        page = self.parent
+        if page is None:
+            raise ValueError("orphaned object: parent is None")
+        return page.getPixmap(
+            matrix=matrix,
+            colorspace=colorspace,
+            alpha=alpha,
+            clip=self.rect,
+            annots=True,
+        )
 
 
     def _erase(self):
@@ -4718,14 +4749,18 @@ class Link(object):
     def border(self):
         return self._border(self.parent.parent.this, self.xref)
 
-    def setBorder(self, border):
+    def setBorder(self, border=None, width=0, dashes=None, style=None):
+        if type(border) is not dict:
+            border = {"width": width, "style": style, "dashes": dashes}
         return self._setBorder(border, self.parent.parent.this, self.xref)
 
     @property
     def colors(self):
         return self._colors(self.parent.parent.this, self.xref)
 
-    def setColors(self, colors):
+    def setColors(self, colors=None, stroke=None, fill=None):
+        if type(colors) is not dict:
+            colors = {"fill": fill, "stroke": stroke}
         return self._setColors(colors, self.parent.parent.this, self.xref)
 
     @property
