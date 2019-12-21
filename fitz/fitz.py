@@ -67,19 +67,19 @@ class _SwigNonDynamicMeta(type):
 
 
 
+import io
+import math
 import os
 import weakref
-import io
 from binascii import hexlify
-import math
 
 fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.9"
-VersionDate = "2019-12-04 12:55:58"
-version = (VersionBind, VersionFitz, "20191204125558")
+VersionBind = "1.16.10"
+VersionDate = "2019-12-21 07:31:32"
+version = (VersionBind, VersionFitz, "20191221073132")
 
 EPSILON = _fitz.EPSILON
 
@@ -1692,16 +1692,16 @@ def getTextlength(text, fontname="helv", fontsize=11, encoding=0):
     if basename == "ZapfDingbats":
         glyphs = zapf_glyphs
     if glyphs is not None:
-        w = sum([glyphs[ord(c)][1] if ord(c)<256 else glyphs[183][1] for c in text])
+        w = sum([glyphs[ord(c)][1] if ord(c) < 256 else glyphs[183][1] for c in text])
         return w * fontsize
 
     if fontname in Base14_fontdict.keys():
         return TOOLS.measure_string(text, Base14_fontdict[fontname], fontsize, encoding)
 
-    if fontname in ["china-t", "china-s",
+    if fontname in ("china-t", "china-s",
                     "china-ts", "china-ss",
                     "japan", "japan-s",
-                    "korea", "korea-s"]:
+                    "korea", "korea-s"):
         return len(text) * fontsize
 
     raise ValueError("Font '%s' is unsupported" % fontname)
@@ -1910,7 +1910,7 @@ def getPDFstr(s):
     def make_utf16be(s):
         r = hexlify(bytearray([254, 255]) + bytearray(s, "UTF-16BE"))
         t = r if fitz_py2 else r.decode()
-        return "<" + t + ">"                         # brackets indicate hex
+        return "<" + t + ">"  # brackets indicate hex
 
 
 # following either returns original string with mixed-in
@@ -1919,33 +1919,32 @@ def getPDFstr(s):
     r = ""
     for c in s:
         oc = ord(c)
-        if oc > 255:                                  # shortcut if beyond code range
+        if oc > 255:  # shortcut if beyond 8-bit code range
             return make_utf16be(s)
 
-        if oc > 31 and oc < 127:
-            if c in ("(", ")", "\\"):
+        if oc > 31 and oc < 127:  # in ASCII range
+            if c in ("(", ")", "\\"):  # these need to be escaped
                 r += "\\"
             r += c
             continue
 
-        if oc > 127:
+        if oc > 127:  # beyond ASCII
             r += "\\%03o" % oc
             continue
 
-        if oc < 8 or oc > 13 or oc == 11 or c == 127:
-            r += "\\267"   # indicate unsupported char
-            continue
-
-        if oc == 8:
+# now the white spaces
+        if oc == 8:  # backspace
             r += "\\b"
-        elif oc == 9:
+        elif oc == 9:  # tab
             r += "\\t"
-        elif oc == 10:
+        elif oc == 10:  # line feed
             r += "\\n"
-        elif oc == 12:
+        elif oc == 12:  # form feed
             r += "\\f"
-        elif oc == 13:
+        elif oc == 13:  # carriage return
             r += "\\r"
+        else:
+            r += "\\267"  # unsupported: replace by 0xB7
 
     return "(" + r + ")"
 
@@ -1961,7 +1960,7 @@ def getTJstr(text, glyphs, simple, ordering):
                 ZapfDingbats)
         not simple: ordering < 0: 4-chars, use glyphs not char codes
                     ordering >=0: a CJK font! 4 chars, use char codes as glyphs
-"""
+    """
     if text.startswith("[<") and text.endswith(">]"): # already done
         return text
 
@@ -1983,12 +1982,12 @@ def getTJstr(text, glyphs, simple, ordering):
 
     return "[<" + otxt + ">]"
 
-'''
+"""
 Information taken from the following web sites:
 www.din-formate.de
 www.din-formate.info/amerikanische-formate.html
 www.directtools.de/wissen/normen/iso.htm
-'''
+"""
 paperSizes = { # known paper formats @ 72 dpi
         'a0': (2384, 3370),
         'a1': (1684, 2384),
@@ -2036,9 +2035,12 @@ paperSizes = { # known paper formats @ 72 dpi
         'tabloid-extra': (864, 1296),
         }
 def PaperSize(s):
-    """Return a tuple (width, height) for a given paper format string. 'A4-L' will
-    return (842, 595), the values for A4 landscape. Suffix '-P' and no suffix
-    returns portrait."""
+    """Return a tuple (width, height) for a given paper format string.
+
+    Notes:
+        'A4-L' will return (842, 595), the values for A4 landscape.
+        Suffix '-P' and no suffix return the portrait tuple.
+    """
     size = s.lower()
     f = "p"
     if size.endswith("-l"):
@@ -3140,10 +3142,12 @@ open(filename, filetype='type') - from file"""
         return self._getXrefLength()
 
 
-    def xrefObject(self, xref, compressed=False, ascii=False):
+    def get_pdf_object(self, xref, compressed=False, ascii=False):
         """Return the object definition of an xref.
         """
         return self._getXrefString(xref, compressed, ascii)
+
+    xrefObject = get_pdf_object
 
 
     def updateObject(self, xref, text, page=None):
@@ -3188,6 +3192,26 @@ open(filename, filetype='type') - from file"""
         """Return the xref of the document XML metadata.
         """
         return self._getXmlMetadataXref()
+
+
+    def reload_page(self, page):
+        """Make a fresh copy of a page.
+        """
+        old_annots = {}  # copy annotation kid references to here
+        pno = page.number  # save the page number
+        for k, v in page._annot_refs.items():  # save the annot dictionary
+            old_annots[k] = v
+        page._erase()  # remove the page
+        page = None
+        page = self.loadPage(pno)  # reload the page
+
+    # copy previous annotation kids over to the new dictionary
+        page_proxy = weakref.proxy(page)
+        for k, v in old_annots.items():
+            annot = old_annots[k]
+            annot.parent = page_proxy  # refresh parent to new page
+            page._annot_refs[k] = annot
+        return page
 
 
     def __repr__(self):
@@ -3552,6 +3576,32 @@ class Page(object):
 
         return val
 
+
+    def load_annot(self, name):
+        r"""load_annot(self, name) -> Annot"""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+        if name not in self.annot_names():
+            return None
+
+
+        val = _fitz.Page_load_annot(self, name)
+
+        if not val:
+            return val
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+
+        return val
+
+
+    def annot_names(self):
+        r"""annot_names(self) -> PyObject *"""
+        return _fitz.Page_annot_names(self)
 
                 #---------------------------------------------------------------------
                 # page addWidget
@@ -4346,30 +4396,34 @@ class Annot(object):
         return _fitz.Annot_colors(self)
 
 
-    def update(self, fontsize=0, fontname=None, text_color=None, border_color=None, fill_color=None, rotate=-1):
-        r"""Update the appearance of an annotation."""
-        CheckParent(self)
+    def _update_appearance(self, opacity=None, fill_color=None, rotate=-1):
+        r"""_update_appearance(self, opacity=None, fill_color=None, rotate=-1) -> PyObject *"""
+        return _fitz.Annot__update_appearance(self, opacity, fill_color, rotate)
 
-        val = _fitz.Annot_update(self, fontsize, fontname, text_color, border_color, fill_color, rotate)
+    def update(self,
+               fontsize=0,
+               fontname=None,
+               text_color=None,
+               border_color=None,
+               fill_color=None,
+               rotate=-1,
+               ):
 
         """
         The following code fixes shortcomings of MuPDF's "pdf_update_annot"
         function. Currently these are:
         1. Opacity (all annots). MuPDF ignores this proprty. This requires
-           to add an ExtGState (extended graphics state) object in the
-           C code as well.
+        to add an ExtGState (extended graphics state) object in the
+        C code as well.
         2. Dashing (all annots). MuPDF ignores this proprty.
         3. Colors and font size for FreeText annotations.
         4. Line end icons also for POLYGON and POLY_LINE annotations.
-           MuPDF only honors them for LINE annotations.
+        MuPDF only honors them for LINE annotations.
         5. Always perform a "clean" for the annot, because MuPDF does not
-           enclose their syntax in a string pair "q ... Q", which may cause
-           Adobe and other readers not to display the annot.
-
+        enclose the contents syntax in a string pair "q ... Q", which may
+        cause Adobe and other readers not to display the annot.
         """
-        if not val is True:  # skip if something went wrong
-            return val
-
+        CheckParent(self)
         def color_string(cs, code):
             """Return valid PDF color operator for a given color sequence.
             """
@@ -4391,24 +4445,45 @@ class Annot(object):
 
             return bytes(col, "utf8") if not fitz_py2 else col
 
-        type   = self.type[0]               # get the annot type
-        dt     = self.border["dashes"]      # get the dashes spec
-        bwidth = self.border["width"]       # get border line width
-        stroke = self.colors["stroke"]      # get the stroke color
-        fill   = self.colors["fill"]        # get the fill color
-        rect   = None                       # used if we change the rect here
-        bfill  = color_string(fill, "f")
-        p_ctm  = self.parent._getTransformation() # page transformation matrix
-        imat   = ~p_ctm                     # inverse page transf. matrix
+        type = self.type[0]  # get the annot type
+        dt = self.border["dashes"]  # get the dashes spec
+        bwidth = self.border["width"]  # get border line width
+        stroke = self.colors["stroke"]  # get the stroke color
+        if fill_color is not None:  # get the fill color
+            fill = fill_color
+        else:
+            fill = self.colors["fill"]
+
+        rect = self.rect  # prevent MuPDF fiddling with it
+
+    # Opacity not handled by MuPDF, so we do it here
+        if 0 <= self.opacity < 1:
+            opacity = "opacity%i" % int(round(self.opacity * 100))
+            opa_code = "/%s + gs\n" % opacity
+        else:
+            opacity = None
+            opa_code = None
+
+    # now invoke MuPDF annot appearance update
+        val = self._update_appearance(opacity, fill, rotate)
+        if not val:  # something went wrong, skip the rest
+            return val
+
+        self.setRect(rect)  # re-establish in case MuPDF changed it
+        rect = None  # used if we change the rect here
+        bfill = color_string(fill, "f")
+        p_ctm = self.parent._getTransformation()  # page transformation matrix
+        imat = ~p_ctm  # inverse page transf. matrix
         if dt:
             dashes = "[" + " ".join(map(str, dt)) + "] d\n"
             dashes = dashes.encode("utf-8")
         else:
             dashes = None
 
-        line_end_le, line_end_ri = 0, 0     # line end codes
         if self.lineEnds:
             line_end_le, line_end_ri = self.lineEnds
+        else:
+            line_end_le, line_end_ri = 0, 0  # init line end codes
 
         ap = self._getAP()  # get the annot operator source
         ap_tab = ap.splitlines()[1:-1]  # temporary remove of 'q ...Q'
@@ -4419,7 +4494,7 @@ class Annot(object):
             CheckColor(border_color)
             CheckColor(text_color)
 
-        # read and update default appearance as necessary
+    # read and update default appearance as necessary
             update_default_appearance = False
             tcol, fname, fsize = TOOLS._parse_da(self)
             if fname.lower() not in ("helv", "cour", "tiro", "zadb", "symb"):
@@ -4471,22 +4546,20 @@ class Annot(object):
                 ap = ap[:-1] + bfill + b"B"  # fill and stroke
                 ap_updated = True
 
-        # Dashes not handled by MuPDF, so we do it here.
+    # Dashes not handled by MuPDF, so we do it here.
         if dashes is not None:
             ap = dashes + ap
-        # reset dashing - only applies for LINE annots with line ends given
+    # reset dashing - only applies for LINE annots with line ends given
             ap = ap.replace(b"\nS\n", b"\nS\n[] d\n", 1)
             ap_updated = True
 
-        # Opacity not handled by MuPDF, so we do it here. The /ExtGState object
-        # "Alp0" referenced here has already been added by our C code.
-        if 0 <= self.opacity < 1:
-            ap = b"/Alp0 gs\n" + ap
+        if opa_code:
+            ap = opa_code.encode("utf-8") + ap
             ap_updated = True
 
-        #----------------------------------------------------------------------
-        # the following handles line end symbols for 'Polygon' and 'Polyline'
-        #----------------------------------------------------------------------
+    #----------------------------------------------------------------------
+    # the following handles line end symbols for 'Polygon' and 'Polyline'
+    #----------------------------------------------------------------------
         if max(line_end_le, line_end_ri) > 0 and type in (PDF_ANNOT_POLYGON, PDF_ANNOT_POLYLINE):
 
             le_funcs = (None, TOOLS._le_square, TOOLS._le_circle,
@@ -4518,11 +4591,8 @@ class Annot(object):
             else:
                 self._setAP(ap, rect = 0)
 
-        # always perform a clean to wrap stream by "q" / "Q"
+    # always perform a clean to wrap stream by "q" / "Q"
         self._cleanContents()
-
-
-        return val
 
 
     def setColors(self, colors=None, fill=None, stroke=None):
@@ -4602,17 +4672,31 @@ class Annot(object):
     @property
 
     def info(self):
-        r"""info(self) -> PyObject *"""
+        r"""Return various annotation properties."""
         CheckParent(self)
 
         return _fitz.Annot_info(self)
 
 
-    def setInfo(self, info):
-        r"""setInfo(self, info) -> PyObject *"""
-        CheckParent(self)
+    def setInfo(self, info=None, content=None, title=None, creationDate=None, modDate=None, subject=None):
+        r"""Set various annotation properties."""
 
-        return _fitz.Annot_setInfo(self, info)
+        CheckParent(self)
+        if type(info) is not dict:  # build a new dictionary from the other args
+            info = {}
+            if content is not None:
+                info["content"] = content
+            if title is not None:
+                info["title"] = title
+            if creationDate is not None:
+                info["creationDate"] = creationDate
+            if modDate is not None:
+                info["modDate"] = modDate
+            if subject is not None:
+                info["subject"] = subject
+
+
+        return _fitz.Annot_setInfo(self, info, content, title, creationDate, modDate, subject)
 
     @property
 
