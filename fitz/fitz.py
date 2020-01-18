@@ -77,9 +77,9 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.10"
-VersionDate = "2019-12-21 07:31:32"
-version = (VersionBind, VersionFitz, "20191221073132")
+VersionBind = "1.16.11"
+VersionDate = "2020-01-18 17:51:54"
+version = (VersionBind, VersionFitz, "20200118175154")
 
 EPSILON = _fitz.EPSILON
 
@@ -3195,8 +3195,7 @@ open(filename, filetype='type') - from file"""
 
 
     def reload_page(self, page):
-        """Make a fresh copy of a page.
-        """
+        """Make a fresh copy of a page."""
         old_annots = {}  # copy annotation kid references to here
         pno = page.number  # save the page number
         for k, v in page._annot_refs.items():  # save the annot dictionary
@@ -4454,7 +4453,7 @@ class Annot(object):
         else:
             fill = self.colors["fill"]
 
-        rect = self.rect  # prevent MuPDF fiddling with it
+        rect = None  # self.rect  # prevent MuPDF fiddling with it
 
     # Opacity not handled by MuPDF, so we do it here
         if 0 <= self.opacity < 1:
@@ -4464,12 +4463,13 @@ class Annot(object):
             opacity = None
             opa_code = None
 
-    # now invoke MuPDF annot appearance update
+    # now invoke MuPDF to update the annot appearance
         val = self._update_appearance(opacity, fill, rotate)
         if not val:  # something went wrong, skip the rest
             return val
 
-        self.setRect(rect)  # re-establish in case MuPDF changed it
+    #  self.setRect(rect)  # re-establish in case MuPDF changed it
+
         rect = None  # used if we change the rect here
         bfill = color_string(fill, "f")
         p_ctm = self.parent._getTransformation()  # page transformation matrix

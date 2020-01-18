@@ -8828,17 +8828,11 @@ SWIGINTERN struct pdf_annot_s *fz_page_s_addLineAnnot(struct fz_page_s *self,PyO
             pdf_annot *annot = NULL;
             fz_point a = JM_point_from_py(p1);
             fz_point b = JM_point_from_py(p2);
-            fz_rect r  = fz_make_rect(MIN(a.x, b.x),
-                                      MIN(a.y, b.y),
-                                      MAX(a.x, b.x),
-                                      MAX(a.y, b.y));
-            r = fz_expand_rect(r, 3);
             fz_try(gctx)
             {
                 assert_PDF(page);
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_LINE);
                 pdf_set_annot_line(gctx, annot, a, b);
-                pdf_set_annot_rect(gctx, annot, r);
                 JM_add_annot_id(gctx, annot, "fitzannot");
                 pdf_update_annot(gctx, annot);
             }
@@ -9043,20 +9037,13 @@ SWIGINTERN struct pdf_annot_s *fz_page_s__add_multiline(struct fz_page_s *self,P
                     if (PySequence_Size(p) != 2)
                     {
                         Py_DECREF(p);
-                        THROWMSG("bad point in points");
+                        THROWMSG("bad list of points");
                     }
                     fz_point point = JM_point_from_py(p);
                     Py_DECREF(p);
                     pdf_add_annot_vertex(gctx, annot, point);
-                    if (i == 0)
-                    {
-                        rect = fz_make_rect(point.x, point.y, point.x, point.y);
-                    }
-                    else
-                        rect = fz_include_point_in_rect(rect, point);
                 }
-                rect = fz_expand_rect(rect, 3);
-                pdf_set_annot_rect(gctx, annot, rect);
+
                 JM_add_annot_id(gctx, annot, "fitzannot");
                 pdf_update_annot(gctx, annot);
             }
@@ -10408,8 +10395,8 @@ SWIGINTERN PyObject *pdf_annot_s_colors(struct pdf_annot_s *self){
         }
 SWIGINTERN PyObject *pdf_annot_s__update_appearance(struct pdf_annot_s *self,char *opacity,PyObject *fill_color,int rotate){
             int type = pdf_annot_type(gctx, self);
-            float fcol[4] = {1,1,1,1};  // fill color: white
-            int nfcol = 0;
+            float fcol[4] = {1,1,1,1};  // std fill color: white
+            int nfcol = 0;  // number of color components
             JM_color_FromSequence(fill_color, &nfcol, fcol);
             fz_try(gctx)
             {
@@ -10427,6 +10414,7 @@ SWIGINTERN PyObject *pdf_annot_s__update_appearance(struct pdf_annot_s *self,cha
                 }
                 self->needs_new_ap = 1;  // force re-creation of appearance stream
                 pdf_update_annot(gctx, self);  // update the annotation
+                // this brackets the stream with "q ... Q":
                 pdf_clean_annot_contents(gctx, self->page->doc, self,
                                          NULL, NULL, NULL, 1, 0);
             }
@@ -10436,7 +10424,7 @@ SWIGINTERN PyObject *pdf_annot_s__update_appearance(struct pdf_annot_s *self,cha
                 Py_RETURN_FALSE;
             }
 
-            if (!opacity)  // no opacity given ==> we are done
+            if (!opacity)  // no opacity given ==> done
             {
                 Py_RETURN_TRUE;
             }
@@ -11521,7 +11509,7 @@ SWIGINTERN PyObject *_wrap_Document_loadPage(PyObject *SWIGUNUSEDPARM(self), PyO
   }
   {
     result = (struct fz_page_s *)fz_document_s_loadPage(arg1,arg2);
-    if (result==NULL)
+    if (!result)
     {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
