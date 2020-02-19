@@ -30,7 +30,7 @@ matrix:
     env: PIP=pip3
     before_install:
     - brew update
-    - brew outdated python || brew upgrade python
+    # - brew outdated python || brew upgrade python
     - sudo mkdir -p /usr/local/man && sudo chmod a+rw /usr/local/man
     before_script:
     - export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no
