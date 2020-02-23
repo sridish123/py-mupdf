@@ -23,14 +23,12 @@ matrix:
       HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .."
     - export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
   - os: osx
-    # osx_image: xcode10.2
     language: shell
-    services:
-    - docker
+    #services:
+    #- docker
     env: PIP=pip3
     before_install:
     - brew update
-    # - brew outdated python || brew upgrade python
     - sudo mkdir -p /usr/local/man && sudo chmod a+rw /usr/local/man
     before_script:
     - export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no

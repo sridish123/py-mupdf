@@ -78,8 +78,8 @@ fitz_py2 = str is bytes           # if true, this is Python 2
 
 VersionFitz = "1.16.0"
 VersionBind = "1.16.11"
-VersionDate = "2020-01-18 17:51:54"
-version = (VersionBind, VersionFitz, "20200118175154")
+VersionDate = "2020-02-21 15:40:27"
+version = (VersionBind, VersionFitz, "20200221154027")
 
 EPSILON = _fitz.EPSILON
 
@@ -3349,7 +3349,7 @@ class Page(object):
 
 
     def addCaretAnnot(self, point):
-        r"""Add 'Caret' annot on the page."""
+        r"""Add a 'Caret' annot on the page."""
 
         CheckParent(self)
         if not self.parent.isPDF:
@@ -3366,8 +3366,42 @@ class Page(object):
         return val
 
 
+    def addRedactAnnot(self, quad):
+        r"""Add a 'Redaction' annot on the page."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+
+
+        val = _fitz.Page_addRedactAnnot(self, quad)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+        # change the generated appearance to show a crossed-out rectangle
+        val._cleanContents()  # standardize the contents
+        ap_tab = val._getAP().splitlines()[1:5]  # get the 4 commands only
+        LL, LR, UR, UL = ap_tab
+        ap_tab.append(LR)
+        ap_tab.append(LL)
+        ap_tab.append(UR)
+        ap_tab.append(LL)
+        ap_tab.append(UL)
+        ap_tab.append(b"1 0 0 RG")
+        ap_tab.append(b"0.5 w")
+        ap_tab.append(b"S")
+        ap = b"\n".join(ap_tab)
+        val._setAP(ap, 0)
+        val._cleanContents()
+
+
+        return val
+
+
     def addLineAnnot(self, p1, p2):
-        r"""Add 'Line' annot for points p1 and p2."""
+        r"""Add a 'Line' annot for points p1 and p2."""
 
         CheckParent(self)
         if not self.parent.isPDF:
@@ -3637,6 +3671,10 @@ class Page(object):
 
         return _fitz.Page_getDisplayList(self, annots)
 
+
+    def apply_redactions(self, mark=0):
+        r"""apply_redactions(self, mark=0) -> PyObject *"""
+        return _fitz.Page_apply_redactions(self, mark)
 
     def _makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None):
         r"""_makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"""
@@ -4468,12 +4506,12 @@ class Annot(object):
         if not val:  # something went wrong, skip the rest
             return val
 
-    #  self.setRect(rect)  # re-establish in case MuPDF changed it
-
         rect = None  # used if we change the rect here
         bfill = color_string(fill, "f")
+
         p_ctm = self.parent._getTransformation()  # page transformation matrix
         imat = ~p_ctm  # inverse page transf. matrix
+
         if dt:
             dashes = "[" + " ".join(map(str, dt)) + "] d\n"
             dashes = dashes.encode("utf-8")
@@ -4489,6 +4527,21 @@ class Annot(object):
         ap_tab = ap.splitlines()[1:-1]  # temporary remove of 'q ...Q'
         ap = b"\n".join(ap_tab)
         ap_updated = False  # assume we did nothing
+
+        if type == PDF_ANNOT_REDACT:
+    # recreate the original PyMuPDF appearance (crossed-out rect)
+            ap_tab = ap_tab[:4]
+            LL, LR, UR, UL = ap_tab
+            ap_tab.append(LR)
+            ap_tab.append(LL)
+            ap_tab.append(UR)
+            ap_tab.append(LL)
+            ap_tab.append(UL)
+            ap_tab.append(b"1 0 0 RG")
+            ap_tab.append(b"0.5 w")
+            ap_tab.append(b"S")
+            ap = b"\n".join(ap_tab)
+            ap_updated = True
 
         if type == PDF_ANNOT_FREE_TEXT:
             CheckColor(border_color)
@@ -4560,7 +4613,7 @@ class Annot(object):
     #----------------------------------------------------------------------
     # the following handles line end symbols for 'Polygon' and 'Polyline'
     #----------------------------------------------------------------------
-        if max(line_end_le, line_end_ri) > 0 and type in (PDF_ANNOT_POLYGON, PDF_ANNOT_POLYLINE):
+        if line_end_le + line_end_ri > 0 and type in (PDF_ANNOT_POLYGON, PDF_ANNOT_POLYLINE):
 
             le_funcs = (None, TOOLS._le_square, TOOLS._le_circle,
                         TOOLS._le_diamond, TOOLS._le_openarrow,
@@ -4587,9 +4640,9 @@ class Annot(object):
         if ap_updated:
             if rect:                        # rect modified here?
                 self.setRect(rect)
-                self._setAP(ap, rect = 1)
+                self._setAP(ap, rect=1)
             else:
-                self._setAP(ap, rect = 0)
+                self._setAP(ap, rect=0)
 
     # always perform a clean to wrap stream by "q" / "Q"
         self._cleanContents()

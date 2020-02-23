@@ -5991,7 +5991,7 @@ int string_in_names_list(fz_context *ctx, pdf_obj *p, pdf_obj *names_list)
 {
     int n = pdf_array_len(ctx, names_list);
     int i;
-    char *str = pdf_to_text_string(ctx, p);
+    const char *str = pdf_to_text_string(ctx, p);
 
     for (i = 0; i < n ; i += 2)
     {
@@ -6655,13 +6655,14 @@ void JM_gather_images(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
 }
 
 //-----------------------------------------------------------------------------
-// Store info of a /Form in Python list
+// Store info of a /Form xobject in Python list
 //-----------------------------------------------------------------------------
 void JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
                      PyObject *imagelist, int stream_xref)
 {
-    int i, n;
-    n = pdf_dict_len(ctx, dict);
+    int i, n = pdf_dict_len(ctx, dict);
+    fz_rect bbox;
+    pdf_obj *o = NULL, *m = NULL;
     for (i = 0; i < n; i++)
     {
         pdf_obj *imagedict;
@@ -6681,18 +6682,30 @@ void JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
         if (!pdf_name_eq(ctx, type, PDF_NAME(Form)))
             continue;
 
+        o = pdf_dict_get(ctx, imagedict, PDF_NAME(BBox));
+        m = pdf_dict_get(ctx, imagedict, PDF_NAME(Matrix));
+        if (o && m)
+        {
+            bbox = fz_transform_rect(pdf_to_rect(ctx, o), pdf_to_matrix(ctx, m));
+        }
+        else
+        {
+            bbox = fz_infinite_rect;
+        }
         int xref = pdf_to_num(ctx, imagedict);
 
-        PyObject *entry = PyTuple_New(3);
+        PyObject *entry = PyTuple_New(4);
         PyTuple_SET_ITEM(entry, 0, Py_BuildValue("i", xref));
         PyTuple_SET_ITEM(entry, 1, JM_UNICODE(pdf_to_name(ctx, refname)));
         PyTuple_SET_ITEM(entry, 2, Py_BuildValue("i", stream_xref));
+        PyTuple_SET_ITEM(entry, 3, Py_BuildValue("ffff",
+                                   bbox.x0, bbox.y0, bbox.x1, bbox.y1));
         LIST_APPEND_DROP(imagelist, entry);
     }
 }
 
 //-----------------------------------------------------------------------------
-// Step through /Resources, looking up image or font information
+// Step through /Resources, looking up image, xobject or font information
 //-----------------------------------------------------------------------------
 void JM_scan_resources(fz_context *ctx, pdf_document *pdf, pdf_obj *rsrc,
                  PyObject *liste, int what, int stream_xref)
@@ -6702,7 +6715,7 @@ void JM_scan_resources(fz_context *ctx, pdf_document *pdf, pdf_obj *rsrc,
     if (pdf_mark_obj(ctx, rsrc)) return;    // stop on cylic dependencies
     fz_try(ctx)
     {
-        if (what == 1)            // look up fonts
+        if (what == 1)  // look up fonts
         {
             font = pdf_dict_get(ctx, rsrc, PDF_NAME(Font));
             JM_gather_fonts(ctx, pdf, font, liste, stream_xref);
@@ -6726,12 +6739,12 @@ void JM_scan_resources(fz_context *ctx, pdf_document *pdf, pdf_obj *rsrc,
 
         xobj = pdf_dict_get(ctx, rsrc, PDF_NAME(XObject));
 
-        if (what == 2)            // look up images
+        if (what == 2)  // look up images
         {
             JM_gather_images(ctx, pdf, xobj, liste, stream_xref);
         }
 
-        if (what == 3)            // look up forms
+        if (what == 3)  // look up form xobjects
         {
             JM_gather_forms(ctx, pdf, xobj, liste, stream_xref);
         }
@@ -8027,9 +8040,9 @@ SWIGINTERN PyObject *fz_document_s__getPageInfo(struct fz_document_s *self,int p
             pdf_document *pdf = pdf_specifics(gctx, self);
             int pageCount = fz_count_pages(gctx, self);
             pdf_obj *pageref, *rsrc;
-            PyObject *liste = NULL;         // returned object
-            int n = pno;                    // pno < 0 is allowed
-            while (n < 0) n += pageCount;
+            PyObject *liste = NULL;  // returned object
+            int n = pno;  // pno < 0 is allowed
+            while (n < 0) n += pageCount;  // make it non-negative
             fz_var(liste);
             fz_try(gctx)
             {
@@ -8812,11 +8825,26 @@ SWIGINTERN struct pdf_annot_s *fz_page_s_addCaretAnnot(struct fz_page_s *self,Py
             pdf_annot *annot = NULL;
             fz_try(gctx)
             {
-                pdf_document *pdf = page->doc;
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_CARET);
                 fz_point p = JM_point_from_py(point);
                 fz_rect r = {p.x, p.y, p.x + 20, p.y + 20};
                 pdf_set_annot_rect(gctx, annot, r);
+                JM_add_annot_id(gctx, annot, "fitzannot");
+                pdf_update_annot(gctx, annot);
+            }
+            fz_catch(gctx) return NULL;
+            return pdf_keep_annot(gctx, annot);
+        }
+SWIGINTERN struct pdf_annot_s *fz_page_s_addRedactAnnot(struct fz_page_s *self,PyObject *quad){
+            pdf_page *page = pdf_page_from_fz_page(gctx, self);
+            pdf_annot *annot = NULL;
+            fz_try(gctx)
+            {
+                annot = pdf_create_annot(gctx, page, PDF_ANNOT_REDACT);
+                fz_quad q = JM_quad_from_py(quad);
+                fz_rect r = fz_rect_from_quad(q);
+                pdf_set_annot_rect(gctx, annot, r);
+                // pdf_add_annot_quad_point(gctx, annot, q);
                 JM_add_annot_id(gctx, annot, "fitzannot");
                 pdf_update_annot(gctx, annot);
             }
@@ -9135,6 +9163,19 @@ SWIGINTERN struct fz_display_list_s *fz_page_s_getDisplayList(struct fz_page_s *
             }
             fz_catch(gctx) return NULL;
             return dl;
+        }
+SWIGINTERN PyObject *fz_page_s_apply_redactions(struct fz_page_s *self,int mark){
+            pdf_page *page = pdf_page_from_fz_page(gctx, self);
+            int success = 0;
+            pdf_redact_options opts = { 0 };
+            opts.no_black_boxes = 1 - mark;
+            fz_try(gctx)
+            {
+                assert_PDF(page);
+                success = pdf_redact_page(gctx, page->doc, page, &opts);
+            }
+            fz_catch(gctx) return NULL;
+            return JM_BOOL(success);
         }
 SWIGINTERN struct fz_pixmap_s *fz_page_s__makePixmap(struct fz_page_s *self,struct fz_document_s *doc,PyObject *ctm,struct fz_colorspace_s *cs,int alpha,int annots,PyObject *clip){
             fz_pixmap *pix = NULL;
@@ -14267,6 +14308,37 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Page_addRedactAnnot(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  struct pdf_annot_s *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Page_addRedactAnnot", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_page_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page_addRedactAnnot" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
+  }
+  arg1 = (struct fz_page_s *)(argp1);
+  arg2 = swig_obj[1];
+  {
+    result = (struct pdf_annot_s *)fz_page_s_addRedactAnnot(arg1,arg2);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_pdf_annot_s, 0 |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Page_addLineAnnot(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
@@ -14830,6 +14902,45 @@ SWIGINTERN PyObject *_wrap_Page_getDisplayList(PyObject *SWIGUNUSEDPARM(self), P
     }
   }
   resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_fz_display_list_s, 0 |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Page_apply_redactions(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
+  int arg2 = (int) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Page_apply_redactions", 1, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_page_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page_apply_redactions" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
+  }
+  arg1 = (struct fz_page_s *)(argp1);
+  if (swig_obj[1]) {
+    ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+    if (!SWIG_IsOK(ecode2)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Page_apply_redactions" "', argument " "2"" of type '" "int""'");
+    } 
+    arg2 = (int)(val2);
+  }
+  {
+    result = (PyObject *)fz_page_s_apply_redactions(arg1,arg2);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
   return resultobj;
 fail:
   return NULL;
@@ -20338,8 +20449,9 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page_run", _wrap_Page_run, METH_VARARGS, "Page_run(self, dw, m) -> PyObject *"},
 	 { "Page_getTextPage", _wrap_Page_getTextPage, METH_VARARGS, "Create a TextPage directly from the page."},
 	 { "Page_getSVGimage", _wrap_Page_getSVGimage, METH_VARARGS, "Create an SVG image from the page."},
-	 { "Page_addCaretAnnot", _wrap_Page_addCaretAnnot, METH_VARARGS, "Add 'Caret' annot on the page."},
-	 { "Page_addLineAnnot", _wrap_Page_addLineAnnot, METH_VARARGS, "Add 'Line' annot for points p1 and p2."},
+	 { "Page_addCaretAnnot", _wrap_Page_addCaretAnnot, METH_VARARGS, "Add a 'Caret' annot on the page."},
+	 { "Page_addRedactAnnot", _wrap_Page_addRedactAnnot, METH_VARARGS, "Add a 'Redaction' annot on the page."},
+	 { "Page_addLineAnnot", _wrap_Page_addLineAnnot, METH_VARARGS, "Add a 'Line' annot for points p1 and p2."},
 	 { "Page_addTextAnnot", _wrap_Page_addTextAnnot, METH_VARARGS, "Add a 'sticky note' at position 'point'."},
 	 { "Page_addInkAnnot", _wrap_Page_addInkAnnot, METH_VARARGS, "Add a 'handwriting' as a list of list of point-likes. Each sublist forms an independent stroke."},
 	 { "Page_addStampAnnot", _wrap_Page_addStampAnnot, METH_VARARGS, "Add a 'rubber stamp' in a rectangle."},
@@ -20352,6 +20464,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page_annot_names", _wrap_Page_annot_names, METH_O, "Page_annot_names(self) -> PyObject *"},
 	 { "Page__addWidget", _wrap_Page__addWidget, METH_VARARGS, "Page__addWidget(self, Widget) -> Annot"},
 	 { "Page_getDisplayList", _wrap_Page_getDisplayList, METH_VARARGS, "Page_getDisplayList(self, annots=1) -> DisplayList"},
+	 { "Page_apply_redactions", _wrap_Page_apply_redactions, METH_VARARGS, "Page_apply_redactions(self, mark=0) -> PyObject *"},
 	 { "Page__makePixmap", _wrap_Page__makePixmap, METH_VARARGS, "Page__makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"},
 	 { "Page_insertString", _wrap_Page_insertString, METH_VARARGS, "Page_insertString(self, point, text, fontsize, fontname, color, language) -> PyObject *"},
 	 { "Page_setCropBox", _wrap_Page_setCropBox, METH_VARARGS, "Page_setCropBox(self, rect) -> PyObject *"},
