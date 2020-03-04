@@ -1,8 +1,8 @@
-# PyMuPDF 1.16.11
+# PyMuPDF 1.16.12
 
 ![logo](https://github.com/pymupdf/PyMuPDF/blob/master/demo/pymupdf.jpg)
 
-Release date: February 23, 2020
+Release date: March 05, 2020
 
 **Travis-CI:** [![Build Status](https://travis-ci.org/JorjMcKie/py-mupdf.svg?branch=master)](https://travis-ci.org/JorjMcKie/py-mupdf)
 
@@ -14,7 +14,7 @@ On **[PyPI](https://pypi.org/project/PyMuPDF)** since August 2016: [![](https://
 
 # Introduction
 
-This is **version 1.16.11 of PyMuPDF (formerly python-fitz)**, a Python binding with support for [MuPDF 1.16.*](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
+This is **version 1.16.12 of PyMuPDF (formerly python-fitz)**, a Python binding with support for [MuPDF 1.16.*](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
 
 MuPDF can access files in PDF, XPS, OpenXPS, CBZ, EPUB and FB2 (e-books) formats, and it is known for its top performance and high rendering quality.
 
@@ -39,7 +39,7 @@ For all supported document types (i.e. including images) you can
 * PDFs can be reformatted to support double-sided printing, posterizing, applying logos or watermarks
 * Password protection is fully supported: decryption, encryption, encryption method selection, permmission level and user / owner password setting.
 * Low-level PDF structures can be accessed and modified.
-* Starting with v1.16.11, PyMuPDF can also be used as a **module in the command line** using ``"python -m fitz ..."``. This is a versatile utility, which we will further develop over time. It currently supports PDF document
+* PyMuPDF can also be used as a **module in the command line** using ``"python -m fitz ..."``. This is a versatile utility, which we will further develop over time. It currently supports PDF document
 
     - **encryption / decryption / optimization**
     - creating **sub-documents**
@@ -52,10 +52,9 @@ Have a look at the basic [demos](https://github.com/pymupdf/PyMuPDF-Utilities/tr
 
 Our **documentation**, written using Sphinx, is available in various formats from the following sources. It currently is a combination of a reference guide and a user manual. For a **quick start** look at the [tutorial](https://pymupdf.readthedocs.io/en/latest/tutorial/) and the [recipes](https://pymupdf.readthedocs.io/en/latest/faq/) chapters.
 
-* You can view it online at [Read the Docs](https://pymupdf.readthedocs.io/). For **best quality downloads** you should however use the following links.
-* zipped [HTML](https://github.com/pymupdf/PyMuPDF-optional-material/tree/master/doc/html.zip)
-* [Windows CHM](https://github.com/pymupdf/PyMuPDF-optional-material/tree/master/doc/PyMuPDF.chm)
-* [PDF](https://github.com/pymupdf/PyMuPDF-optional-material/tree/master/doc/PyMuPDF.pdf)
+* You can view it online at [Read the Docs](https://pymupdf.readthedocs.io/). This site also provides download options for zipped HTML and PDF.
+* Find a Windows help file [here](https://github.com/pymupdf/PyMuPDF-optional-material/tree/master/doc/PyMuPDF.chm).
+
 
 # Installation
 

@@ -979,21 +979,6 @@ def do_links(doc1, doc2, from_page=-1, to_page=-1, start_at=-1):
     have been previously executed.
     """
     # --------------------------------------------------------------------------
-    # define skeletons for /Annots object texts
-    # --------------------------------------------------------------------------
-    annot_goto = "<</A<</S/GoTo/D[%i 0 R /XYZ %g %g 0]>>/Rect[%s]/Subtype/Link>>"
-
-    annot_gotor = "<</A<</S/GoToR/D[%i /XYZ %g %g 0]/F<</F(%s)/UF(%s)/Type/Filespec>>>>/Rect[%s]/Subtype/Link>>"
-
-    annot_gotor_n = "<</A<</S/GoToR/D(%s)/F(%s)>>/Rect[%s]/Subtype/Link>>"
-
-    annot_launch = (
-        "<</A<</S/Launch/F<</F(%s)/UF(%s)/Type/Filespec>>>>/Rect[%s]/Subtype/Link>>"
-    )
-
-    annot_uri = "<</A<</S/URI/URI(%s)>>/Rect[%s]/Subtype/Link>>"
-
-    # --------------------------------------------------------------------------
     # internal function to create the actual "/Annots" object string
     # --------------------------------------------------------------------------
     def cre_annot(lnk, xref_dst, pno_src, ctm):
@@ -1003,14 +988,14 @@ def do_links(doc1, doc2, from_page=-1, to_page=-1, start_at=-1):
         r = lnk["from"] * ctm  # rect in PDF coordinates
         rect = "%g %g %g %g" % tuple(r)
         if lnk["kind"] == LINK_GOTO:
-            txt = annot_goto
+            txt = annot_skel["goto1"]  # annot_goto
             idx = pno_src.index(lnk["page"])
             p = lnk["to"] * ctm  # target point in PDF coordinates
             annot = txt % (xref_dst[idx], p.x, p.y, rect)
 
         elif lnk["kind"] == LINK_GOTOR:
             if lnk["page"] >= 0:
-                txt = annot_gotor
+                txt = annot_skel["gotor1"]  # annot_gotor
                 pnt = lnk.get("to", Point(0, 0))  # destination point
                 if type(pnt) is not Point:
                     pnt = Point(0, 0)
@@ -1023,18 +1008,18 @@ def do_links(doc1, doc2, from_page=-1, to_page=-1, start_at=-1):
                     rect,
                 )
             else:
-                txt = annot_gotor_n
+                txt = annot_skel["gotor2"]  # annot_gotor_n
                 to = getPDFstr(lnk["to"])
                 to = to[1:-1]
                 f = lnk["file"]
                 annot = txt % (to, f, rect)
 
         elif lnk["kind"] == LINK_LAUNCH:
-            txt = annot_launch
+            txt = annot_skel["launch"]  # annot_launch
             annot = txt % (lnk["file"], lnk["file"], rect)
 
         elif lnk["kind"] == LINK_URI:
-            txt = annot_uri
+            txt = annot_skel["uri"]  # annot_uri
             annot = txt % (lnk["uri"], rect)
 
         else:
@@ -1107,22 +1092,6 @@ def getLinkText(page, lnk):
     # --------------------------------------------------------------------------
     # define skeletons for /Annots object texts
     # --------------------------------------------------------------------------
-    annot_goto = "<</A<</S/GoTo/D[%i 0 R/XYZ %g %g 0]>>/Rect[%s]/Subtype/Link>>"
-
-    annot_goto_n = "<</A<</S/GoTo/D%s>>/Rect[%s]/Subtype/Link>>"
-
-    annot_gotor = """<</A<</S/GoToR/D[%i /XYZ %g %g 0]/F<</F(%s)/UF(%s)/Type/Filespec
-    >>>>/Rect[%s]/Subtype/Link>>"""
-
-    annot_gotor_n = "<</A<</S/GoToR/D%s/F(%s)>>/Rect[%s]/Subtype/Link>>"
-
-    annot_launch = """<</A<</S/Launch/F<</F(%s)/UF(%s)/Type/Filespec>>
-    >>/Rect[%s]/Subtype/Link>>"""
-
-    annot_uri = "<</A<</S/URI/URI(%s)>>/Rect[%s]/Subtype/Link>>"
-
-    annot_named = "<</A<</S/Named/N/%s/Type/Action>>/Rect[%s]/Subtype/Link>>"
-
     ctm = page._getTransformation()
     ictm = ~ctm
     r = lnk["from"]
@@ -1132,37 +1101,37 @@ def getLinkText(page, lnk):
     annot = ""
     if lnk["kind"] == LINK_GOTO:
         if lnk["page"] >= 0:
-            txt = annot_goto
+            txt = annot_skel["goto1"]  # annot_goto
             pno = lnk["page"]
             xref = page.parent._getPageXref(pno)[0]
             pnt = lnk.get("to", Point(0, 0))  # destination point
             ipnt = pnt * ictm
             annot = txt % (xref, ipnt.x, ipnt.y, rect)
         else:
-            txt = annot_goto_n
+            txt = annot_skel["goto2"]  # annot_goto_n
             annot = txt % (getPDFstr(lnk["to"]), rect)
 
     elif lnk["kind"] == LINK_GOTOR:
         if lnk["page"] >= 0:
-            txt = annot_gotor
+            txt = annot_skel["gotor1"]  # annot_gotor
             pnt = lnk.get("to", Point(0, 0))  # destination point
             if type(pnt) is not Point:
                 pnt = Point(0, 0)
             annot = txt % (lnk["page"], pnt.x, pnt.y, lnk["file"], lnk["file"], rect)
         else:
-            txt = annot_gotor_n
+            txt = annot_skel["gotor2"]  # annot_gotor_n
             annot = txt % (getPDFstr(lnk["to"]), lnk["file"], rect)
 
     elif lnk["kind"] == LINK_LAUNCH:
-        txt = annot_launch
+        txt = annot_skel["launch"]  # annot_launch
         annot = txt % (lnk["file"], lnk["file"], rect)
 
     elif lnk["kind"] == LINK_URI:
-        txt = annot_uri
+        txt = annot_skel["uri"]  # txt = annot_uri
         annot = txt % (lnk["uri"], rect)
 
     elif lnk["kind"] == LINK_NAMED:
-        txt = annot_named
+        txt = annot_skel["named"]  # annot_named
         annot = txt % (lnk["name"], rect)
 
     return annot

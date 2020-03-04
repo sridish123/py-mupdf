@@ -4727,7 +4727,7 @@ PyObject *JM_annot_colors(fz_context *ctx, pdf_obj *annot_obj)
 
 //----------------------------------------------------------------------------
 // delete an annotation using mupdf functions, but first delete the /AP and
-// /Popup dict keys in the annot->obj. Also remove the 'Popup' annotation
+// /Popup dict keys in annot->obj. Also remove the 'Popup' annotation
 // from the page's /Annots array which may also exist.
 //----------------------------------------------------------------------------
 void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
@@ -4743,24 +4743,23 @@ void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
         pdf_dict_del(ctx, annot->obj, PDF_NAME(Popup));
         pdf_dict_del(ctx, annot->obj, PDF_NAME(AP));
 
-        // if there existed a /Popup, find and destroy it. The right popup
+        // if there exists a /Popup, find and destroy it. The right popup
         // has a /Parent entry which points to our annotation.
-        if (popup)
+
+        pdf_obj *annots = pdf_dict_get(ctx, page->obj, PDF_NAME(Annots));
+        int i, n = pdf_array_len(ctx, annots);
+        for (i = n - 1; i >= 0; i--)
         {
-            pdf_obj *annots = pdf_dict_get(ctx, page->obj, PDF_NAME(Annots));
-            int i, n = pdf_array_len(ctx, annots);
-            for (i = 0; i < n; i++)
+            pdf_obj *o = pdf_array_get(ctx, annots, i);
+            pdf_obj *p = pdf_dict_get(ctx, o, PDF_NAME(Parent));
+            if (!p)
+                continue;
+            if (!pdf_objcmp(ctx, p, annot->obj))
             {
-                pdf_obj *o = pdf_array_get(ctx, annots, i);
-                pdf_obj *p = pdf_dict_get(ctx, o, PDF_NAME(Parent));
-                if (!p) continue;
-                if (!pdf_objcmp(ctx, p, annot->obj))
-                {
-                    pdf_array_delete(ctx, annots, i);
-                    break;
-                }
+                pdf_array_delete(ctx, annots, i);
             }
         }
+
         pdf_delete_annot(ctx, page, annot);
     }
     fz_catch(ctx)
@@ -4771,7 +4770,8 @@ void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
 }
 
 //----------------------------------------------------------------------------
-// locate and return the first annotation whose /IRT key points to annot.
+// Return the first annotation whose /IRT key ("In Response To") points to
+// annot. Used to remove the response chain of a given annotation.
 //----------------------------------------------------------------------------
 pdf_annot *JM_find_annot_irt(fz_context *ctx, pdf_annot *annot)
 {
@@ -4822,15 +4822,15 @@ PyObject *JM_get_annot_id_list(fz_context *ctx, pdf_page *page)
                 LIST_APPEND_DROP(names, JM_UNICODE(pdf_to_text_string(gctx, o)));
             }
         }
-        for (annotptr = &page->widgets; *annotptr; annotptr = &(*annotptr)->next)
-        {
-            annot = *annotptr;
-            o = pdf_dict_gets(ctx, annot->obj, "NM");
-            if (o)
-            {
-                LIST_APPEND_DROP(names, JM_UNICODE(pdf_to_text_string(gctx, o)));
-            }
-        }
+        //for (annotptr = &page->widgets; *annotptr; annotptr = &(*annotptr)->next)
+        //{
+        //    annot = *annotptr;
+        //    o = pdf_dict_gets(ctx, annot->obj, "NM");
+        //    if (o)
+        //    {
+        //        LIST_APPEND_DROP(names, JM_UNICODE(pdf_to_text_string(gctx, o)));
+        //    }
+        //}
     }
     fz_catch(ctx)
     {
@@ -5319,6 +5319,72 @@ enum
 };
 
 
+// make new JavaScript source object
+//-----------------------------------------------------------------------------
+pdf_obj *JM_new_javascript(fz_context *ctx, pdf_widget *widget, PyObject *value)
+{
+    fz_buffer *res = NULL;
+    pdf_document *pdf = widget->page->doc;
+    char *data = JM_Python_str_AsChar(value);
+    if (!data)
+    {
+        return NULL;
+    }
+    res = fz_new_buffer_from_copied_data(ctx, data, strlen(data));
+    pdf_obj *source = pdf_add_stream(ctx, pdf, res, NULL, 0);
+    pdf_obj *newaction = pdf_add_new_dict(ctx, pdf, 4);
+    pdf_dict_put(ctx, newaction, PDF_NAME(S), pdf_new_name(ctx, "JavaScript"));
+    pdf_dict_put(ctx, newaction, PDF_NAME(JS), source);
+    JM_Python_str_DelForPy3(data);
+    fz_drop_buffer(ctx, res);
+    return pdf_keep_obj(ctx, newaction);
+}
+
+
+// JavaScript extractor
+//-----------------------------------------------------------------------------
+PyObject *JM_get_script(fz_context *ctx, pdf_obj *key)
+{
+    pdf_obj *js = NULL;
+    fz_buffer *res = NULL;
+    PyObject *script = NULL;
+    if (!key)
+    {
+        Py_RETURN_NONE;
+    }
+    if (!strcmp(pdf_to_name(ctx,
+                pdf_dict_get(ctx, key, PDF_NAME(S))), "JavaScript"))
+    {
+        js = pdf_dict_get(ctx, key, PDF_NAME(JS));
+    }
+    if (!js)
+    {
+        Py_RETURN_NONE;
+    }
+
+    if (pdf_is_string(ctx, js))
+    {
+        script = JM_UNICODE(pdf_to_text_string(ctx, js));
+    }
+    else if (pdf_is_stream(ctx, js))
+    {
+        res = pdf_load_stream(ctx, js);
+        script = JM_EscapeStrFromBuffer(ctx, res);
+        fz_drop_buffer(ctx, res);
+    }
+    else
+    {
+        Py_RETURN_NONE;
+    }
+    if (PyObject_IsTrue(script))
+    {
+        return script;
+    }
+    Py_CLEAR(script);
+    Py_RETURN_NONE;
+}
+
+
 // String from widget type
 //-----------------------------------------------------------------------------
 char *JM_field_type_text(int wtype)
@@ -5461,10 +5527,10 @@ PyObject *JM_pushbtn_state(fz_context *ctx, pdf_annot *annot)
 //-----------------------------------------------------------------------------
 PyObject *JM_checkbox_state(fz_context *ctx, pdf_annot *annot)
 {
-    pdf_obj *leafv  = pdf_dict_get_inheritable(ctx, annot->obj, PDF_NAME(V));
+    pdf_obj *leafv = pdf_dict_get_inheritable(ctx, annot->obj, PDF_NAME(V));
     pdf_obj *leafas = pdf_dict_get_inheritable(ctx, annot->obj, PDF_NAME(AS));
     if (!leafv) Py_RETURN_FALSE;
-    if (leafv  == PDF_NAME(Off)) Py_RETURN_FALSE;
+    if (leafv == PDF_NAME(Off)) Py_RETURN_FALSE;
     if (leafv == pdf_new_name(ctx, "Yes"))
         Py_RETURN_TRUE;
     if (pdf_is_string(ctx, leafv) && !strcmp(pdf_to_text_string(ctx, leafv), "Off"))
@@ -5593,7 +5659,8 @@ void JM_get_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
 {
     pdf_document *pdf = annot->page->doc;
     pdf_widget *tw = (pdf_widget *) annot;
-    pdf_obj *obj = NULL;
+    pdf_obj *obj = NULL, *js = NULL, *o = NULL;
+    fz_buffer *res = NULL;
     Py_ssize_t i = 0, n = 0;
     PyObject *val;
     fz_try(ctx)
@@ -5710,6 +5777,33 @@ void JM_get_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
         // call Py method to reconstruct text color, font name, size
         PyObject *call = CALLATTR("_parse_da", NULL);
         Py_XDECREF(call);
+
+        // extract JavaScript action texts
+        SETATTR_DROP(
+            "script",
+            JM_get_script(ctx, pdf_dict_get(ctx, annot->obj, PDF_NAME(A))),
+            val);
+
+        SETATTR_DROP(
+            "script_stroke",
+            JM_get_script(ctx, pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(K), NULL)),
+            val);
+
+        SETATTR_DROP(
+            "script_format",
+            JM_get_script(ctx, pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(F), NULL)),
+            val);
+
+        SETATTR_DROP(
+            "script_change",
+            JM_get_script(ctx, pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(V), NULL)),
+            val);
+
+        SETATTR_DROP(
+            "script_calc",
+            JM_get_script(ctx, pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(C), NULL)),
+            val);
+
 //end-trace
     }
     fz_always(ctx) PyErr_Clear();
@@ -5732,7 +5826,7 @@ void JM_set_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
     Py_ssize_t i, n = 0;
     int d;
     int field_type = (int) PyInt_AsLong(GETATTR("field_type"));
-    PyObject *value;
+    PyObject *value, *script;
 
     // rectangle --------------------------------------------------------------
     value = GETATTR("rect");
@@ -5861,6 +5955,92 @@ void JM_set_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
     {
         pdf_field_set_button_caption(ctx, annot->obj, ca);
         JM_Python_str_DelForPy3(ca);
+    }
+
+    // script (/A) -------------------------------------------------------
+    value = GETATTR("script");
+    script = JM_get_script(ctx,
+            pdf_dict_get(ctx, annot->obj, PDF_NAME(A)));
+    if (!PyObject_RichCompareBool(value, script, Py_EQ))
+    {
+        if (PyObject_RichCompareBool(value, Py_None, Py_EQ))
+        {
+            pdf_dict_del(ctx, annot->obj, PDF_NAME(A));
+        }
+        else
+        {
+            pdf_obj *newaction = JM_new_javascript(ctx, annot, value);
+            pdf_dict_put_drop(ctx, annot->obj, PDF_NAME(A), newaction);
+        }
+    }
+
+    pdf_obj *key_AA = pdf_dict_get(ctx, annot->obj, PDF_NAME(AA));
+    // script (/AA/K) -------------------------------------------------------
+    value = GETATTR("script_stroke");
+    script = JM_get_script(ctx,
+        pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(K), NULL));
+    if (!PyObject_RichCompareBool(value, script, Py_EQ))
+    {
+        if (PyObject_RichCompareBool(value, Py_None, Py_EQ))
+        {
+            pdf_dict_del(ctx, key_AA, PDF_NAME(K));
+        }
+        else
+        {
+            pdf_obj *newaction = JM_new_javascript(ctx, annot, value);
+            pdf_dict_putl_drop(ctx, annot->obj, newaction, PDF_NAME(AA), PDF_NAME(K), NULL);
+        }
+    }
+
+    // script (/AA/F) -------------------------------------------------------
+    value = GETATTR("script_format");
+    script = JM_get_script(ctx,
+        pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(F), NULL));
+    if (!PyObject_RichCompareBool(value, script, Py_EQ))
+    {
+        if (PyObject_RichCompareBool(value, Py_None, Py_EQ))
+        {
+            pdf_dict_del(ctx, key_AA, PDF_NAME(F));
+        }
+        else
+        {
+            pdf_obj *newaction = JM_new_javascript(ctx, annot, value);
+            pdf_dict_putl_drop(ctx, annot->obj, newaction, PDF_NAME(AA), PDF_NAME(F), NULL);
+        }
+    }
+
+    // script (/AA/V) -------------------------------------------------------
+    value = GETATTR("script_change");
+    script = JM_get_script(ctx,
+        pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(V), NULL));
+    if (!PyObject_RichCompareBool(value, script, Py_EQ))
+    {
+        if (PyObject_RichCompareBool(value, Py_None, Py_EQ))
+        {
+            pdf_dict_del(ctx, key_AA, PDF_NAME(V));
+        }
+        else
+        {
+            pdf_obj *newaction = JM_new_javascript(ctx, annot, value);
+            pdf_dict_putl_drop(ctx, annot->obj, newaction, PDF_NAME(AA), PDF_NAME(V), NULL);
+        }
+    }
+
+    // script (/AA/C) -------------------------------------------------------
+    value = GETATTR("script_calc");
+    script = JM_get_script(ctx,
+        pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(C), NULL));
+    if (!PyObject_RichCompareBool(value, script, Py_EQ))
+    {
+        if (PyObject_RichCompareBool(value, Py_None, Py_EQ))
+        {
+            pdf_dict_del(ctx, key_AA, PDF_NAME(C));
+        }
+        else
+        {
+            pdf_obj *newaction = JM_new_javascript(ctx, annot, value);
+            pdf_dict_putl_drop(ctx, annot->obj, newaction, PDF_NAME(AA), PDF_NAME(C), NULL);
+        }
     }
 
     // field value ------------------------------------------------------------
@@ -9055,7 +9235,6 @@ SWIGINTERN struct pdf_annot_s *fz_page_s__add_multiline(struct fz_page_s *self,P
             pdf_annot *annot = NULL;
             fz_try(gctx)
             {
-                fz_rect rect;
                 Py_ssize_t i, n = PySequence_Size(points);
                 if (n < 2) THROWMSG("bad list of points");
                 annot = pdf_create_annot(gctx, page, annot_type);
@@ -10841,6 +11020,43 @@ SWIGINTERN PyObject *pdf_annot_s__cleanContents(struct pdf_annot_s *self){
 SWIGINTERN void pdf_annot_s_setFlags(struct pdf_annot_s *self,int flags){
             pdf_set_annot_flags(gctx, self, flags);
             pdf_dirty_annot(gctx, self);
+        }
+SWIGINTERN PyObject *pdf_annot_s_delete_responses(struct pdf_annot_s *self){
+            pdf_page *page = self->page;
+            pdf_annot *irt_annot = NULL;
+            fz_try(gctx)
+            {
+                while (1)  // delete any /IRT annotations
+                {
+                    irt_annot = JM_find_annot_irt(gctx, self);
+                    if (!irt_annot)  // no more there
+                        break;
+                    JM_delete_annot(gctx, page, irt_annot);
+                }
+                pdf_dict_del(gctx, self->obj, PDF_NAME(Popup));
+                pdf_obj *annots = pdf_dict_get(gctx, page->obj, PDF_NAME(Annots));
+                int i, n = pdf_array_len(gctx, annots), found = 0;
+                for (i = n - 1; i >= 0; i--)
+                {
+                    pdf_obj *o = pdf_array_get(gctx, annots, i);
+                    pdf_obj *p = pdf_dict_get(gctx, o, PDF_NAME(Parent));
+                    if (!p)
+                        continue;
+                    if (!pdf_objcmp(gctx, p, self->obj))
+                    {
+                        pdf_array_delete(gctx, annots, i);
+                        found = 1;
+
+                    }
+                }
+                if (found > 0)
+                {
+                    pdf_dict_put(gctx, page->obj, PDF_NAME(Annots), annots);
+                }
+            }
+            fz_catch(gctx) return NULL;
+            pdf_dirty_annot(gctx, self);
+            return_none;
         }
 SWIGINTERN struct pdf_annot_s *pdf_annot_s_next(struct pdf_annot_s *self){
             int type = pdf_annot_type(gctx, self);
@@ -18744,6 +18960,36 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Annot_delete_responses(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct pdf_annot_s *arg1 = (struct pdf_annot_s *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_pdf_annot_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_delete_responses" "', argument " "1"" of type '" "struct pdf_annot_s *""'"); 
+  }
+  arg1 = (struct pdf_annot_s *)(argp1);
+  {
+    result = (PyObject *)pdf_annot_s_delete_responses(arg1);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Annot_next(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct pdf_annot_s *arg1 = (struct pdf_annot_s *) 0 ;
@@ -20589,6 +20835,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Annot_flags", _wrap_Annot_flags, METH_O, "Annot_flags(self) -> int"},
 	 { "Annot__cleanContents", _wrap_Annot__cleanContents, METH_O, "Annot__cleanContents(self) -> PyObject *"},
 	 { "Annot_setFlags", _wrap_Annot_setFlags, METH_VARARGS, "Annot_setFlags(self, flags)"},
+	 { "Annot_delete_responses", _wrap_Annot_delete_responses, METH_O, "Delete PopUp and responses to this annotation."},
 	 { "Annot_next", _wrap_Annot_next, METH_O, "Annot_next(self) -> Annot"},
 	 { "Annot_swigregister", Annot_swigregister, METH_O, NULL},
 	 { "delete_Link", _wrap_delete_Link, METH_O, "delete_Link(self)"},

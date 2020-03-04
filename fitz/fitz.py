@@ -73,13 +73,14 @@ import os
 import weakref
 from binascii import hexlify
 
-fitz_py2 = str is bytes           # if true, this is Python 2
+fitz_py2 = str is bytes  # if true, this is Python 2
+string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.11"
-VersionDate = "2020-02-21 15:40:27"
-version = (VersionBind, VersionFitz, "20200221154027")
+VersionBind = "1.16.12"
+VersionDate = "2020-03-02 14:49:55"
+version = (VersionBind, VersionFitz, "20200302144955")
 
 EPSILON = _fitz.EPSILON
 
@@ -1398,30 +1399,35 @@ class Quad(object):
 #------------------------------------------------------------------------------
 class Widget(object):
     def __init__(self):
-        self.border_color       = None
-        self.border_style       = "S"
-        self.border_width       = 0
-        self.border_dashes      = None
-        self.choice_values      = None           # choice fields only
-        self.field_name         = None           # field name
-        self.field_label        = None           # field label
-        self.field_value        = None
-        self.field_flags        = None
-        self.field_display      = 0
-        self.fill_color         = None
-        self.button_caption     = None           # button caption
-        self.rect               = None           # annot value
-        self.is_signed          = None           # True / False if signature
-        self.text_color         = (0, 0, 0)
-        self.text_font          = "Helv"
-        self.text_fontsize      = 0
-        self.text_maxlen        = 0              # text fields only
-        self.text_format        = 0              # text fields only
-        self._text_da           = ""             # /DA = default apparance
-        self.field_type         = 0              # valid range 1 through 7
-        self.field_type_string  = None           # field type as string
-        self._text_da           = ""             # /DA = default apparance
-        self.xref               = 0              # annot value
+        self.border_color = None
+        self.border_style = "S"
+        self.border_width = 0
+        self.border_dashes = None
+        self.choice_values = None  # choice fields only
+        self.field_name = None  # field name
+        self.field_label = None  # field label
+        self.field_value = None
+        self.field_flags = None
+        self.field_display = 0
+        self.fill_color = None
+        self.button_caption = None  # button caption
+        self.rect = None  # annot value
+        self.is_signed = None  # True / False if signature
+        self.text_color = (0, 0, 0)
+        self.text_font = "Helv"
+        self.text_fontsize = 0
+        self.text_maxlen = 0  # text fields only
+        self.text_format = 0  # text fields only
+        self._text_da = ""  # /DA = default apparance
+        self.field_type = 0  # valid range 1 through 7
+        self.field_type_string = None  # field type as string
+        self._text_da = ""  # /DA = default apparance
+        self.xref = 0  # annot value
+        self.script = None  # JavaScript (/A)
+        self.script_stroke = None  # JavaScript (/AA/K)
+        self.script_format = None  # JavaScript (/AA/F)
+        self.script_change = None  # JavaScript (/AA/V)
+        self.script_calc = None  # JavaScript (/AA/C)
 
 
     def _validate(self):
@@ -1450,6 +1456,33 @@ class Widget(object):
             self.text_fontsize = 0
 
         self.border_style = self.border_style.upper()[0:1]
+
+# standardize content of JavaScript entries
+        if not self.script:
+            self.script = None
+        elif type(self.script) not in string_types:
+            raise ValueError("script content must be unicode")
+
+        if not self.script_calc:
+            self.script_calc = None
+        elif type(self.script_calc) not in string_types:
+            raise ValueError("script_calc content must be unicode")
+
+        if not self.script_change:
+            self.script_change = None
+        elif type(self.script_change) not in string_types:
+            raise ValueError("script_change content must be unicode")
+
+        if not self.script_format:
+            self.script_format = None
+        elif type(self.script_format) not in string_types:
+            raise ValueError("script_format content must be unicode")
+
+        if not self.script_stroke:
+            self.script_stroke = None
+        elif type(self.script_stroke) not in string_types:
+            raise ValueError("script_stroke content must be unicode")
+
 
         self._checker()  # any field_type specific checks
 
@@ -1486,17 +1519,17 @@ class Widget(object):
                 fsize = float(dat[i - 1])
                 dat[i] = dat[i-1] = dat[i-2] = ""
                 continue
-            if item == "g":            # unicolor text
+            if item == "g":  # unicolor text
                 col = [(float(dat[i - 1]))]
                 dat[i] = dat[i-1] = ""
                 continue
-            if item == "rg":           # RGB colored text
+            if item == "rg":  # RGB colored text
                 col = [float(f) for f in dat[i - 3:i]]
                 dat[i] = dat[i-1] = dat[i-2] = dat[i-3] = ""
                 continue
-        self.text_font     = font
+        self.text_font = font
         self.text_fontsize = fsize
-        self.text_color    = col
+        self.text_color = col
         self._text_da = ""
         return
 
@@ -1630,6 +1663,15 @@ Base14_fontdict["tibi"] = "Times-BoldItalic"
 Base14_fontdict["symb"] = "Symbol"
 Base14_fontdict["zadb"] = "ZapfDingbats"
 
+annot_skel = {
+    "goto1": "<</A<</S/GoTo/D[%i 0 R/XYZ %g %g 0]>>/Rect[%s]/BS<</W 0>>/Subtype/Link>>",
+    "goto2": "<</A<</S/GoTo/D%s>>/Rect[%s]/BS<</W 0>>/Subtype/Link>>",
+    "gotor1": "<</A<</S/GoToR/D[%i /XYZ %g %g 0]/F<</F(%s)/UF(%s)/Type/Filespec>>>>/Rect[%s]/BS<</W 0>>/Subtype/Link>>",
+    "gotor2": "<</A<</S/GoToR/D%s/F(%s)>>/Rect[%s]/BS<</W 0>>/Subtype/Link>>",
+    "launch": "<</A<</S/Launch/F<</F(%s)/UF(%s)/Type/Filespec>>>>/Rect[%s]/BS<</W 0>>/Subtype/Link>>",
+    "uri": "<</A<</S/URI/URI(%s)>>/Rect[%s]/BS<</W 0>>/Subtype/Link>>",
+    "named": "<</A<</S/Named/N/%s/Type/Action>>/Rect[%s]/BS<</W 0>>/Subtype/Link>>",
+}
 
 def _toc_remove_page(toc, first, last):
     """ Remove all ToC entries pointing to certain pages.
@@ -1895,6 +1937,7 @@ def getPDFnow():
         pass
     return tstamp
 
+
 def getPDFstr(s):
     """ Return a PDF string depending on its coding.
 
@@ -1947,6 +1990,7 @@ def getPDFstr(s):
             r += "\\267"  # unsupported: replace by 0xB7
 
     return "(" + r + ")"
+
 
 def getTJstr(text, glyphs, simple, ordering):
     """ Return a PDF string enclosed in [] brackets, suitable for the PDF TJ
@@ -2034,6 +2078,8 @@ paperSizes = { # known paper formats @ 72 dpi
         'monarch': (279, 540),
         'tabloid-extra': (864, 1296),
         }
+
+
 def PaperSize(s):
     """Return a tuple (width, height) for a given paper format string.
 
@@ -2053,15 +2099,18 @@ def PaperSize(s):
         return rc
     return (rc[1], rc[0])
 
+
 def PaperRect(s):
     """Return a fitz.Rect for the paper size indicated in string 's'. Must conform to the argument of method 'PaperSize', which will be invoked.
     """
     width, height = PaperSize(s)
     return Rect(0.0, 0.0, width, height)
 
+
 def CheckParent(o):
     if not hasattr(o, "parent") or o.parent is None:
         raise ValueError("orphaned object: parent is None")
+
 
 def CheckColor(c):
     if c is not None:
@@ -2072,6 +2121,7 @@ def CheckColor(c):
             or max(c) > 1
         ):
             raise ValueError("need 1, 3 or 4 color components in range 0 to 1")
+
 
 def ColorCode(c, f):
     if c is None:
@@ -2090,8 +2140,10 @@ def ColorCode(c, f):
     s = "%g %g %g %g " % tuple(c)
     return s + "K " if f == "c" else s + "k "
 
+
 def JM_TUPLE(o):
     return tuple(map(lambda x: round(x, 8), o))
+
 
 def CheckMorph(o):
     if not bool(o): return False
@@ -2102,6 +2154,7 @@ def CheckMorph(o):
     if not o[1][4] == o[1][5] == 0:
         raise ValueError("invalid morph parm 1")
     return True
+
 
 def CheckFont(page, fontname):
     """Return an entry in the page's font list if reference name matches.
@@ -2217,6 +2270,7 @@ p{white-space:pre-wrap}
         r = text
 
     return r
+
 
 def ConversionTrailer(i):
     t = i.lower()
@@ -3147,8 +3201,6 @@ open(filename, filetype='type') - from file"""
         """
         return self._getXrefString(xref, compressed, ascii)
 
-    xrefObject = get_pdf_object
-
 
     def updateObject(self, xref, text, page=None):
         """Repleace the object at xref with text.
@@ -3211,6 +3263,11 @@ open(filename, filetype='type') - from file"""
             annot.parent = page_proxy  # refresh parent to new page
             page._annot_refs[k] = annot
         return page
+
+
+    xrefObject = get_pdf_object
+    xref_object = get_pdf_object
+    xref_stream = xrefStream
 
 
     def __repr__(self):
@@ -4074,6 +4131,9 @@ class Page(object):
     def MediaBox(self):
         return Rect(0, 0, self.MediaBoxSize)
 
+    clean_contents = _cleanContents
+    get_contents = _getContents
+
 
 
 # Register Page in _fitz:
@@ -4792,6 +4852,13 @@ class Annot(object):
 
         return _fitz.Annot_setFlags(self, flags)
 
+
+    def delete_responses(self):
+        r"""Delete PopUp and responses to this annotation."""
+        CheckParent(self)
+
+        return _fitz.Annot_delete_responses(self)
+
     @property
 
     def next(self):
@@ -5212,6 +5279,16 @@ class Tools(object):
         widget.xref = annot.xref
         widget.parent = annot.parent
         widget._annot = annot  # backpointer to annot object
+        if not widget.script:
+            widget.script = None
+        if not widget.script_stroke:
+            widget.script_stroke = None
+        if not widget.script_format:
+            widget.script_format = None
+        if not widget.script_change:
+            widget.script_change = None
+        if not widget.script_calc:
+            widget.script_calc = None
 
 
         return val
