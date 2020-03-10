@@ -3224,3 +3224,131 @@ class Shape(object):
         self.text_cont = ""  # ...
         self.totalcont = ""  # re-use
         return
+
+
+def apply_redactions(page):
+    """Apply redaction annotations of the page.
+    """
+
+    def center_rect(annot_rect, text, font, fsize):
+        """Calculate a sub-rectangle containing the overlay text.
+
+        Notes:
+            We will use 'insertTextbox', which supports no vertical text
+            centering. We calculate an approximate number of lines here and
+            return a sub-rectangle, which should suffice to contain the text.
+        Args:
+            annot_rect: the annotation rectangle
+            text: the text to insert.
+            font: the fontname. Must be one of CJK or Base-14 set.
+            fsize: the fontsize
+        Returns:
+            A rectangle to use instead of the annot rectangle.
+        """
+        text_width = fitz.getTextlength(text, font, fsize)
+        line_height = fsize * 1.2
+        h = (math.ceil(text_width / annot_rect.width) + 1) * line_height
+        if h >= annot_rect.height:
+            return annot_rect
+        y0 = (annot_rect.tl.y + annot_rect.bl.y - h) * 0.5
+        r = annot_rect
+        r.y0 = y0
+        return r
+
+    CheckParent(page)
+    doc = page.parent
+    if doc.isEncrypted or doc.isClosed:
+        raise ValueError("document closed or encrypted")
+    if not doc.isPDF:
+        raise ValueError("not a PDF")
+
+    redact_annots = []  # storage of annot values
+    for annot in page.annots(types=(fitz.PDF_ANNOT_REDACT,)):  # loop redactions
+        redact_annots.append(annot._get_redact_values())  # save annot values
+
+    if redact_annots == []:  # any redactions on this page?
+        return False  # no redactions
+
+    candidate_names = []  # list of image / xobject names covered by redactions
+    ctm = page._getTransformation()  # the page transformation matrix
+
+    image_list = doc.getPageImageList(page.number, full=True)  # list of images
+
+    for item in image_list:  # loop through images
+        if item[-1] != 0:  # only consider if in page contents
+            continue
+        try:
+            bbox = page.getImageBbox(item)
+        except ValueError:  # image may not indeed be referenced by the page
+            continue
+        for redact in redact_annots:  # check if covered by a redaction
+            if bbox in redact["rect"]:
+                candidate_names.append(item[-3])  # save the name
+                break
+
+    for item in doc._getPageInfo(page.number, 3):  # loop through /XObjects
+        if item[-2] != 0:  # only consider if in page's own contents
+            continue
+        bbox = fitz.Rect(item[-1]) * ctm  # need transformation matrix here
+        for redact in redact_annots:  # check if covered by a redaction
+            if bbox in redact["rect"]:
+                candidate_names.append(item[1])
+                break
+
+    rc = page._apply_redactions()  # call MuPDF redaction process step
+    if not rc:  # should not happen really
+        raise ValueError("Error applying redactions.")
+
+    xref = page._getContents()[0]  # read page's /Contents
+    # note: this is just one object because cleaning has been executed under
+    # the hood already by page.getImageBbox().
+    cont = doc.xrefStream(xref)
+
+    # cont is formatted such that each command is contained in its own line
+    # loop through image & xobject names and remove their invocations
+    for name in candidate_names:
+        bytes_name = b"/" + name.encode("utf8") + b" Do"
+        cont = cont.replace(bytes_name, b"")
+
+    doc.updateStream(xref, cont)  # rewrite the modified contents stream
+
+    # now write replacement text in old redact rectangles
+    shape = page.newShape()
+    for redact in redact_annots:
+        shape.drawRect(redact["rect"])  # colorize the rect background
+        shape.finish(fill=redact["fill"], color=redact["fill"])
+        if "text" in redact.keys():  # if we also have text
+            trect = center_rect(  # try finding vertical centered sub-rect
+                redact["rect"], redact["text"], redact["fontname"], redact["fontsize"]
+            )
+            fsize = redact["fontsize"]  # start with stored fontsize
+            rc = -1
+            while rc < 0 and fsize >= 4:  # while not enough room
+                rc = shape.insertTextbox(  # (re-) try insertion
+                    trect,
+                    redact["text"],
+                    fontname=redact["fontname"],
+                    fontsize=fsize,
+                    color=redact["text_color"],
+                    align=redact["align"],
+                )
+                fsize -= 0.5  # reduce font if unsuccessful
+    shape.commit()  # append new contents object
+
+    # also remove the name references from the page definition
+    page_def_lines = doc.xrefObject(page.xref).splitlines()  # split into lines
+    new_lines = []  # lines of updated definition
+    for line in page_def_lines:
+        line = line.strip()  # remove any surrounding spaces
+        found = False  # assume name not found
+        for name in candidate_names:
+            if line.startswith("/" + name):
+                found = True  # the name is referenced here
+                break
+        if not found:  # consider lines without the name only
+            new_lines.append(line)
+    new_page_def = "\n".join(new_lines)  # updated page definition
+
+    doc.updateObject(page.xref, new_page_def)  # rewrite page definition
+    page._cleanContents()  # clean up any incongruences in page definition
+    return True

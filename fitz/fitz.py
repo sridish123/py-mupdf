@@ -79,8 +79,8 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 VersionFitz = "1.16.0"
 VersionBind = "1.16.12"
-VersionDate = "2020-03-02 14:49:55"
-version = (VersionBind, VersionFitz, "20200302144955")
+VersionDate = "2020-03-10 14:27:15"
+version = (VersionBind, VersionFitz, "20200310142715")
 
 EPSILON = _fitz.EPSILON
 
@@ -1404,14 +1404,17 @@ class Widget(object):
         self.border_width = 0
         self.border_dashes = None
         self.choice_values = None  # choice fields only
+
         self.field_name = None  # field name
         self.field_label = None  # field label
         self.field_value = None
         self.field_flags = None
         self.field_display = 0
+        self.field_type = 0  # valid range 1 through 7
+        self.field_type_string = None  # field type as string
+
         self.fill_color = None
         self.button_caption = None  # button caption
-        self.rect = None  # annot value
         self.is_signed = None  # True / False if signature
         self.text_color = (0, 0, 0)
         self.text_font = "Helv"
@@ -1419,15 +1422,16 @@ class Widget(object):
         self.text_maxlen = 0  # text fields only
         self.text_format = 0  # text fields only
         self._text_da = ""  # /DA = default apparance
-        self.field_type = 0  # valid range 1 through 7
-        self.field_type_string = None  # field type as string
         self._text_da = ""  # /DA = default apparance
-        self.xref = 0  # annot value
+
         self.script = None  # JavaScript (/A)
         self.script_stroke = None  # JavaScript (/AA/K)
         self.script_format = None  # JavaScript (/AA/F)
         self.script_change = None  # JavaScript (/AA/V)
         self.script_calc = None  # JavaScript (/AA/C)
+
+        self.rect = None  # annot value
+        self.xref = 0  # annot value
 
 
     def _validate(self):
@@ -1458,31 +1462,36 @@ class Widget(object):
         self.border_style = self.border_style.upper()[0:1]
 
 # standardize content of JavaScript entries
+        btn_type = self.field_type in (
+            PDF_WIDGET_TYPE_BUTTON,
+            PDF_WIDGET_TYPE_CHECKBOX,
+            PDF_WIDGET_TYPE_RADIOBUTTON
+        )
         if not self.script:
             self.script = None
         elif type(self.script) not in string_types:
             raise ValueError("script content must be unicode")
 
-        if not self.script_calc:
+# buttons cannot have the following script actions
+        if btn_type or not self.script_calc:
             self.script_calc = None
         elif type(self.script_calc) not in string_types:
             raise ValueError("script_calc content must be unicode")
 
-        if not self.script_change:
+        if btn_type or not self.script_change:
             self.script_change = None
         elif type(self.script_change) not in string_types:
             raise ValueError("script_change content must be unicode")
 
-        if not self.script_format:
+        if btn_type or not self.script_format:
             self.script_format = None
         elif type(self.script_format) not in string_types:
             raise ValueError("script_format content must be unicode")
 
-        if not self.script_stroke:
+        if btn_type or not self.script_stroke:
             self.script_stroke = None
         elif type(self.script_stroke) not in string_types:
             raise ValueError("script_stroke content must be unicode")
-
 
         self._checker()  # any field_type specific checks
 
@@ -1564,6 +1573,10 @@ class Widget(object):
         TOOLS._save_widget(self._annot, self)
         self._text_da = ""
 
+    def reset(self):
+        """Reset the field value to its default.
+        """
+        TOOLS._reset_widget(self._annot)
 
     def __repr__(self):
         return "'%s' widget on %s" % (self.field_type_string, str(self.parent))
@@ -3423,15 +3436,38 @@ class Page(object):
         return val
 
 
-    def addRedactAnnot(self, quad):
+    def addRedactAnnot(self, quad, text=None, fontname=None, fontsize=11, align=0, fill=None, text_color=None):
         r"""Add a 'Redaction' annot on the page."""
 
         CheckParent(self)
         if not self.parent.isPDF:
             raise ValueError("not a PDF")
+        if text:
+            if not fontname:
+                fontname = "Helv"
+            if not fontsize:
+                fontsize = 11
+            if not text_color:
+                text_color = (0, 0, 0)
+            if hasattr(text_color, "__float__"):
+                text_color = (text_color, text_color, text_color)
+            if not hasattr(text_color, "__getitem__"):
+                raise ValueError("text color must be a number or a sequence")
+            if len(text_color) > 3:
+                text_color = text_color[:3]
+            fmt = "{:g} {:g} {:g} rg /{f:s} {s:g} Tf"
+            fontname = fmt.format(*text_color, f=fontname, s=fontsize)
+            if not fill:
+                fill = (1, 1, 1)
+            if hasattr(fill, "__float__"):
+                fill = (fill, fill, fill)
+            if not hasattr(fill, "__getitem__"):
+                raise ValueError("fill color must be a number or a sequence")
+            if len(fill) > 3:
+                fill = fill[:3]
 
 
-        val = _fitz.Page_addRedactAnnot(self, quad)
+        val = _fitz.Page_addRedactAnnot(self, quad, text, fontname, fontsize, align, fill, text_color)
 
         if not val: return
         val.thisown = True
@@ -3729,9 +3765,9 @@ class Page(object):
         return _fitz.Page_getDisplayList(self, annots)
 
 
-    def apply_redactions(self, mark=0):
-        r"""apply_redactions(self, mark=0) -> PyObject *"""
-        return _fitz.Page_apply_redactions(self, mark)
+    def _apply_redactions(self):
+        r"""_apply_redactions(self) -> PyObject *"""
+        return _fitz.Page__apply_redactions(self)
 
     def _makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None):
         r"""_makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"""
@@ -4462,6 +4498,25 @@ class Annot(object):
     def _setAP(self, ap, rect=0):
         r"""Update contents source of a PDF annot"""
         return _fitz.Annot__setAP(self, ap, rect)
+
+    def _get_redact_values(self):
+        r"""Get values of a redaction annot."""
+        val = _fitz.Annot__get_redact_values(self)
+
+        if not val:
+            return val
+        val["rect"] = self.rect
+        text_color, fontname, fontsize = TOOLS._parse_da(self)
+        val["text_color"] = text_color
+        val["fontname"] = fontname
+        val["fontsize"] = fontsize
+        fill = self.colors["fill"]
+        val["fill"] = fill if fill else (1, 1, 1)
+
+
+
+        return val
+
 
     def setName(self, name):
         r"""Set the (icon) name"""
@@ -5244,6 +5299,10 @@ class Tools(object):
         r"""Return a unique positive integer."""
         return _fitz.Tools_gen_id(self)
 
+    def set_icc(self, on=0):
+        r"""Sett ICC color handling on or off."""
+        return _fitz.Tools_set_icc(self, on)
+
     def store_shrink(self, percent):
         r"""Free 'percent' of current store size."""
         return _fitz.Tools_store_shrink(self, percent)
@@ -5297,6 +5356,10 @@ class Tools(object):
     def _save_widget(self, annot, widget):
         r"""_save_widget(self, annot, widget) -> PyObject *"""
         return _fitz.Tools__save_widget(self, annot, widget)
+
+    def _reset_widget(self, annot):
+        r"""_reset_widget(self, annot) -> PyObject *"""
+        return _fitz.Tools__reset_widget(self, annot)
 
     def _parse_da(self, annot):
         r"""_parse_da(self, annot) -> PyObject *"""
