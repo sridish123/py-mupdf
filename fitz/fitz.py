@@ -3279,8 +3279,6 @@ open(filename, filetype='type') - from file"""
 
 
     xrefObject = get_pdf_object
-    xref_object = get_pdf_object
-    xref_stream = xrefStream
 
 
     def __repr__(self):
@@ -3880,16 +3878,13 @@ class Page(object):
 
     @property
 
-    def MediaBoxSize(self):
-        r"""Retrieve width, height of /MediaBox."""
+    def MediaBox(self):
+        r"""Retrieve the /MediaBox."""
         CheckParent(self)
 
-        val = _fitz.Page_MediaBoxSize(self)
+        val = _fitz.Page_MediaBox(self)
 
-        val = Point(val)
-        if not bool(val):
-            r = self.rect
-            val = Point(r.width, r.height)
+        val = Rect(val)
 
 
         return val
@@ -4021,7 +4016,12 @@ class Page(object):
         CheckParent(self)
 
         val = _fitz.Page__getTransformation(self)
-        val = Matrix(val)
+
+        if self.rotation % 360 == 0:
+            val = Matrix(val)
+        else:
+            val = Matrix(1, 0, 0, -1, 0, self.CropBox.height)
+
 
         return val
 
@@ -4157,18 +4157,25 @@ class Page(object):
 
     @property
     def CropBox(self):
+        """Rectangle /CropBox IGNORING any page rotation."""
+        rotation = self.rotation  # page rotation
+        width = self.rect.width  # page width
+        height = self.rect.height  # page height
+        if rotation % 180 != 0:  # rotation by odd number of 90
+            width, height = height, width  # so revert width and height
         x0 = self.CropBoxPosition.x
-        y0 = self.MediaBoxSize.y - self.CropBoxPosition.y - self.rect.height
-        x1 = x0 + self.rect.width
-        y1 = y0 + self.rect.height
+        y0 = self.MediaBox.height - self.CropBoxPosition.y - height
+        x1 = x0 + width
+        y1 = y0 + height
         return Rect(x0, y0, x1, y1)
 
     @property
-    def MediaBox(self):
-        return Rect(0, 0, self.MediaBoxSize)
+    def MediaBoxSize(self):
+        return Point(self.MediaBox.width, self.MediaBox.height)
 
-    clean_contents = _cleanContents
-    get_contents = _getContents
+    cleanContents = _cleanContents
+    getContents = _getContents
+    getTransformation = _getTransformation
 
 
 

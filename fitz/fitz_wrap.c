@@ -9562,16 +9562,47 @@ SWIGINTERN struct pdf_annot_s *fz_page_s_deleteAnnot(struct fz_page_s *self,stru
             page->doc->dirty = 1;
             return nextannot;
         }
-SWIGINTERN PyObject *fz_page_s_MediaBoxSize(struct fz_page_s *self){
-            PyObject *p = JM_py_from_point(fz_make_point(0, 0));
+SWIGINTERN PyObject *fz_page_s_MediaBox(struct fz_page_s *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
-            if (!page) return p;
-            fz_rect r = fz_empty_rect;
-            pdf_obj *o = pdf_dict_get_inheritable(gctx, page->obj, PDF_NAME(MediaBox));
-            if (!o) return p;
+            if (!page) return JM_py_from_rect(fz_bound_page(gctx, self));
 
-            r = pdf_to_rect(gctx, o);
-            return JM_py_from_point(fz_make_point(r.x1 - r.x0, r.y1 - r.y0));
+            fz_rect mediabox, cropbox, page_mediabox;
+            PyObject *rect = NULL;
+            pdf_obj *obj;
+            float userunit = 1;
+
+            obj = pdf_dict_get(gctx, page->obj, PDF_NAME(UserUnit));
+            if (pdf_is_real(gctx, obj))
+            {
+                userunit = pdf_to_real(gctx, obj);
+            }
+
+            mediabox = pdf_to_rect(gctx, pdf_dict_get_inheritable(gctx, page->obj, PDF_NAME(MediaBox)));
+            if (fz_is_empty_rect(mediabox))
+            {
+                mediabox.x0 = 0;
+                mediabox.y0 = 0;
+                mediabox.x1 = 612;
+                mediabox.y1 = 792;
+            }
+
+            cropbox = pdf_to_rect(gctx,
+                pdf_dict_get_inheritable(gctx, page->obj, PDF_NAME(CropBox)));
+            if (!fz_is_empty_rect(cropbox))
+            {
+                mediabox = fz_intersect_rect(mediabox, cropbox);
+            }
+            page_mediabox.x0 = fz_min(mediabox.x0, mediabox.x1);
+            page_mediabox.y0 = fz_min(mediabox.y0, mediabox.y1);
+            page_mediabox.x1 = fz_max(mediabox.x0, mediabox.x1);
+            page_mediabox.y1 = fz_max(mediabox.y0, mediabox.y1);
+
+            if (page_mediabox.x1 - page_mediabox.x0 < 1 ||
+                page_mediabox.y1 - page_mediabox.y0 < 1)
+                page_mediabox = fz_unit_rect;
+
+            return JM_py_from_rect(page_mediabox);
+
         }
 SWIGINTERN PyObject *fz_page_s_CropBoxPosition(struct fz_page_s *self){
             PyObject *p = JM_py_from_point(fz_make_point(0, 0));
@@ -9580,6 +9611,7 @@ SWIGINTERN PyObject *fz_page_s_CropBoxPosition(struct fz_page_s *self){
             pdf_obj *o = pdf_dict_get_inheritable(gctx, page->obj, PDF_NAME(CropBox));
             if (!o) return p;                    // no CropBox specified
             fz_rect cbox = pdf_to_rect(gctx, o);
+            Py_DECREF(p);
             return JM_py_from_point(fz_make_point(cbox.x0, cbox.y0));;
         }
 SWIGINTERN int fz_page_s_rotation(struct fz_page_s *self){
@@ -15631,7 +15663,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Page_MediaBoxSize(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Page_MediaBox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
   void *argp1 = 0 ;
@@ -15643,10 +15675,10 @@ SWIGINTERN PyObject *_wrap_Page_MediaBoxSize(PyObject *SWIGUNUSEDPARM(self), PyO
   swig_obj[0] = args;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_page_s, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page_MediaBoxSize" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page_MediaBox" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
   }
   arg1 = (struct fz_page_s *)(argp1);
-  result = (PyObject *)fz_page_s_MediaBoxSize(arg1);
+  result = (PyObject *)fz_page_s_MediaBox(arg1);
   resultobj = result;
   return resultobj;
 fail:
@@ -20995,7 +21027,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page_firstWidget", _wrap_Page_firstWidget, METH_O, "Page_firstWidget(self) -> Annot"},
 	 { "Page_deleteLink", _wrap_Page_deleteLink, METH_VARARGS, "Delete link if PDF"},
 	 { "Page_deleteAnnot", _wrap_Page_deleteAnnot, METH_VARARGS, "Delete annot and return next one."},
-	 { "Page_MediaBoxSize", _wrap_Page_MediaBoxSize, METH_O, "Retrieve width, height of /MediaBox."},
+	 { "Page_MediaBox", _wrap_Page_MediaBox, METH_O, "Retrieve the /MediaBox."},
 	 { "Page_CropBoxPosition", _wrap_Page_CropBoxPosition, METH_O, "Retrieve position of /CropBox. Return (0,0) for non-PDF, or no /CropBox."},
 	 { "Page_rotation", _wrap_Page_rotation, METH_O, "Retrieve page rotation."},
 	 { "Page_setRotation", _wrap_Page_setRotation, METH_VARARGS, "Set page rotation to 'rot' degrees."},
