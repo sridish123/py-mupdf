@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.12"
-VersionDate = "2020-03-10 14:27:15"
-version = (VersionBind, VersionFitz, "20200310142715")
+VersionBind = "1.16.13"
+VersionDate = "2020-03-15 05:29:04"
+version = (VersionBind, VersionFitz, "20200315052904")
 
 EPSILON = _fitz.EPSILON
 
@@ -2126,7 +2126,7 @@ def CheckParent(o):
 
 
 def CheckColor(c):
-    if c is not None:
+    if c:
         if (
             type(c) not in (list, tuple)
             or len(c) not in (1, 3, 4)
@@ -2137,7 +2137,7 @@ def CheckColor(c):
 
 
 def ColorCode(c, f):
-    if c is None:
+    if not c:
         return ""
     if hasattr(c, "__float__"):
         c = (c,)
@@ -2303,6 +2303,24 @@ def ConversionTrailer(i):
     else:
         r = text
 
+    return r
+
+def DerotateRect(cropbox, rect, deg):
+    if deg == 0:
+        return rect
+    points = []
+    for p in rect.quad:
+        if deg == 90:
+            q = (p.y, cropbox.height - p.x)
+        elif deg == 270:
+            q = (cropbox.width - p.y, p.x)
+        else:
+            q = (cropbox.width - p.x, cropbox.height - p.y)
+        points.append(q)
+
+    r = Rect(points[0], points[0])
+    for p in points[1:]:
+        r |= p
     return r
 
 
@@ -3083,6 +3101,7 @@ open(filename, filetype='type') - from file"""
             return [v[:-1] for v in val]
         return val
 
+
     def getPageImageList(self, pno, full=False):
         """Retrieve a list of images used on a page.
         """
@@ -3094,6 +3113,18 @@ open(filename, filetype='type') - from file"""
         if full is False:
             return [v[:-1] for v in val]
         return val
+
+
+    def getPageXObjectList(self, pno):
+        """Retrieve a list of XObjects used on a page.
+        """
+        if self.isClosed or self.isEncrypted:
+            raise ValueError("document closed or encrypted")
+        if not self.isPDF:
+            return ()
+        val = self._getPageInfo(pno, 3)
+        return val
+
 
     def copyPage(self, pno, to=-1):
         """Copy a page within a PDF document.
@@ -3455,14 +3486,15 @@ class Page(object):
                 text_color = text_color[:3]
             fmt = "{:g} {:g} {:g} rg /{f:s} {s:g} Tf"
             fontname = fmt.format(*text_color, f=fontname, s=fontsize)
-            if not fill:
+            if fill is None:
                 fill = (1, 1, 1)
-            if hasattr(fill, "__float__"):
-                fill = (fill, fill, fill)
-            if not hasattr(fill, "__getitem__"):
-                raise ValueError("fill color must be a number or a sequence")
-            if len(fill) > 3:
-                fill = fill[:3]
+            if fill:
+                if hasattr(fill, "__float__"):
+                    fill = (fill, fill, fill)
+                if not hasattr(fill, "__getitem__"):
+                    raise ValueError("fill color must be a number or a sequence")
+                if len(fill) > 3:
+                    fill = fill[:3]
 
 
         val = _fitz.Page_addRedactAnnot(self, quad, text, fontname, fontsize, align, fill, text_color)
@@ -3778,6 +3810,13 @@ class Page(object):
         return _fitz.Page_insertString(self, point, text, fontsize, fontname, color, language)
 
 
+    def setMediaBox(self, rect):
+        r"""setMediaBox(self, rect) -> PyObject *"""
+        CheckParent(self)
+
+        return _fitz.Page_setMediaBox(self, rect)
+
+
     def setCropBox(self, rect):
         r"""setCropBox(self, rect) -> PyObject *"""
         CheckParent(self)
@@ -3892,7 +3931,7 @@ class Page(object):
     @property
 
     def CropBoxPosition(self):
-        r"""Retrieve position of /CropBox. Return (0,0) for non-PDF, or no /CropBox."""
+        r"""CropBoxPosition(self) -> PyObject *"""
         CheckParent(self)
 
         val = _fitz.Page_CropBoxPosition(self)
@@ -4518,7 +4557,7 @@ class Annot(object):
         val["fontname"] = fontname
         val["fontsize"] = fontsize
         fill = self.colors["fill"]
-        val["fill"] = fill if fill else (1, 1, 1)
+        val["fill"] = fill
 
 
 
@@ -5372,8 +5411,8 @@ class Tools(object):
         r"""_parse_da(self, annot) -> PyObject *"""
         val = _fitz.Tools__parse_da(self, annot)
 
-        if not val or val == "":
-            retun ((0,), "", 0)
+        if not val:
+            return ((0,), "", 0)
         font = "Helv"
         fsize = 12
         col = (0, 0, 0)

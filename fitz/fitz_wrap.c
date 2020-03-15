@@ -6906,9 +6906,16 @@ void JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
 
         o = pdf_dict_get(ctx, imagedict, PDF_NAME(BBox));
         m = pdf_dict_get(ctx, imagedict, PDF_NAME(Matrix));
-        if (o && m)
+        if (o)
         {
-            bbox = fz_transform_rect(pdf_to_rect(ctx, o), pdf_to_matrix(ctx, m));
+            if (m)
+            {
+                bbox = fz_transform_rect(pdf_to_rect(ctx, o), pdf_to_matrix(ctx, m));
+            }
+            else
+            {
+                bbox = pdf_to_rect(ctx, o);
+            }
         }
         else
         {
@@ -8205,7 +8212,10 @@ SWIGINTERN PyObject *fz_document_s__getCharWidths(struct fz_document_s *self,int
                     goto weiter;
                 }
                 buf = fontbuffer(gctx, pdf, xref);
-                if (!buf) THROWMSG("xref is not a supported font");
+                if (!buf)
+                {
+                    fz_throw(gctx, FZ_ERROR_GENERIC, "font at xref %d is not supported", xref);
+                }
                 font = fz_new_font_from_buffer(gctx, NULL, buf, idx, 0);
 
                 weiter:;
@@ -9070,7 +9080,7 @@ SWIGINTERN struct pdf_annot_s *fz_page_s_addRedactAnnot(struct fz_page_s *self,P
                 fz_rect r = fz_rect_from_quad(q);
                 pdf_set_annot_rect(gctx, annot, r);
                 // pdf_add_annot_quad_point(gctx, annot, q);
-                if (fill)
+                if (PyObject_IsTrue(fill) == 1)
                 {
                     JM_color_FromSequence(fill, &nfcol, fcol);
                     pdf_obj *arr = pdf_new_array(gctx, page->doc, nfcol);
@@ -9080,7 +9090,10 @@ SWIGINTERN struct pdf_annot_s *fz_page_s_addRedactAnnot(struct fz_page_s *self,P
                     }
                     pdf_dict_put_drop(gctx, annot->obj, PDF_NAME(IC), arr);
                 }
-                otext = JM_Python_str_AsChar(text);
+                if (PyObject_IsTrue(text) == 1)
+                {
+                    otext = JM_Python_str_AsChar(text);
+                }
                 if (otext)
                 {
                     pdf_dict_puts_drop(gctx, annot->obj, "OverlayText",
@@ -9413,7 +9426,7 @@ SWIGINTERN struct fz_display_list_s *fz_page_s_getDisplayList(struct fz_page_s *
 SWIGINTERN PyObject *fz_page_s__apply_redactions(struct fz_page_s *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
             int success = 0;
-            pdf_redact_options opts = { 0 };  // never use black-boxing
+            pdf_redact_options opts = { 1 };  // never use black-boxing
             fz_try(gctx)
             {
                 assert_PDF(page);
@@ -9468,6 +9481,23 @@ SWIGINTERN PyObject *fz_page_s_insertString(struct fz_page_s *self,PyObject *poi
                 return NULL;
             }
             return JM_py_from_rect(text_rect);
+        }
+SWIGINTERN PyObject *fz_page_s_setMediaBox(struct fz_page_s *self,PyObject *rect){
+            pdf_page *page = pdf_page_from_fz_page(gctx, self);
+            fz_try(gctx)
+            {
+                assert_PDF(page);
+                fz_rect mediabox = JM_rect_from_py(rect);
+                if (fz_is_empty_rect(mediabox) || fz_is_infinite_rect(mediabox))
+                {
+                    THROWMSG("rect must be finite and not empty");
+                }
+                pdf_dict_put_rect(gctx, page->obj, PDF_NAME(MediaBox), mediabox);
+                pdf_dict_put_rect(gctx, page->obj, PDF_NAME(CropBox), mediabox);
+            }
+            fz_catch(gctx) return NULL;
+            page->doc->dirty = 1;
+            return_none;
         }
 SWIGINTERN PyObject *fz_page_s_setCropBox(struct fz_page_s *self,PyObject *rect){
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
@@ -9566,7 +9596,7 @@ SWIGINTERN PyObject *fz_page_s_MediaBox(struct fz_page_s *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
             if (!page) return JM_py_from_rect(fz_bound_page(gctx, self));
 
-            fz_rect mediabox, cropbox, page_mediabox;
+            fz_rect mediabox, page_mediabox;
             PyObject *rect = NULL;
             pdf_obj *obj;
             float userunit = 1;
@@ -9586,12 +9616,6 @@ SWIGINTERN PyObject *fz_page_s_MediaBox(struct fz_page_s *self){
                 mediabox.y1 = 792;
             }
 
-            cropbox = pdf_to_rect(gctx,
-                pdf_dict_get_inheritable(gctx, page->obj, PDF_NAME(CropBox)));
-            if (!fz_is_empty_rect(cropbox))
-            {
-                mediabox = fz_intersect_rect(mediabox, cropbox);
-            }
             page_mediabox.x0 = fz_min(mediabox.x0, mediabox.x1);
             page_mediabox.y0 = fz_min(mediabox.y0, mediabox.y1);
             page_mediabox.x1 = fz_max(mediabox.x0, mediabox.x1);
@@ -9605,14 +9629,19 @@ SWIGINTERN PyObject *fz_page_s_MediaBox(struct fz_page_s *self){
 
         }
 SWIGINTERN PyObject *fz_page_s_CropBoxPosition(struct fz_page_s *self){
-            PyObject *p = JM_py_from_point(fz_make_point(0, 0));
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
-            if (!page) return p;                 // not a PDF
-            pdf_obj *o = pdf_dict_get_inheritable(gctx, page->obj, PDF_NAME(CropBox));
-            if (!o) return p;                    // no CropBox specified
-            fz_rect cbox = pdf_to_rect(gctx, o);
-            Py_DECREF(p);
-            return JM_py_from_point(fz_make_point(cbox.x0, cbox.y0));;
+            if (!page)
+            {  // not a PDF
+                return JM_py_from_point(fz_make_point(0, 0));
+            }
+            fz_rect cropbox = pdf_to_rect(gctx,
+                pdf_dict_get_inheritable(gctx, page->obj, PDF_NAME(CropBox)));
+            if (fz_is_infinite_rect(cropbox))
+            {  // no /CropBox defined
+                return JM_py_from_point(fz_make_point(0, 0));
+            }
+
+            return JM_py_from_point(fz_make_point(cropbox.x0, cropbox.y0));
         }
 SWIGINTERN int fz_page_s_rotation(struct fz_page_s *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
@@ -15510,6 +15539,37 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Page_setMediaBox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Page_setMediaBox", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_page_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page_setMediaBox" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
+  }
+  arg1 = (struct fz_page_s *)(argp1);
+  arg2 = swig_obj[1];
+  {
+    result = (PyObject *)fz_page_s_setMediaBox(arg1,arg2);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Page_setCropBox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
@@ -21021,6 +21081,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page__apply_redactions", _wrap_Page__apply_redactions, METH_O, "Page__apply_redactions(self) -> PyObject *"},
 	 { "Page__makePixmap", _wrap_Page__makePixmap, METH_VARARGS, "Page__makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"},
 	 { "Page_insertString", _wrap_Page_insertString, METH_VARARGS, "Page_insertString(self, point, text, fontsize, fontname, color, language) -> PyObject *"},
+	 { "Page_setMediaBox", _wrap_Page_setMediaBox, METH_VARARGS, "Page_setMediaBox(self, rect) -> PyObject *"},
 	 { "Page_setCropBox", _wrap_Page_setCropBox, METH_VARARGS, "Page_setCropBox(self, rect) -> PyObject *"},
 	 { "Page_loadLinks", _wrap_Page_loadLinks, METH_O, "Page_loadLinks(self) -> Link"},
 	 { "Page_firstAnnot", _wrap_Page_firstAnnot, METH_O, "Points to first annotation on page"},
@@ -21028,7 +21089,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page_deleteLink", _wrap_Page_deleteLink, METH_VARARGS, "Delete link if PDF"},
 	 { "Page_deleteAnnot", _wrap_Page_deleteAnnot, METH_VARARGS, "Delete annot and return next one."},
 	 { "Page_MediaBox", _wrap_Page_MediaBox, METH_O, "Retrieve the /MediaBox."},
-	 { "Page_CropBoxPosition", _wrap_Page_CropBoxPosition, METH_O, "Retrieve position of /CropBox. Return (0,0) for non-PDF, or no /CropBox."},
+	 { "Page_CropBoxPosition", _wrap_Page_CropBoxPosition, METH_O, "Page_CropBoxPosition(self) -> PyObject *"},
 	 { "Page_rotation", _wrap_Page_rotation, METH_O, "Retrieve page rotation."},
 	 { "Page_setRotation", _wrap_Page_setRotation, METH_VARARGS, "Set page rotation to 'rot' degrees."},
 	 { "Page__addAnnot_FromString", _wrap_Page__addAnnot_FromString, METH_VARARGS, "Page__addAnnot_FromString(self, linklist) -> PyObject *"},
