@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.13"
-VersionDate = "2020-03-15 05:29:04"
-version = (VersionBind, VersionFitz, "20200315052904")
+VersionBind = "1.16.14"
+VersionDate = "2020-03-31 09:00:00"
+version = (VersionBind, VersionFitz, "20200331090000")
 
 EPSILON = _fitz.EPSILON
 
@@ -433,6 +433,38 @@ PDF_PERM_ACCESSIBILITY = _fitz.PDF_PERM_ACCESSIBILITY
 PDF_PERM_ASSEMBLE = _fitz.PDF_PERM_ASSEMBLE
 
 PDF_PERM_PRINT_HQ = _fitz.PDF_PERM_PRINT_HQ
+
+PDF_BM_ColorBurn = _fitz.PDF_BM_ColorBurn
+
+PDF_BM_ColorDodge = _fitz.PDF_BM_ColorDodge
+
+PDF_BM_Darken = _fitz.PDF_BM_Darken
+
+PDF_BM_Difference = _fitz.PDF_BM_Difference
+
+PDF_BM_Exclusion = _fitz.PDF_BM_Exclusion
+
+PDF_BM_HardLight = _fitz.PDF_BM_HardLight
+
+PDF_BM_Lighten = _fitz.PDF_BM_Lighten
+
+PDF_BM_Multiply = _fitz.PDF_BM_Multiply
+
+PDF_BM_Normal = _fitz.PDF_BM_Normal
+
+PDF_BM_Overlay = _fitz.PDF_BM_Overlay
+
+PDF_BM_Screen = _fitz.PDF_BM_Screen
+
+PDF_BM_SoftLight = _fitz.PDF_BM_SoftLight
+
+PDF_BM_Hue = _fitz.PDF_BM_Hue
+
+PDF_BM_Saturation = _fitz.PDF_BM_Saturation
+
+PDF_BM_Color = _fitz.PDF_BM_Color
+
+PDF_BM_Luminosity = _fitz.PDF_BM_Luminosity
 
 TEXT_FONT_SUPERSCRIPT = _fitz.TEXT_FONT_SUPERSCRIPT
 
@@ -2114,7 +2146,7 @@ def PaperSize(s):
 
 
 def PaperRect(s):
-    """Return a fitz.Rect for the paper size indicated in string 's'. Must conform to the argument of method 'PaperSize', which will be invoked.
+    """Return a Rect for the paper size indicated in string 's'. Must conform to the argument of method 'PaperSize', which will be invoked.
     """
     width, height = PaperSize(s)
     return Rect(0.0, 0.0, width, height)
@@ -2306,11 +2338,26 @@ def ConversionTrailer(i):
     return r
 
 def DerotateRect(cropbox, rect, deg):
-    if deg == 0:
+    """Calculate the non-rotated rect version.
+
+    Args:
+        cropbox: the page's /CropBox
+        rect: rectangle
+        deg: the page's /Rotate value
+    Returns:
+        Rectangle in original (/CropBox) coordinates
+    """
+    while deg < 0:
+        deg += 360
+    while deg >= 360:
+        deg -= 360
+    if deg % 90 > 0:
+        deg = 0
+    if deg == 0:  # no rotation: no-op
         return rect
-    points = []
-    for p in rect.quad:
-        if deg == 90:
+    points = []  # store the new rect points here
+    for p in rect.quad:  # run through the rect's quad points
+        if deg == 90:  
             q = (p.y, cropbox.height - p.x)
         elif deg == 270:
             q = (cropbox.width - p.y, p.x)
@@ -2322,6 +2369,83 @@ def DerotateRect(cropbox, rect, deg):
     for p in points[1:]:
         r |= p
     return r
+
+
+def get_highlight_selection(page, start=None, stop=None, clip=None):
+    """Return rectangles of text lines between two points.
+
+    Notes:
+        The default of 'start' is top-left of 'clip'. The default of 'stop'
+        is bottom-reight of 'clip'.
+
+    Args:
+        start: start point_like
+        stop: end point_like, must be 'below' start
+        clip: consider this rect_like only, default is page rectangle
+    Returns:
+        List of line bbox intersections with the area established by the
+        parameters.
+    """
+# validate and normalize arguments
+    if clip is None:
+        clip = page.rect
+    clip = Rect(clip)
+    if start is None:
+        start = clip.tl
+    start = Point(start)
+    if stop is None:
+        stop = clip.br
+    stop = Point(stop)
+
+# extract text of page (no images)
+    blocks = page.getText(
+        "dict", flags=TEXT_PRESERVE_LIGATURES + TEXT_PRESERVE_WHITESPACE
+    )["blocks"]
+    rectangles = []  # we will be returning this
+    lines = []  # intermediate bbox store
+    for b in blocks:
+        for line in b["lines"]:
+            bbox = Rect(line["bbox"]) & clip  # line bbox intersection
+            if bbox.isEmpty:  # do not output empty rectangles
+                continue
+            if bbox.y0 < start.y or bbox.y1 > stop.y:
+                continue  # line above or below the selection points
+            lines.append(bbox)
+
+    if lines == []:  # we did not select anything
+        return rectangles
+
+    lines.sort(key=lambda bbox: bbox.y0)  # sort result by vertical positions
+
+    bboxf = lines[0]  # potentially cut off left part of first line
+    if bboxf.y0 - start.y <= 0.1 * bboxf.height:  # close enough to the top?
+        r = Rect(start.x, bboxf.y0, bboxf.br)  # intersection rectangle
+        if r.isEmpty or r.isInfinite:
+            bboxf = Rect()  # first line will be skipped
+        else:
+            bboxf &= r
+
+    if len(lines) > 1:  # if we selected 2 or more lines
+        if not bboxf.isEmpty:
+            rectangles.append(bboxf)  # output bbox of first line
+        bboxl = lines[-1]  # and read last line
+    else:
+        bboxl = bboxf  # further restrict the only line selected
+
+    if stop.y - bboxl.y1 <= 0.1 * bboxl.height:  # close enough to bottom?
+        r = Rect(bboxl.tl, stop.x, bboxl.y1)  # intersection rectangle
+        if r.isEmpty or r.isInfinite:  # last line will be skipped
+            bboxl = Rect()
+        else:
+            bboxl &= r
+
+    if not bboxl.isEmpty:
+        rectangles.append(bboxl)
+
+    for bbox in lines[1:-1]:  # now add remaining line bboxes
+        rectangles.append(bbox)
+
+    return rectangles
 
 
 class Document(object):
@@ -2343,7 +2467,7 @@ open(filename, filetype='type') - from file"""
                 if type(filename) is unicode:
                     filename = filename.encode("utf8")
             else:
-                filename = str(filename)  # should take care of pathlib
+                filename = str(filename)  # takes care of pathlib.Path
 
         if stream:
             if not (filename or filetype):
@@ -2757,10 +2881,10 @@ open(filename, filetype='type') - from file"""
             raise ValueError("document closed or encrypted")
         if type(filename) == str:
             pass
-        elif type(filename) == unicode:
+        elif str is bytes and type(filename) == unicode:
             filename = filename.encode('utf8')
         else:
-            raise TypeError("filename must be a string")
+            filename = str(filename)
         if filename == self.name and not incremental:
             raise ValueError("save to original must be incremental")
         if self.pageCount < 1:
@@ -3644,21 +3768,41 @@ class Page(object):
         return val
 
 
-    def addStrikeoutAnnot(self, quads):
+    def addStrikeoutAnnot(self, quads=None, start=None, stop=None, clip=None):
         """Add a 'StrikeOut' annotation."""
-        return self._add_text_marker(quads, PDF_ANNOT_STRIKEOUT)
+        if quads is None:
+            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
+        if quads:
+            return self._add_text_marker(quads, PDF_ANNOT_STRIKEOUT)
+        else:
+            return None
 
-    def addUnderlineAnnot(self, quads):
+    def addUnderlineAnnot(self, quads=None, start=None, stop=None, clip=None):
         """Add a 'Underline' annotation."""
-        return self._add_text_marker(quads, PDF_ANNOT_UNDERLINE)
+        if quads is None:
+            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
+        if quads:
+            return self._add_text_marker(quads, PDF_ANNOT_UNDERLINE)
+        else:
+            return None
 
-    def addSquigglyAnnot(self, quads):
+    def addSquigglyAnnot(self, quads=None, start=None, stop=None, clip=None):
         """Add a 'Squiggly' annotation."""
-        return self._add_text_marker(quads, PDF_ANNOT_SQUIGGLY)
+        if quads is None:
+            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
+        if quads:
+            return self._add_text_marker(quads, PDF_ANNOT_SQUIGGLY)
+        else:
+            return None
 
-    def addHighlightAnnot(self, quads):
+    def addHighlightAnnot(self, quads=None, start=None, stop=None, clip=None):
         """Add a 'Highlight' annotation."""
-        return self._add_text_marker(quads, PDF_ANNOT_HIGHLIGHT)
+        if quads is None:
+            quads = get_highlight_selection(self, start=start, stop=stop, clip=rect)
+        if quads:
+            return self._add_text_marker(quads, PDF_ANNOT_HIGHLIGHT)
+        else:
+            return None
 
 
     def _add_square_or_circle(self, rect, annot_type):
@@ -3930,14 +4074,21 @@ class Page(object):
 
     @property
 
-    def CropBoxPosition(self):
-        r"""CropBoxPosition(self) -> PyObject *"""
+    def CropBox(self):
+        r"""Retrieve the /CropBox."""
         CheckParent(self)
 
-        val = _fitz.Page_CropBoxPosition(self)
-        val = Point(val)
+        val = _fitz.Page_CropBox(self)
+
+        val = Rect(val)
+
 
         return val
+
+
+    @property
+    def CropBoxPosition(self):
+        return self.CropBox.tl
 
     @property
 
@@ -4177,7 +4328,7 @@ class Page(object):
             self.parent._forget_page(self)
         except:
             pass
-        if getattr(self, "thisown", True):
+        if getattr(self, "thisown", False):
             self.__swig_destroy__(self)
         self.parent = None
         self.thisown = False
@@ -4194,19 +4345,6 @@ class Page(object):
         CheckParent(self)
         return self.parent.getPageImageList(self.number, full=full)
 
-    @property
-    def CropBox(self):
-        """Rectangle /CropBox IGNORING any page rotation."""
-        rotation = self.rotation  # page rotation
-        width = self.rect.width  # page width
-        height = self.rect.height  # page height
-        if rotation % 180 != 0:  # rotation by odd number of 90
-            width, height = height, width  # so revert width and height
-        x0 = self.CropBoxPosition.x
-        y0 = self.MediaBox.height - self.CropBoxPosition.y - height
-        x1 = x0 + width
-        y1 = y0 + height
-        return Rect(x0, y0, x1, y1)
 
     @property
     def MediaBoxSize(self):
@@ -4537,6 +4675,20 @@ class Annot(object):
         r"""xref(self) -> PyObject *"""
         return _fitz.Annot_xref(self)
 
+    def blendMode(self):
+        r"""Show the annotation's blend mode."""
+        CheckParent(self)
+
+        return _fitz.Annot_blendMode(self)
+
+
+    def setBlendMode(self, blend_mode):
+        r"""Set the annotation's blend mode."""
+        CheckParent(self)
+
+        return _fitz.Annot_setBlendMode(self, blend_mode)
+
+
     def _getAP(self):
         r"""Get contents source of a PDF annot"""
         return _fitz.Annot__getAP(self)
@@ -4594,11 +4746,13 @@ class Annot(object):
         return _fitz.Annot_colors(self)
 
 
-    def _update_appearance(self, opacity=None, fill_color=None, rotate=-1):
-        r"""_update_appearance(self, opacity=None, fill_color=None, rotate=-1) -> PyObject *"""
-        return _fitz.Annot__update_appearance(self, opacity, fill_color, rotate)
+    def _update_appearance(self, opacity=-1, blend_mode=None, fill_color=None, rotate=-1):
+        r"""_update_appearance(self, opacity=-1, blend_mode=None, fill_color=None, rotate=-1) -> PyObject *"""
+        return _fitz.Annot__update_appearance(self, opacity, blend_mode, fill_color, rotate)
 
     def update(self,
+               blend_mode=None,
+               opacity=None,
                fontsize=0,
                fontname=None,
                text_color=None,
@@ -4654,16 +4808,28 @@ class Annot(object):
 
         rect = None  # self.rect  # prevent MuPDF fiddling with it
 
-    # Opacity not handled by MuPDF, so we do it here
-        if 0 <= self.opacity < 1:
-            opacity = "opacity%i" % int(round(self.opacity * 100))
-            opa_code = "/%s + gs\n" % opacity
-        else:
-            opacity = None
-            opa_code = None
+    #------------------------------------------------------------------
+    # handle opacity and blend mode
+    #------------------------------------------------------------------
+        if blend_mode is None:
+            blend_mode = self.blendMode()
+        if not hasattr(opacity, "__float__"):
+            opacity = self.opacity
 
+        if 0 <= opacity < 1 or blend_mode is not None:
+            opa_code = "/H gs\n"
+        else:
+            opa_code = ""
+
+    #------------------------------------------------------------------
     # now invoke MuPDF to update the annot appearance
-        val = self._update_appearance(opacity, fill, rotate)
+    #------------------------------------------------------------------
+        val = self._update_appearance(
+            opacity=opacity,
+            blend_mode=blend_mode,
+            fill_color=fill,
+            rotate=rotate,
+        )
         if not val:  # something went wrong, skip the rest
             return val
 
@@ -5005,7 +5171,7 @@ class Annot(object):
             self.parent._forget_annot(self)
         except:
             pass
-        if getattr(self, "thisown", True):
+        if getattr(self, "thisown", False):
             self.__swig_destroy__(self)
         self.parent = None
         self.thisown = False
@@ -5150,7 +5316,7 @@ class Link(object):
             self.parent._forget_annot(self)
         except:
             pass
-        if getattr(self, "thisown", True):
+        if getattr(self, "thisown", False):
             self.__swig_destroy__(self)
         self.parent = None
         self.thisown = False
@@ -5346,16 +5512,51 @@ class Tools(object):
         return _fitz.Tools_gen_id(self)
 
     def set_icc(self, on=0):
-        r"""Sett ICC color handling on or off."""
+        r"""Set ICC color handling on or off."""
         return _fitz.Tools_set_icc(self, on)
 
     def store_shrink(self, percent):
         r"""Free 'percent' of current store size."""
         return _fitz.Tools_store_shrink(self, percent)
 
+    def anti_aliasing_values(self):
+        r"""Show anti-aliasing values."""
+        val = _fitz.Tools_anti_aliasing_values(self)
+
+        d = {"graphics": val[0], "text": val[1], "graphics_min_line_width": val[2]}
+        val = d
+
+
+        return val
+
+
+    def set_aa_level(self, level):
+        r"""Set anti-aliasing level."""
+        return _fitz.Tools_set_aa_level(self, level)
+
+    def set_graphics_min_line_width(self, min_line_width):
+        r"""Set graphics min. line width."""
+        return _fitz.Tools_set_graphics_min_line_width(self, min_line_width)
+
     def image_profile(self, stream, keep_image=0):
         r"""Determine dimension and other image data."""
         return _fitz.Tools_image_profile(self, stream, keep_image)
+
+    def _derotate_point(self, page, point):
+        r"""_derotate_point(self, page, point) -> PyObject *"""
+        return _fitz.Tools__derotate_point(self, page, point)
+
+    def _derotate_rect(self, page, rect):
+        r"""_derotate_rect(self, page, rect) -> PyObject *"""
+        return _fitz.Tools__derotate_rect(self, page, rect)
+
+    def _rotate_point(self, page, point):
+        r"""_rotate_point(self, page, point) -> PyObject *"""
+        return _fitz.Tools__rotate_point(self, page, point)
+
+    def _rotate_rect(self, page, rect):
+        r"""_rotate_rect(self, page, rect) -> PyObject *"""
+        return _fitz.Tools__rotate_rect(self, page, rect)
     @property
 
     def store_size(self):
