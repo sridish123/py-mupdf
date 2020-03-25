@@ -2710,7 +2710,7 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
 #define JM_Free(x) free(x)
 #endif
 
-#define EXISTS(x) PyObject_IsTrue(x)==1
+#define EXISTS(x) (PyObject_IsTrue(x)==1)
 #define THROWMSG(msg) fz_throw(gctx, FZ_ERROR_GENERIC, msg)
 #define assert_PDF(cond) if (cond == NULL) THROWMSG("not a PDF")
 #define INRANGE(v, low, high) ((low) <= v && v <= (high))
@@ -5649,7 +5649,7 @@ PyObject *JM_get_script(fz_context *ctx, pdf_obj *key)
     else if (pdf_is_stream(ctx, js))
     {
         res = pdf_load_stream(ctx, js);
-        script = PyUnicode_FromString(ctx, res);
+        script = JM_EscapeStrFromBuffer(ctx, res);
         fz_drop_buffer(ctx, res);
     }
     else
