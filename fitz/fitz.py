@@ -79,8 +79,8 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 VersionFitz = "1.16.0"
 VersionBind = "1.16.14"
-VersionDate = "2020-03-31 09:00:00"
-version = (VersionBind, VersionFitz, "20200331090000")
+VersionDate = "2020-03-25 11:44:22"
+version = (VersionBind, VersionFitz, "20200325114422")
 
 EPSILON = _fitz.EPSILON
 
@@ -5062,18 +5062,13 @@ class Annot(object):
         r"""Set various annotation properties."""
 
         CheckParent(self)
-        if type(info) is not dict:  # build a new dictionary from the other args
-            info = {}
-            if content is not None:
-                info["content"] = content
-            if title is not None:
-                info["title"] = title
-            if creationDate is not None:
-                info["creationDate"] = creationDate
-            if modDate is not None:
-                info["modDate"] = modDate
-            if subject is not None:
-                info["subject"] = subject
+        if type(info) is dict:  # build a new dictionary from the other args
+            content = info.get("content", "")
+            title = info.get("title", "")
+            creationDate = info.get("creationDate", "")
+            modDate = info.get("modDate", "")
+            subject = info.get("subject", "")
+            info = None
 
 
         return _fitz.Annot_setInfo(self, info, content, title, creationDate, modDate, subject)
