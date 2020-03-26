@@ -5514,9 +5514,9 @@ class Tools(object):
         r"""Free 'percent' of current store size."""
         return _fitz.Tools_store_shrink(self, percent)
 
-    def anti_aliasing_values(self):
+    def show_aa_level(self):
         r"""Show anti-aliasing values."""
-        val = _fitz.Tools_anti_aliasing_values(self)
+        val = _fitz.Tools_show_aa_level(self)
 
         d = {"graphics": val[0], "text": val[1], "graphics_min_line_width": val[2]}
         val = d

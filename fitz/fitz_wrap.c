@@ -4891,10 +4891,10 @@ PyObject *JM_annot_border(fz_context *ctx, pdf_obj *annot_obj)
     }
 
     LIST_APPEND_DROP(effect_py, Py_BuildValue("i", effect1));
-    LIST_APPEND_DROP(effect_py, PyUnicode_FromString(effect2));
+    LIST_APPEND_DROP(effect_py, Py_BuildValue("s", effect2));
     DICT_SETITEM_DROP(res, dictkey_width, Py_BuildValue("f", width));
     DICT_SETITEM_DROP(res, dictkey_dashes, dash_py);
-    DICT_SETITEM_DROP(res, dictkey_style, PyUnicode_FromString(style));
+    DICT_SETITEM_DROP(res, dictkey_style, Py_BuildValue("s", style));
     if (effect1 > -1) PyDict_SetItem(res, dictkey_effect, effect_py);
     Py_CLEAR(effect_py);
     return res;
@@ -5091,7 +5091,7 @@ PyObject *JM_get_annot_id_list(fz_context *ctx, pdf_page *page)
             o = pdf_dict_gets(ctx, annot->obj, "NM");
             if (o)
             {
-                LIST_APPEND_DROP(names, PyUnicode_FromString(pdf_to_text_string(gctx, o)));
+                LIST_APPEND_DROP(names, Py_BuildValue("s", pdf_to_text_string(gctx, o)));
             }
         }
         //for (annotptr = &page->widgets; *annotptr; annotptr = &(*annotptr)->next)
@@ -5100,7 +5100,7 @@ PyObject *JM_get_annot_id_list(fz_context *ctx, pdf_page *page)
         //    o = pdf_dict_gets(ctx, annot->obj, "NM");
         //    if (o)
         //    {
-        //        LIST_APPEND_DROP(names, PyUnicode_FromString(pdf_to_text_string(gctx, o)));
+        //        LIST_APPEND_DROP(names, Py_BuildValue("s", pdf_to_text_string(gctx, o)));
         //    }
         //}
     }
@@ -5506,7 +5506,7 @@ static void JM_make_image_block(fz_context *ctx, fz_stext_block *block, PyObject
         DICT_SETITEM_DROP(block_dict, dictkey_height,
                           Py_BuildValue("i", h));
         DICT_SETITEM_DROP(block_dict, dictkey_ext,
-                          PyUnicode_FromString(ext));
+                          Py_BuildValue("s", ext));
         DICT_SETITEM_DROP(block_dict, dictkey_colorspace,
                           Py_BuildValue("i", n));
         DICT_SETITEM_DROP(block_dict, dictkey_xres,
@@ -7058,11 +7058,11 @@ void JM_gather_fonts(fz_context *ctx, pdf_document *pdf, pdf_obj *dict,
         if (xref) ext = fontextension(ctx, pdf, xref);
         PyObject *entry = PyTuple_New(7);
         PyTuple_SET_ITEM(entry, 0, Py_BuildValue("i", xref));
-        PyTuple_SET_ITEM(entry, 1, PyUnicode_FromString(ext));
-        PyTuple_SET_ITEM(entry, 2, PyUnicode_FromString(pdf_to_name(ctx, subtype)));
+        PyTuple_SET_ITEM(entry, 1, Py_BuildValue("s", ext));
+        PyTuple_SET_ITEM(entry, 2, Py_BuildValue("s", pdf_to_name(ctx, subtype)));
         PyTuple_SET_ITEM(entry, 3, JM_UNICODE(pdf_to_name(ctx, name)));
-        PyTuple_SET_ITEM(entry, 4, PyUnicode_FromString(pdf_to_name(ctx, refname)));
-        PyTuple_SET_ITEM(entry, 5, PyUnicode_FromString(pdf_to_name(ctx, encoding)));
+        PyTuple_SET_ITEM(entry, 4, Py_BuildValue("s", pdf_to_name(ctx, refname)));
+        PyTuple_SET_ITEM(entry, 5, Py_BuildValue("s", pdf_to_name(ctx, encoding)));
         PyTuple_SET_ITEM(entry, 6, Py_BuildValue("i", stream_xref));
         LIST_APPEND_DROP(fontlist, entry);
     }
@@ -7195,7 +7195,7 @@ void JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
 
         PyObject *entry = PyTuple_New(4);
         PyTuple_SET_ITEM(entry, 0, Py_BuildValue("i", xref));
-        PyTuple_SET_ITEM(entry, 1, PyUnicode_FromString(pdf_to_name(ctx, refname)));
+        PyTuple_SET_ITEM(entry, 1, Py_BuildValue("s", pdf_to_name(ctx, refname)));
         PyTuple_SET_ITEM(entry, 2, Py_BuildValue("i", stream_xref));
         PyTuple_SET_ITEM(entry, 3, Py_BuildValue("ffff",
                                    bbox.x0, bbox.y0, bbox.x1, bbox.y1));
@@ -11845,7 +11845,7 @@ SWIGINTERN PyObject *Tools_store_shrink(struct Tools *self,int percent){
             if (percent > 0) fz_shrink_store(gctx, 100 - percent);
             return Py_BuildValue("i", (int) gctx->store->size);
         }
-SWIGINTERN PyObject *Tools_anti_aliasing_values(struct Tools *self){
+SWIGINTERN PyObject *Tools_show_aa_level(struct Tools *self){
             return Py_BuildValue("iif",
                 fz_graphics_aa_level(gctx),
                 fz_text_aa_level(gctx),
@@ -20557,7 +20557,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Tools_anti_aliasing_values(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Tools_show_aa_level(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
   void *argp1 = 0 ;
@@ -20569,10 +20569,10 @@ SWIGINTERN PyObject *_wrap_Tools_anti_aliasing_values(PyObject *SWIGUNUSEDPARM(s
   swig_obj[0] = args;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools_anti_aliasing_values" "', argument " "1"" of type '" "struct Tools *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools_show_aa_level" "', argument " "1"" of type '" "struct Tools *""'"); 
   }
   arg1 = (struct Tools *)(argp1);
-  result = (PyObject *)Tools_anti_aliasing_values(arg1);
+  result = (PyObject *)Tools_show_aa_level(arg1);
   resultobj = result;
   return resultobj;
 fail:
@@ -21779,7 +21779,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools_gen_id", _wrap_Tools_gen_id, METH_O, "Return a unique positive integer."},
 	 { "Tools_set_icc", _wrap_Tools_set_icc, METH_VARARGS, "Set ICC color handling on or off."},
 	 { "Tools_store_shrink", _wrap_Tools_store_shrink, METH_VARARGS, "Free 'percent' of current store size."},
-	 { "Tools_anti_aliasing_values", _wrap_Tools_anti_aliasing_values, METH_O, "Show anti-aliasing values."},
+	 { "Tools_show_aa_level", _wrap_Tools_show_aa_level, METH_O, "Show anti-aliasing values."},
 	 { "Tools_set_aa_level", _wrap_Tools_set_aa_level, METH_VARARGS, "Set anti-aliasing level."},
 	 { "Tools_set_graphics_min_line_width", _wrap_Tools_set_graphics_min_line_width, METH_VARARGS, "Set graphics min. line width."},
 	 { "Tools_image_profile", _wrap_Tools_image_profile, METH_VARARGS, "Determine dimension and other image data."},
