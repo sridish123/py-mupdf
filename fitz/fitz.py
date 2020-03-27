@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.14"
-VersionDate = "2020-03-25 11:44:22"
-version = (VersionBind, VersionFitz, "20200325114422")
+VersionBind = "1.16.15"
+VersionDate = "2020-03-26 15:15:15"
+version = (VersionBind, VersionFitz, "20200326151515")
 
 EPSILON = _fitz.EPSILON
 
@@ -4621,17 +4621,7 @@ class Outline(object):
 
     def uri(self):
         r"""uri(self) -> PyObject *"""
-        val = _fitz.Outline_uri(self)
-
-        if val:
-            nval = "".join([c for c in val if 32 <= ord(c) <= 127])
-            val = nval
-        else:
-            val = ""
-
-
-        return val
-
+        return _fitz.Outline_uri(self)
     @property
 
     def isExternal(self):
@@ -5235,16 +5225,7 @@ class Link(object):
         r"""uri(self) -> PyObject *"""
         CheckParent(self)
 
-        val = _fitz.Link_uri(self)
-
-        if not val:
-            val = ""
-        else:
-            nval = "".join([c for c in val if 32 <= ord(c) <= 127])
-            val = nval
-
-
-        return val
+        return _fitz.Link_uri(self)
 
     @property
 

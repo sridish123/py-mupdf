@@ -2691,7 +2691,7 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
   #define FLT_EPSILON 1e-5
 #endif
 
-#define return_none return Py_BuildValue("s", NULL)
+#define return_none Py_RETURN_NONE
 #define SWIG_FILE_WITH_INIT
 #define SWIG_PYTHON_2_UNICODE
 
@@ -2718,7 +2718,6 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
 #define MIN(a, b) ((a) < (b)) ? (a) : (b)
 
 #define JM_PyErr_Clear if (PyErr_Occurred()) PyErr_Clear()
-#define JM_UNICODE(data) JM_EscapeStrFromStr(data)
 
 // binary output depends on Python major
 # if PY_VERSION_HEX >= 0x03000000
@@ -3383,6 +3382,18 @@ PyObject *JM_EscapeStrFromBuffer(fz_context *ctx, fz_buffer *buff)
     unsigned char *s = NULL;
     size_t len = fz_buffer_storage(ctx, buff, &s);
     PyObject *val = PyUnicode_DecodeUnicodeEscape(s, (Py_ssize_t) len, "replace");
+    if (!val)
+    {
+        val = PyUnicode_FromString("");
+        PyErr_Clear();
+    }
+    return val;
+}
+
+PyObject *JM_UnicodeFromStr(const char *c)
+{
+    if (!c) return PyUnicode_FromString("");
+    PyObject *val = Py_BuildValue("s", c);
     if (!val)
     {
         val = PyUnicode_FromString("");
@@ -5406,7 +5417,7 @@ static PyObject *JM_make_spanlist(fz_context *ctx, fz_stext_line *line, int raw,
 
             DICT_SETITEM_DROP(span, dictkey_size, Py_BuildValue("f", style.size));
             DICT_SETITEM_DROP(span, dictkey_flags, Py_BuildValue("i", style.flags));
-            DICT_SETITEM_DROP(span, dictkey_font, JM_UNICODE(style.font));
+            DICT_SETITEM_DROP(span, dictkey_font, JM_EscapeStrFromStr(style.font));
             DICT_SETITEM_DROP(span, dictkey_color, Py_BuildValue("i", style.color));
 
             old_style = style;
@@ -7060,7 +7071,7 @@ void JM_gather_fonts(fz_context *ctx, pdf_document *pdf, pdf_obj *dict,
         PyTuple_SET_ITEM(entry, 0, Py_BuildValue("i", xref));
         PyTuple_SET_ITEM(entry, 1, Py_BuildValue("s", ext));
         PyTuple_SET_ITEM(entry, 2, Py_BuildValue("s", pdf_to_name(ctx, subtype)));
-        PyTuple_SET_ITEM(entry, 3, JM_UNICODE(pdf_to_name(ctx, name)));
+        PyTuple_SET_ITEM(entry, 3, JM_EscapeStrFromStr(pdf_to_name(ctx, name)));
         PyTuple_SET_ITEM(entry, 4, Py_BuildValue("s", pdf_to_name(ctx, refname)));
         PyTuple_SET_ITEM(entry, 5, Py_BuildValue("s", pdf_to_name(ctx, encoding)));
         PyTuple_SET_ITEM(entry, 6, Py_BuildValue("i", stream_xref));
@@ -7802,7 +7813,7 @@ SWIGINTERN PyObject *fz_document_s__embeddedFileNames(struct fz_document_s *self
                     int i, n = pdf_array_len(gctx, names);
                     for (i=0; i < n; i+=2)
                     {
-                        val = JM_UNICODE(pdf_to_text_string(gctx,
+                        val = JM_EscapeStrFromStr(pdf_to_text_string(gctx,
                                          pdf_array_get(gctx, names, i)));
                         LIST_APPEND_DROP(namelist, val);
                     }
@@ -7843,15 +7854,15 @@ SWIGINTERN PyObject *fz_document_s__embeddedFileInfo(struct fz_document_s *self,
 
                 name = (char *) pdf_to_text_string(gctx,
                                           pdf_dict_get(gctx, o, PDF_NAME(F)));
-                DICT_SETITEM_DROP(infodict, dictkey_filename, JM_UNICODE(name));
+                DICT_SETITEM_DROP(infodict, dictkey_filename, JM_EscapeStrFromStr(name));
 
                 name = (char *) pdf_to_text_string(gctx,
                                     pdf_dict_get(gctx, o, PDF_NAME(UF)));
-                DICT_SETITEM_DROP(infodict, dictkey_ufilename, JM_UNICODE(name));
+                DICT_SETITEM_DROP(infodict, dictkey_ufilename, JM_EscapeStrFromStr(name));
 
                 name = (char *) pdf_to_text_string(gctx,
                                     pdf_dict_get(gctx, o, PDF_NAME(Desc)));
-                DICT_SETITEM_DROP(infodict, dictkey_desc, JM_UNICODE(name));
+                DICT_SETITEM_DROP(infodict, dictkey_desc, JM_UnicodeFromStr(name));
 
                 int len = -1, DL = -1;
                 pdf_obj *ef = pdf_dict_get(gctx, o, PDF_NAME(EF));
@@ -8553,7 +8564,7 @@ SWIGINTERN PyObject *fz_document_s_extractFont(struct fz_document_s *self,int xr
                         fz_drop_buffer(gctx, buffer);
                     }
                     tuple = PyTuple_New(4);
-                    PyTuple_SET_ITEM(tuple, 0, JM_UNICODE(pdf_to_name(gctx, bname)));
+                    PyTuple_SET_ITEM(tuple, 0, JM_EscapeStrFromStr(pdf_to_name(gctx, bname)));
                     PyTuple_SET_ITEM(tuple, 1, PyUnicode_FromString(ext));
                     PyTuple_SET_ITEM(tuple, 2, PyUnicode_FromString(pdf_to_name(gctx, subtype)));
                     PyTuple_SET_ITEM(tuple, 3, bytes);
@@ -10203,7 +10214,7 @@ SWIGINTERN PyObject *fz_page_s__insertFont(struct fz_page_s *self,char *fontname
                 weiter: ;
                 ixref = pdf_to_num(gctx, font_obj);
 
-                PyObject *name = JM_UNICODE(pdf_to_name(gctx,
+                PyObject *name = JM_EscapeStrFromStr(pdf_to_name(gctx,
                             pdf_dict_get(gctx, font_obj, PDF_NAME(BaseFont))));
 
                 PyObject *subt = PyUnicode_FromString(pdf_to_name(gctx,
@@ -10808,7 +10819,7 @@ SWIGINTERN void delete_DeviceWrapper(struct DeviceWrapper *self){
             }
         }
 SWIGINTERN PyObject *fz_outline_s_uri(struct fz_outline_s *self){
-            return JM_UNICODE(self->uri);
+            return JM_UnicodeFromStr(self->uri);
         }
 SWIGINTERN PyObject *fz_outline_s_isExternal(struct fz_outline_s *self){
             if (!self->uri) Py_RETURN_FALSE;
@@ -10835,7 +10846,7 @@ SWIGINTERN PyObject *pdf_annot_s_blendMode(struct pdf_annot_s *self){
                 obj = pdf_dict_get(gctx, self->obj, PDF_NAME(BM));
                 if (obj)  // check the annot object for /BM
                 {
-                    blend_mode = Py_BuildValue("s", pdf_to_name(gctx, obj));
+                    blend_mode = JM_UnicodeFromStr(pdf_to_name(gctx, obj));
                     goto fertig;
                 }
                 // loop through the /AP/N/Resources/ExtGState objects
@@ -10859,7 +10870,7 @@ SWIGINTERN PyObject *pdf_annot_s_blendMode(struct pdf_annot_s *self){
                                 obj2 = pdf_dict_get_key(gctx, obj1, j);
                                 if (pdf_objcmp(gctx, obj2, PDF_NAME(BM)) == 0)
                                 {
-                                    blend_mode = Py_BuildValue("s", pdf_to_name(gctx, pdf_dict_get_val(gctx, obj1, j)));
+                                    blend_mode = JM_UnicodeFromStr(pdf_to_name(gctx, pdf_dict_get_val(gctx, obj1, j)));
                                     goto fertig;
                                 }
                             }
@@ -10938,7 +10949,7 @@ SWIGINTERN PyObject *pdf_annot_s__get_redact_values(struct pdf_annot_s *self){
                 if (obj)
                 {
                     text = pdf_to_text_string(gctx, obj);
-                    DICT_SETITEM_DROP(values, dictkey_text, Py_BuildValue("s", text));
+                    DICT_SETITEM_DROP(values, dictkey_text, JM_UnicodeFromStr(text));
                 }
                 else
                 {
@@ -11230,8 +11241,8 @@ SWIGINTERN PyObject *pdf_annot_s_fileInfo(struct pdf_annot_s *self){
                                 PDF_NAME(Size), NULL);
             if (o) size = pdf_to_int(gctx, o);
 
-            DICT_SETITEM_DROP(res, dictkey_filename, JM_UNICODE(filename));
-            DICT_SETITEM_DROP(res, dictkey_desc, JM_UNICODE(desc));
+            DICT_SETITEM_DROP(res, dictkey_filename, JM_EscapeStrFromStr(filename));
+            DICT_SETITEM_DROP(res, dictkey_desc, JM_UnicodeFromStr(desc));
             DICT_SETITEM_DROP(res, dictkey_length, Py_BuildValue("i", length));
             DICT_SETITEM_DROP(res, dictkey_size, Py_BuildValue("i", size));
             return res;
@@ -11322,23 +11333,23 @@ SWIGINTERN PyObject *pdf_annot_s_info(struct pdf_annot_s *self){
             pdf_obj *o;
 
             DICT_SETITEM_DROP(res, dictkey_content,
-                          Py_BuildValue("s", pdf_annot_contents(gctx, self)));
+                          JM_UnicodeFromStr(pdf_annot_contents(gctx, self)));
 
             o = pdf_dict_get(gctx, self->obj, PDF_NAME(Name));
-            DICT_SETITEM_DROP(res, dictkey_name, Py_BuildValue("s", pdf_to_name(gctx, o)));
+            DICT_SETITEM_DROP(res, dictkey_name, JM_UnicodeFromStr(pdf_to_name(gctx, o)));
 
             // Title (= author)
             o = pdf_dict_get(gctx, self->obj, PDF_NAME(T));
-            DICT_SETITEM_DROP(res, dictkey_title, Py_BuildValue("s", pdf_to_text_string(gctx, o)));
+            DICT_SETITEM_DROP(res, dictkey_title, JM_UnicodeFromStr(pdf_to_text_string(gctx, o)));
 
             // CreationDate
             o = pdf_dict_gets(gctx, self->obj, "CreationDate");
             DICT_SETITEM_DROP(res, dictkey_creationDate,
-                          Py_BuildValue("s", pdf_to_text_string(gctx, o)));
+                          JM_UnicodeFromStr(pdf_to_text_string(gctx, o)));
 
             // ModDate
             o = pdf_dict_get(gctx, self->obj, PDF_NAME(M));
-            DICT_SETITEM_DROP(res, dictkey_modDate, Py_BuildValue("s", pdf_to_text_string(gctx, o)));
+            DICT_SETITEM_DROP(res, dictkey_modDate, JM_UnicodeFromStr(pdf_to_text_string(gctx, o)));
 
             // Subj
             o = pdf_dict_gets(gctx, self->obj, "Subj");
@@ -11348,7 +11359,7 @@ SWIGINTERN PyObject *pdf_annot_s_info(struct pdf_annot_s *self){
             // Identification (PDF key /NM)
             o = pdf_dict_gets(gctx, self->obj, "NM");
             DICT_SETITEM_DROP(res, dictkey_id,
-                          Py_BuildValue("s", pdf_to_text_string(gctx, o)));
+                          JM_UnicodeFromStr(pdf_to_text_string(gctx, o)));
 
             return res;
         }
@@ -11513,7 +11524,7 @@ SWIGINTERN PyObject *fz_link_s__setColors(struct fz_link_s *self,PyObject *color
             return_none;
         }
 SWIGINTERN PyObject *fz_link_s_uri(struct fz_link_s *self){
-            return JM_UNICODE(self->uri);
+            return JM_UnicodeFromStr(self->uri);
         }
 SWIGINTERN PyObject *fz_link_s_isExternal(struct fz_link_s *self){
             if (!self->uri) Py_RETURN_FALSE;
