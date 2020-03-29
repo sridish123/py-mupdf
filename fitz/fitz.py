@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.15"
-VersionDate = "2020-03-26 15:15:15"
-version = (VersionBind, VersionFitz, "20200326151515")
+VersionBind = "1.16.16"
+VersionDate = "2020-03-29 09:44:30"
+version = (VersionBind, VersionFitz, "20200329094430")
 
 EPSILON = _fitz.EPSILON
 
@@ -434,6 +434,8 @@ PDF_PERM_ASSEMBLE = _fitz.PDF_PERM_ASSEMBLE
 
 PDF_PERM_PRINT_HQ = _fitz.PDF_PERM_PRINT_HQ
 
+PDF_BM_Color = _fitz.PDF_BM_Color
+
 PDF_BM_ColorBurn = _fitz.PDF_BM_ColorBurn
 
 PDF_BM_ColorDodge = _fitz.PDF_BM_ColorDodge
@@ -446,7 +448,11 @@ PDF_BM_Exclusion = _fitz.PDF_BM_Exclusion
 
 PDF_BM_HardLight = _fitz.PDF_BM_HardLight
 
+PDF_BM_Hue = _fitz.PDF_BM_Hue
+
 PDF_BM_Lighten = _fitz.PDF_BM_Lighten
+
+PDF_BM_Luminosity = _fitz.PDF_BM_Luminosity
 
 PDF_BM_Multiply = _fitz.PDF_BM_Multiply
 
@@ -454,17 +460,11 @@ PDF_BM_Normal = _fitz.PDF_BM_Normal
 
 PDF_BM_Overlay = _fitz.PDF_BM_Overlay
 
+PDF_BM_Saturation = _fitz.PDF_BM_Saturation
+
 PDF_BM_Screen = _fitz.PDF_BM_Screen
 
 PDF_BM_SoftLight = _fitz.PDF_BM_SoftLight
-
-PDF_BM_Hue = _fitz.PDF_BM_Hue
-
-PDF_BM_Saturation = _fitz.PDF_BM_Saturation
-
-PDF_BM_Color = _fitz.PDF_BM_Color
-
-PDF_BM_Luminosity = _fitz.PDF_BM_Luminosity
 
 TEXT_FONT_SUPERSCRIPT = _fitz.TEXT_FONT_SUPERSCRIPT
 
@@ -4769,7 +4769,7 @@ class Annot(object):
         def color_string(cs, code):
             """Return valid PDF color operator for a given color sequence.
             """
-            if cs is None or cs == "":
+            if not cs:
                 return b""
             if hasattr(cs, "__float__") or len(cs) == 1:
                 app = " g\n" if code == "f" else " G\n"
@@ -4791,10 +4791,12 @@ class Annot(object):
         dt = self.border["dashes"]  # get the dashes spec
         bwidth = self.border["width"]  # get border line width
         stroke = self.colors["stroke"]  # get the stroke color
-        if fill_color is not None:  # get the fill color
-            fill = fill_color
+        if fill_color is not None and type == PDF_ANNOT_FREE_TEXT:
+            fill = fill_color  # get the fill color for 'FreeText' only
         else:
             fill = self.colors["fill"]
+            if not fill:
+                fill = None
 
         rect = None  # self.rect  # prevent MuPDF fiddling with it
 
@@ -4908,16 +4910,22 @@ class Annot(object):
             ap = b"\n".join(ap_tab)         # updated AP stream
             ap_updated = True
 
-        if bfill != "":
+        if bfill != b"":
             if type == PDF_ANNOT_POLYGON:
                 ap = ap[:-1] + bfill + b"b"  # close, fill, and stroke
                 ap_updated = True
             elif type == PDF_ANNOT_POLYLINE:
                 ap = ap[:-1] + bfill + b"B"  # fill and stroke
                 ap_updated = True
+        else:
+            if type == PDF_ANNOT_POLYGON:
+                ap = ap[:-1] + b"s"  # close and stroke
+                ap_updated = True
+            elif type == PDF_ANNOT_POLYLINE:
+                ap = ap[:-1] + b"S"  # stroke
+                ap_updated = True
 
-    # Dashes not handled by MuPDF, so we do it here.
-        if dashes is not None:
+        if dashes is not None:  # handle dashes
             ap = dashes + ap
     # reset dashing - only applies for LINE annots with line ends given
             ap = ap.replace(b"\nS\n", b"\nS\n[] d\n", 1)
@@ -4946,12 +4954,12 @@ class Annot(object):
             if line_end_le in le_funcs_range:
                 p1 = Point(points[0]) * imat
                 p2 = Point(points[1]) * imat
-                left = le_funcs[line_end_le](self, p1, p2, False)
+                left = le_funcs[line_end_le](self, p1, p2, False, fill_color)
                 ap += bytes(left, "utf8") if not fitz_py2 else left
             if line_end_ri in le_funcs_range:
                 p1 = Point(points[-2]) * imat
                 p2 = Point(points[-1]) * imat
-                left = le_funcs[line_end_ri](self, p1, p2, True)
+                left = le_funcs[line_end_ri](self, p1, p2, True, fill_color)
                 ap += bytes(left, "utf8") if not fitz_py2 else left
 
         if ap_updated:
@@ -5052,12 +5060,12 @@ class Annot(object):
         r"""Set various annotation properties."""
 
         CheckParent(self)
-        if type(info) is dict:  # build a new dictionary from the other args
-            content = info.get("content", "")
-            title = info.get("title", "")
-            creationDate = info.get("creationDate", "")
-            modDate = info.get("modDate", "")
-            subject = info.get("subject", "")
+        if type(info) is dict:  # build the args from the dictionary
+            content = info.get("content", None)
+            title = info.get("title", None)
+            creationDate = info.get("creationDate", None)
+            modDate = info.get("modDate", None)
+            subject = info.get("subject", None)
             info = None
 
 
@@ -5715,15 +5723,20 @@ class Tools(object):
         m = self._hor_matrix(P, Q)
         return (C * m).unit
 
-    def _le_annot_parms(self, annot, p1, p2):
+    def _le_annot_parms(self, annot, p1, p2, fill_color):
         """Get common parameters for making line end symbols.
         """
-        w = annot.border["width"]          # line width
-        sc = annot.colors["stroke"]        # stroke color
-        if not sc: sc = (0,0,0)
+        w = annot.border["width"]  # line width
+        sc = annot.colors["stroke"]  # stroke color
+        if not sc:  # black if missing
+            sc = (0,0,0)
         scol = " ".join(map(str, sc)) + " RG\n"
-        fc = annot.colors["fill"]          # fill color
-        if not fc: fc = (0,0,0)
+        if fill_color:
+            fc = fill_color
+        else:
+            fc = annot.colors["fill"]  # fill color
+        if not fc:
+            fc = (1,1,1)  # white if missing
         fcol = " ".join(map(str, fc)) + " rg\n"
         nr = annot.rect
         np1 = p1                   # point coord relative to annot rect
@@ -5733,7 +5746,7 @@ class Tools(object):
         L = np1 * m                        # converted start (left) point
         R = np2 * m                        # converted end (right) point
         if 0 <= annot.opacity < 1:
-            opacity = "/Alp0 gs\n"
+            opacity = "/H gs\n"
         else:
             opacity = ""
         return m, im, L, R, w, scol, fcol, opacity
@@ -5766,10 +5779,10 @@ class Tools(object):
         ap += bezier(ul1, ul2, ml)
         return ap
 
-    def _le_diamond(self, annot, p1, p2, lr):
+    def _le_diamond(self, annot, p1, p2, lr, fill_color):
         """Make stream commands for diamond line end symbol. "lr" denotes left (False) or right point.
         """
-        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
         shift = 2.5             # 2*shift*width = length of square edge
         d = shift * max(1, w)
         M = R - (d/2., 0) if lr else L + (d/2., 0)
@@ -5787,10 +5800,10 @@ class Tools(object):
         ap += scol + fcol + "b\nQ\n"
         return ap
 
-    def _le_square(self, annot, p1, p2, lr):
+    def _le_square(self, annot, p1, p2, lr, fill_color):
         """Make stream commands for square line end symbol. "lr" denotes left (False) or right point.
         """
-        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
         shift = 2.5             # 2*shift*width = length of square edge
         d = shift * max(1, w)
         M = R - (d/2., 0) if lr else L + (d/2., 0)
@@ -5808,10 +5821,10 @@ class Tools(object):
         ap += scol + fcol + "b\nQ\n"
         return ap
 
-    def _le_circle(self, annot, p1, p2, lr):
+    def _le_circle(self, annot, p1, p2, lr, fill_color):
         """Make stream commands for circle line end symbol. "lr" denotes left (False) or right point.
         """
-        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
         shift = 2.5             # 2*shift*width = length of square edge
         d = shift * max(1, w)
         M = R - (d/2., 0) if lr else L + (d/2., 0)
@@ -5821,10 +5834,10 @@ class Tools(object):
         ap += scol + fcol + "b\nQ\n"
         return ap
 
-    def _le_butt(self, annot, p1, p2, lr):
+    def _le_butt(self, annot, p1, p2, lr, fill_color):
         """Make stream commands for butt line end symbol. "lr" denotes left (False) or right point.
         """
-        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
         shift = 3
         d = shift * max(1, w)
         M = R if lr else L
@@ -5836,10 +5849,10 @@ class Tools(object):
         ap += scol + "s\nQ\n"
         return ap
 
-    def _le_slash(self, annot, p1, p2, lr):
+    def _le_slash(self, annot, p1, p2, lr, fill_color):
         """Make stream commands for slash line end symbol. "lr" denotes left (False) or right point.
         """
-        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
         rw = 1.1547 * max(1, w) * 1.0         # makes rect diagonal a 30 deg inclination
         M = R if lr else L
         r = Rect(M.x - rw, M.y - 2 * w, M.x + rw, M.y + 2 * w)
@@ -5851,10 +5864,10 @@ class Tools(object):
         ap += scol + "s\nQ\n"
         return ap
 
-    def _le_openarrow(self, annot, p1, p2, lr):
+    def _le_openarrow(self, annot, p1, p2, lr, fill_color):
         """Make stream commands for open arrow line end symbol. "lr" denotes left (False) or right point.
         """
-        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
         shift = 2.5
         d = shift * max(1, w)
         p2 = R + (d/2., 0) if lr else L - (d/2., 0)
@@ -5870,10 +5883,10 @@ class Tools(object):
         ap += scol + "S\nQ\n"
         return ap
 
-    def _le_closedarrow(self, annot, p1, p2, lr):
+    def _le_closedarrow(self, annot, p1, p2, lr, fill_color):
         """Make stream commands for closed arrow line end symbol. "lr" denotes left (False) or right point.
         """
-        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
         shift = 2.5
         d = shift * max(1, w)
         p2 = R + (d/2., 0) if lr else L - (d/2., 0)
@@ -5889,10 +5902,10 @@ class Tools(object):
         ap += scol + fcol + "b\nQ\n"
         return ap
 
-    def _le_ropenarrow(self, annot, p1, p2, lr):
+    def _le_ropenarrow(self, annot, p1, p2, lr, fill_color):
         """Make stream commands for right open arrow line end symbol. "lr" denotes left (False) or right point.
         """
-        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
         shift = 2.5
         d = shift * max(1, w)
         p2 = R - (d/3., 0) if lr else L + (d/3., 0)
@@ -5908,10 +5921,10 @@ class Tools(object):
         ap += scol + fcol + "S\nQ\n"
         return ap
 
-    def _le_rclosedarrow(self, annot, p1, p2, lr):
+    def _le_rclosedarrow(self, annot, p1, p2, lr, fill_color):
         """Make stream commands for right closed arrow line end symbol. "lr" denotes left (False) or right point.
         """
-        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2)
+        m, im, L, R, w, scol, fcol, opacity = self._le_annot_parms(annot, p1, p2, fill_color)
         shift = 2.5
         d = shift * max(1, w)
         p2 = R - (2*d, 0) if lr else L + (2*d, 0)

@@ -2989,22 +2989,22 @@ struct DeviceWrapper {
 //----------------------------------------------------------------------------
 // PDF Blend Modes
 //----------------------------------------------------------------------------
+#define PDF_BM_Color "Color"
 #define PDF_BM_ColorBurn "ColorBurn"
 #define PDF_BM_ColorDodge "ColorDodge"
 #define PDF_BM_Darken "Darken"
 #define PDF_BM_Difference "Difference"
 #define PDF_BM_Exclusion "Exclusion"
 #define PDF_BM_HardLight "HardLight"
+#define PDF_BM_Hue "Hue"
 #define PDF_BM_Lighten "Lighten"
+#define PDF_BM_Luminosity "Luminosity"
 #define PDF_BM_Multiply "Multiply"
 #define PDF_BM_Normal "Normal"
 #define PDF_BM_Overlay "Overlay"
+#define PDF_BM_Saturation "Saturation"
 #define PDF_BM_Screen "Screen"
 #define PDF_BM_SoftLight "Softlight"
-#define PDF_BM_Hue "Hue"
-#define PDF_BM_Saturation "Saturation"
-#define PDF_BM_Color "Color"
-#define PDF_BM_Luminosity "Luminosity"
 
 
 // General text flags
@@ -9467,10 +9467,13 @@ SWIGINTERN struct pdf_annot_s *fz_page_s_addStampAnnot(struct fz_page_s *self,Py
             fz_try(gctx)
             {
                 assert_PDF(page);
+                fz_rect r = JM_rect_from_py(rect);
+                if (fz_is_infinite_rect(r) || fz_is_empty_rect(r))
+                    THROWMSG("rect must be finite and not empty");
                 if (INRANGE(stamp, 0, n-1))
                     name = stamp_id[stamp];
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_STAMP);
-                pdf_set_annot_rect(gctx, annot, JM_rect_from_py(rect));
+                pdf_set_annot_rect(gctx, annot, r);
                 pdf_dict_put(gctx, annot->obj, PDF_NAME(Name), name);
                 pdf_set_annot_contents(gctx, annot,
                         pdf_dict_get_name(gctx, annot->obj, PDF_NAME(Name)));
@@ -9543,8 +9546,11 @@ SWIGINTERN struct pdf_annot_s *fz_page_s__add_square_or_circle(struct fz_page_s 
             pdf_annot *annot = NULL;
             fz_try(gctx)
             {
+                fz_rect r = JM_rect_from_py(rect);
+                if (fz_is_infinite_rect(r) || fz_is_empty_rect(r))
+                    THROWMSG("rect must be finite and not empty");
                 annot = pdf_create_annot(gctx, page, annot_type);
-                pdf_set_annot_rect(gctx, annot, JM_rect_from_py(rect));
+                pdf_set_annot_rect(gctx, annot, r);
                 JM_add_annot_id(gctx, annot, "fitzannot");
                 pdf_update_annot(gctx, annot);
             }
@@ -9590,6 +9596,8 @@ SWIGINTERN struct pdf_annot_s *fz_page_s_addFreetextAnnot(struct fz_page_s *self
             pdf_annot *annot = NULL;
             fz_try(gctx)
             {
+                if (fz_is_infinite_rect(r) || fz_is_empty_rect(r))
+                    THROWMSG("rect must be finite and not empty");
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_FREE_TEXT);
                 pdf_set_annot_contents(gctx, annot, text);
                 pdf_set_annot_rect(gctx, annot, r);
@@ -11368,24 +11376,29 @@ SWIGINTERN PyObject *pdf_annot_s_setInfo(struct pdf_annot_s *self,PyObject *info
             int is_markup = pdf_annot_has_author(gctx, self);
             fz_try(gctx)
             {
-                // contents{
-                pdf_set_annot_contents(gctx, self, content);
+                // contents
+                if (content)
+                    pdf_set_annot_contents(gctx, self, content);
 
                 if (is_markup)
                 {
                     // title (= author)
-                    pdf_set_annot_author(gctx, self, title);
+                    if (title)
+                        pdf_set_annot_author(gctx, self, title);
 
                     // creation date
-                    pdf_dict_put_text_string(gctx, self->obj,
+                    if (creationDate)
+                        pdf_dict_put_text_string(gctx, self->obj,
                                                  PDF_NAME(CreationDate), creationDate);
 
                     // mod date
-                    pdf_dict_put_text_string(gctx, self->obj,
+                    if (modDate)
+                        pdf_dict_put_text_string(gctx, self->obj,
                                                  PDF_NAME(M), modDate);
 
                     // subject
-                    pdf_dict_puts_drop(gctx, self->obj, "Subj",
+                    if (subject)
+                        pdf_dict_puts_drop(gctx, self->obj, "Subj",
                                            pdf_new_text_string(gctx, subject));
                 }
             }
@@ -22872,22 +22885,22 @@ SWIG_init(void) {
   SWIG_Python_SetConstant(d, "PDF_PERM_ACCESSIBILITY",SWIG_From_int((int)(1 << 9)));
   SWIG_Python_SetConstant(d, "PDF_PERM_ASSEMBLE",SWIG_From_int((int)(1 << 10)));
   SWIG_Python_SetConstant(d, "PDF_PERM_PRINT_HQ",SWIG_From_int((int)(1 << 11)));
+  SWIG_Python_SetConstant(d, "PDF_BM_Color",SWIG_FromCharPtr("Color"));
   SWIG_Python_SetConstant(d, "PDF_BM_ColorBurn",SWIG_FromCharPtr("ColorBurn"));
   SWIG_Python_SetConstant(d, "PDF_BM_ColorDodge",SWIG_FromCharPtr("ColorDodge"));
   SWIG_Python_SetConstant(d, "PDF_BM_Darken",SWIG_FromCharPtr("Darken"));
   SWIG_Python_SetConstant(d, "PDF_BM_Difference",SWIG_FromCharPtr("Difference"));
   SWIG_Python_SetConstant(d, "PDF_BM_Exclusion",SWIG_FromCharPtr("Exclusion"));
   SWIG_Python_SetConstant(d, "PDF_BM_HardLight",SWIG_FromCharPtr("HardLight"));
+  SWIG_Python_SetConstant(d, "PDF_BM_Hue",SWIG_FromCharPtr("Hue"));
   SWIG_Python_SetConstant(d, "PDF_BM_Lighten",SWIG_FromCharPtr("Lighten"));
+  SWIG_Python_SetConstant(d, "PDF_BM_Luminosity",SWIG_FromCharPtr("Luminosity"));
   SWIG_Python_SetConstant(d, "PDF_BM_Multiply",SWIG_FromCharPtr("Multiply"));
   SWIG_Python_SetConstant(d, "PDF_BM_Normal",SWIG_FromCharPtr("Normal"));
   SWIG_Python_SetConstant(d, "PDF_BM_Overlay",SWIG_FromCharPtr("Overlay"));
+  SWIG_Python_SetConstant(d, "PDF_BM_Saturation",SWIG_FromCharPtr("Saturation"));
   SWIG_Python_SetConstant(d, "PDF_BM_Screen",SWIG_FromCharPtr("Screen"));
   SWIG_Python_SetConstant(d, "PDF_BM_SoftLight",SWIG_FromCharPtr("Softlight"));
-  SWIG_Python_SetConstant(d, "PDF_BM_Hue",SWIG_FromCharPtr("Hue"));
-  SWIG_Python_SetConstant(d, "PDF_BM_Saturation",SWIG_FromCharPtr("Saturation"));
-  SWIG_Python_SetConstant(d, "PDF_BM_Color",SWIG_FromCharPtr("Color"));
-  SWIG_Python_SetConstant(d, "PDF_BM_Luminosity",SWIG_FromCharPtr("Luminosity"));
   SWIG_Python_SetConstant(d, "TEXT_FONT_SUPERSCRIPT",SWIG_From_int((int)(1)));
   SWIG_Python_SetConstant(d, "TEXT_FONT_ITALIC",SWIG_From_int((int)(2)));
   SWIG_Python_SetConstant(d, "TEXT_FONT_SERIFED",SWIG_From_int((int)(4)));
