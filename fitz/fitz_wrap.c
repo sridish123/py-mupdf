@@ -5655,7 +5655,7 @@ PyObject *JM_get_script(fz_context *ctx, pdf_obj *key)
 
     if (pdf_is_string(ctx, js))
     {
-        script = PyUnicode_FromString(pdf_to_text_string(ctx, js));
+        script = JM_UnicodeFromStr(pdf_to_text_string(ctx, js));
     }
     else if (pdf_is_stream(ctx, js))
     {
@@ -5687,7 +5687,6 @@ void JM_put_script(fz_context *ctx, pdf_obj *annot_obj, pdf_obj *key1, pdf_obj *
     pdf_obj *key1_obj = pdf_dict_get(ctx, annot_obj, key1);
     pdf_document *pdf = pdf_get_bound_document(ctx, annot_obj);  // owning PDF
 
-//start-trace
     // if no new script given, just delete corresponding key
     if (!value || !PyObject_IsTrue(value))
     {
@@ -5726,7 +5725,6 @@ void JM_put_script(fz_context *ctx, pdf_obj *annot_obj, pdf_obj *key1, pdf_obj *
         }
     }
     Py_XDECREF(script);
-//end-trace
     return;
 }
 
@@ -5938,7 +5936,7 @@ PyObject *JM_text_value(fz_context *ctx, pdf_annot *annot)
     fz_try(ctx)
         text = pdf_field_value(ctx, annot->obj);
     fz_catch(ctx) Py_RETURN_NONE;
-    return PyUnicode_FromString(text);
+    return JM_UnicodeFromStr(text);
 }
 
 // ListBox retrieve value
@@ -5962,7 +5960,7 @@ PyObject *JM_listbox_value(fz_context *ctx, pdf_annot *annot)
         pdf_obj *elem = pdf_array_get(ctx, optarr, i);
         if (pdf_is_array(ctx, elem))
             elem = pdf_array_get(ctx, elem, 1);
-        LIST_APPEND_DROP(liste, PyUnicode_FromString(pdf_to_text_string(ctx, elem)));
+        LIST_APPEND_DROP(liste, JM_UnicodeFromStr(pdf_to_text_string(ctx, elem)));
     }
     return liste;
 }
@@ -6005,7 +6003,7 @@ PyObject *JM_choice_options(fz_context *ctx, pdf_annot *annot)
         }
         else
         {
-            val = PyUnicode_FromString(pdf_to_text_string(ctx, pdf_array_get(ctx, optarr, i)));
+            val = JM_UnicodeFromStr(pdf_to_text_string(ctx, pdf_array_get(ctx, optarr, i)));
             LIST_APPEND_DROP(liste, val);
         }
     }
@@ -6046,6 +6044,7 @@ void JM_get_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
     PyObject *val;
     fz_try(ctx)
     {
+//start-trace
         int field_type = pdf_widget_type(gctx, tw);
         SETATTR_DROP("field_type", Py_BuildValue("i", field_type), val);
         if (field_type == PDF_WIDGET_TYPE_SIGNATURE)
@@ -6064,21 +6063,21 @@ void JM_get_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
             SETATTR("is_signed", Py_None);
         }
         SETATTR_DROP("border_style",
-                PyUnicode_FromString(pdf_field_border_style(ctx, annot->obj)), val);
+                JM_UnicodeFromStr(pdf_field_border_style(ctx, annot->obj)), val);
         SETATTR_DROP("field_type_string",
-                PyUnicode_FromString(JM_field_type_text(field_type)), val);
+                JM_UnicodeFromStr(JM_field_type_text(field_type)), val);
 
         char *field_name = pdf_field_name(ctx, annot->obj);
-        SETATTR_DROP("field_name", PyUnicode_FromString(field_name), val);
+        SETATTR_DROP("field_name", JM_UnicodeFromStr(field_name), val);
         JM_Free(field_name);
 
         const char *label = NULL;
         obj = pdf_dict_get(ctx, annot->obj, PDF_NAME(TU));
         if (obj) label = pdf_to_text_string(ctx, obj);
-        SETATTR_DROP("field_label", PyUnicode_FromString(label), val);
+        SETATTR_DROP("field_label", JM_UnicodeFromStr(label), val);
 
         SETATTR_DROP("field_value",
-                PyUnicode_FromString(pdf_field_value(ctx, annot->obj)), val);
+                JM_UnicodeFromStr(pdf_field_value(ctx, annot->obj)), val);
 
         SETATTR_DROP("field_display",
                 Py_BuildValue("i", pdf_field_display(ctx, annot->obj)), val);
@@ -6142,13 +6141,13 @@ void JM_get_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
 
         const char *da = pdf_to_text_string(ctx, pdf_dict_get_inheritable(ctx,
                                         annot->obj, PDF_NAME(DA)));
-        SETATTR_DROP("_text_da", PyUnicode_FromString(da), val);
+        SETATTR_DROP("_text_da", JM_UnicodeFromStr(da), val);
 
         obj = pdf_dict_getl(ctx, annot->obj, PDF_NAME(MK), PDF_NAME(CA), NULL);
         if (obj)
         {
             SETATTR_DROP("button_caption",
-                    PyUnicode_FromString((char *)pdf_to_text_string(ctx, obj)), val);
+                    JM_UnicodeFromStr((char *)pdf_to_text_string(ctx, obj)), val);
         }
 
         SETATTR_DROP("field_flags",
@@ -6183,6 +6182,7 @@ void JM_get_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
             "script_calc",
             JM_get_script(ctx, pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(C), NULL)),
             val);
+//end-trace
     }
     fz_always(ctx) PyErr_Clear();
     fz_catch(ctx) fz_rethrow(ctx);
@@ -8181,7 +8181,7 @@ SWIGINTERN PyObject *fz_document_s__getPDFfileid(struct fz_document_s *self){
                         buffer = fz_new_buffer(gctx, 2 * len);
                         fz_buffer_storage(gctx, buffer, &hex);
                         hexlify(len, (unsigned char *) pdf_to_text_string(gctx, o), (unsigned char *) hex);
-                        LIST_APPEND_DROP(idlist, PyUnicode_FromString(hex));
+                        LIST_APPEND_DROP(idlist, JM_UnicodeFromStr(hex));
                         Py_CLEAR(bytes);
                         fz_drop_buffer(gctx, buffer);
                         buffer = NULL;
@@ -8565,8 +8565,8 @@ SWIGINTERN PyObject *fz_document_s_extractFont(struct fz_document_s *self,int xr
                     }
                     tuple = PyTuple_New(4);
                     PyTuple_SET_ITEM(tuple, 0, JM_EscapeStrFromStr(pdf_to_name(gctx, bname)));
-                    PyTuple_SET_ITEM(tuple, 1, PyUnicode_FromString(ext));
-                    PyTuple_SET_ITEM(tuple, 2, PyUnicode_FromString(pdf_to_name(gctx, subtype)));
+                    PyTuple_SET_ITEM(tuple, 1, JM_UnicodeFromStr(ext));
+                    PyTuple_SET_ITEM(tuple, 2, JM_UnicodeFromStr(pdf_to_name(gctx, subtype)));
                     PyTuple_SET_ITEM(tuple, 3, bytes);
                 }
                 else
@@ -8669,7 +8669,7 @@ SWIGINTERN PyObject *fz_document_s_extractImage(struct fz_document_s *self,int x
 
                     rc = PyDict_New();
                     DICT_SETITEM_DROP(rc, dictkey_ext,
-                                      PyUnicode_FromString(ext));
+                                      JM_UnicodeFromStr(ext));
                     DICT_SETITEM_DROP(rc, dictkey_smask,
                                       PyInt_FromLong((long) smask));
                     DICT_SETITEM_DROP(rc, dictkey_width,
@@ -8685,7 +8685,7 @@ SWIGINTERN PyObject *fz_document_s_extractImage(struct fz_document_s *self,int x
                     DICT_SETITEM_DROP(rc, dictkey_yres,
                                       PyInt_FromLong((long) yres));
                     DICT_SETITEM_DROP(rc, dictkey_cs_name,
-                                      PyUnicode_FromString(cs_name));
+                                      JM_UnicodeFromStr(cs_name));
                     DICT_SETITEM_DROP(rc, dictkey_image,
                                       JM_BinFromBuffer(gctx, buffer));
                 }
@@ -8801,7 +8801,7 @@ SWIGINTERN PyObject *fz_document_s_FormFonts(struct fz_document_s *self){
                     for (i = 0; i < n; i++)
                     {
                         pdf_obj *f = pdf_dict_get_key(gctx, fonts, i);
-                        LIST_APPEND_DROP(liste, PyUnicode_FromString(pdf_to_name(gctx, f)));
+                        LIST_APPEND_DROP(liste, JM_UnicodeFromStr(pdf_to_name(gctx, f)));
                     }
                 }
             }
@@ -10181,7 +10181,7 @@ SWIGINTERN PyObject *fz_page_s__insertFont(struct fz_page_s *self,char *fontname
                 {
                     font = fz_new_font_from_memory(gctx, NULL, data, size, index, 0);
                     font_obj = pdf_add_cjk_font(gctx, pdf, font, ordering, wmode, serif);
-                    exto = PyUnicode_FromString("n/a");
+                    exto = JM_UnicodeFromStr("n/a");
                     simple = 0;
                     goto weiter;
                 }
@@ -10194,7 +10194,7 @@ SWIGINTERN PyObject *fz_page_s__insertFont(struct fz_page_s *self,char *fontname
                 {
                     font = fz_new_font_from_memory(gctx, bfname, data, size, 0, 0);
                     font_obj = pdf_add_simple_font(gctx, pdf, font, encoding);
-                    exto = PyUnicode_FromString("n/a");
+                    exto = JM_UnicodeFromStr("n/a");
                     simple = 1;
                     goto weiter;
                 }
@@ -10225,11 +10225,11 @@ SWIGINTERN PyObject *fz_page_s__insertFont(struct fz_page_s *self,char *fontname
                 PyObject *name = JM_EscapeStrFromStr(pdf_to_name(gctx,
                             pdf_dict_get(gctx, font_obj, PDF_NAME(BaseFont))));
 
-                PyObject *subt = PyUnicode_FromString(pdf_to_name(gctx,
+                PyObject *subt = JM_UnicodeFromStr(pdf_to_name(gctx,
                             pdf_dict_get(gctx, font_obj, PDF_NAME(Subtype))));
 
                 if (!exto)
-                    exto = PyUnicode_FromString(fontextension(gctx, pdf, ixref));
+                    exto = JM_UnicodeFromStr(fontextension(gctx, pdf, ixref));
 
                 value = Py_BuildValue("[i, {s:O, s:O, s:O, s:O, s:i}]",
                                       ixref,
@@ -10776,7 +10776,7 @@ SWIGINTERN PyObject *fz_colorspace_s_n(struct fz_colorspace_s *self){
             return Py_BuildValue("i", fz_colorspace_n(gctx, self));
         }
 SWIGINTERN PyObject *fz_colorspace_s__name(struct fz_colorspace_s *self){
-            return PyUnicode_FromString(fz_colorspace_name(gctx, self));
+            return JM_UnicodeFromStr(fz_colorspace_name(gctx, self));
         }
 SWIGINTERN struct DeviceWrapper *new_DeviceWrapper__SWIG_0(struct fz_pixmap_s *pm,PyObject *clip){
             struct DeviceWrapper *dw = NULL;
@@ -11962,7 +11962,7 @@ SWIGINTERN PyObject *Tools__parse_da(struct Tools *self,struct pdf_annot_s *anno
                 da_str = (char *) pdf_to_text_string(gctx, da);
             }
             fz_catch(gctx) return NULL;
-            return PyUnicode_FromString(da_str);
+            return JM_UnicodeFromStr(da_str);
         }
 SWIGINTERN PyObject *Tools__update_da(struct Tools *self,struct pdf_annot_s *annot,char *da_str){
             fz_try(gctx)
@@ -11991,7 +11991,7 @@ SWIGINTERN PyObject *Tools__insert_contents(struct Tools *self,struct fz_page_s 
             return Py_BuildValue("i", xref);
         }
 SWIGINTERN PyObject *Tools_mupdf_version(struct Tools *self){
-            return PyUnicode_FromString(FZ_VERSION);
+            return JM_UnicodeFromStr(FZ_VERSION);
         }
 SWIGINTERN PyObject *Tools_mupdf_warnings(struct Tools *self,int reset){
             Py_INCREF(JM_mupdf_warnings_store);
