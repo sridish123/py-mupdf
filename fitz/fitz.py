@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.16"
-VersionDate = "2020-03-29 09:44:30"
-version = (VersionBind, VersionFitz, "20200329094430")
+VersionBind = "1.16.17"
+VersionDate = "2020-03-31 08:53:33"
+version = (VersionBind, VersionFitz, "20200331085333")
 
 EPSILON = _fitz.EPSILON
 
@@ -3014,8 +3014,8 @@ open(filename, filetype='type') - from file"""
         return _fitz.Document_extractFont(self, xref, info_only)
 
 
-    def extractImage(self, xref=0):
-        r"""Extract image which 'xref' is pointing to."""
+    def extractImage(self, xref):
+        r"""Extract image pointed to by 'xref'."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -4488,6 +4488,10 @@ Pixmap(Document, xref) - from a PDF image"""
     def setPixel(self, x, y, color):
         r"""Set the pixel at (x,y) to the integers in sequence 'color'."""
         return _fitz.Pixmap_setPixel(self, x, y, color)
+
+    def setResolution(self, xres, yres):
+        r"""Set the resolution."""
+        return _fitz.Pixmap_setResolution(self, xres, yres)
 
     def setRect(self, irect, color):
         r"""Set a rectangle to the integers in sequence 'color'."""

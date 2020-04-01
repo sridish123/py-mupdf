@@ -4508,7 +4508,6 @@ PyObject *JM_image_profile(fz_context *ctx, PyObject *imagedata, int keep_image)
     PyObject *result = NULL;
     unsigned char *c = NULL;
     Py_ssize_t len = 0;
-
     if (PyBytes_Check(imagedata))
     {
         c = PyBytes_AS_STRING(imagedata);
@@ -4521,19 +4520,24 @@ PyObject *JM_image_profile(fz_context *ctx, PyObject *imagedata, int keep_image)
     }
     else
     {
-        PySys_WriteStderr("stream not bytes-like\n");
-        return PyDict_New();
+        PySys_WriteStderr("bad image data\n");
+        Py_RETURN_NONE;
     }
 
     if (len < 8)
     {
-        PySys_WriteStderr("stream too short\n");
-        return PyDict_New();
+        PySys_WriteStderr("bad image data\n");
+        Py_RETURN_NONE;
+    }
+    int type = fz_recognize_image_format(ctx, c);
+    if (type == FZ_IMAGE_UNKNOWN)
+    {
+        Py_RETURN_NONE;
     }
 
     fz_try(ctx)
     {
-        if (keep_image)
+        if (keep_image)  // ensure image buffer is not dropped
         {
             res = fz_new_buffer_from_copied_data(ctx, c, (size_t) len);
         }
@@ -4542,28 +4546,38 @@ PyObject *JM_image_profile(fz_context *ctx, PyObject *imagedata, int keep_image)
             res = fz_new_buffer_from_shared_data(ctx, c, (size_t) len);
         }
         image = fz_new_image_from_buffer(ctx, res);
-        int type = fz_recognize_image_format(ctx, c);
-        result = Py_BuildValue("{s:i,s:i,s:i,s:i,s:i,s:s,s:n}",
-                                "width", image->w,
-                                "height", image->h,
-                                "colorspace", image->n,
-                                "bpc", image->bpc,
-                                "format", type,
-                                "ext", JM_image_extension(type),
-                                "size", len
-                              );
-        if (keep_image)
+        int xres, yres;
+        fz_image_resolution(image, &xres, &yres);
+        const char *cs_name = fz_colorspace_name(gctx, image->colorspace);
+        result = PyDict_New();
+        DICT_SETITEM_DROP(result, dictkey_width,
+                Py_BuildValue("i", image->w));
+        DICT_SETITEM_DROP(result, dictkey_height,
+                Py_BuildValue("i", image->h));
+        DICT_SETITEM_DROP(result, dictkey_xres,
+                Py_BuildValue("i", xres));
+        DICT_SETITEM_DROP(result, dictkey_yres,
+                Py_BuildValue("i", yres));
+        DICT_SETITEM_DROP(result, dictkey_colorspace,
+                Py_BuildValue("i", image->n));
+        DICT_SETITEM_DROP(result, dictkey_bpc,
+                Py_BuildValue("i", image->bpc));
+        DICT_SETITEM_DROP(result, dictkey_ext,
+                Py_BuildValue("s", JM_image_extension(type)));
+        DICT_SETITEM_DROP(result, dictkey_cs_name,
+                Py_BuildValue("s", cs_name));
+
+        if (keep_image)  // hand over fz_image address and do not drop
         {
-            // keep fz_image: hand over address, do not drop
             DICT_SETITEM_DROP(result, dictkey_image,
-                              PyLong_FromVoidPtr((void *) fz_keep_image(ctx, image)));
+                    PyLong_FromVoidPtr((void *) fz_keep_image(ctx, image)));
         }
     }
     fz_always(ctx)
     {
-        if (!keep_image)
+        if (!keep_image)  // drop the image
         {
-            fz_drop_image(ctx, image);  // conditional drop
+            fz_drop_image(ctx, image);
         }
         else
         {
@@ -4572,10 +4586,10 @@ PyObject *JM_image_profile(fz_context *ctx, PyObject *imagedata, int keep_image)
     }
     fz_catch(ctx)
     {
-        PySys_WriteStderr("%s\n", fz_caught_message(ctx));
         Py_CLEAR(result);
-        return PyDict_New();
+        Py_RETURN_NONE;
     }
+    PyErr_Clear();
     return result;
 }
 
@@ -8588,119 +8602,93 @@ SWIGINTERN PyObject *fz_document_s_extractFont(struct fz_document_s *self,int xr
         }
 SWIGINTERN PyObject *fz_document_s_extractImage(struct fz_document_s *self,int xref){
             pdf_document *pdf = pdf_specifics(gctx, self);
+            pdf_obj *obj = NULL;
+            fz_buffer *res = NULL;
+            fz_image *img = NULL;
+            PyObject *rc = NULL;
+            const char *ext = NULL;
+            const char *cs_name = NULL;
+            int img_type, xres, yres, colorspace;
+            int smask = 0, width, height, bpc;
+            fz_var(img);
+            fz_var(res);
+            fz_var(obj);
+
             fz_try(gctx)
             {
                 assert_PDF(pdf);
                 if (!INRANGE(xref, 1, pdf_xref_len(gctx, pdf)-1))
                     THROWMSG("xref out of range");
-            }
-            fz_catch(gctx) return NULL;
 
-            fz_buffer *buffer = NULL, *freebuf = NULL;
-            fz_var(freebuf);
-            pdf_obj *obj = NULL;
-            PyObject *rc = NULL;
-            const char *ext = NULL;
-            fz_image *image = NULL;
-            fz_var(image);
-            fz_compressed_buffer *cbuf = NULL;
-            int type = FZ_IMAGE_UNKNOWN, n = 0, xres = 0, yres = 0, is_jpx = 0;
-            int smask = 0, width = 0, height = 0, bpc = 0;
-            const char *cs_name = NULL;
-            fz_try(gctx)
-            {
                 obj = pdf_new_indirect(gctx, pdf, xref, 0);
                 pdf_obj *subtype = pdf_dict_get(gctx, obj, PDF_NAME(Subtype));
-                if (pdf_name_eq(gctx, subtype, PDF_NAME(Image)))
+
+                if (!pdf_name_eq(gctx, subtype, PDF_NAME(Image)))
+                    THROWMSG("xref is no image");
+
+                pdf_obj *o = pdf_dict_get(gctx, obj, PDF_NAME(SMask));
+                if (o) smask = pdf_to_num(gctx, o);
+
+                res = pdf_load_raw_stream(gctx, obj);
+                unsigned char *c = NULL;
+                fz_buffer_storage(gctx, res, &c);
+                img_type = fz_recognize_image_format(gctx, c);
+
+                if (img_type != FZ_IMAGE_UNKNOWN)
                 {
-                    is_jpx = pdf_is_jpx_image(gctx, obj); // check JPX image type
-
-                    pdf_obj *o = pdf_dict_get(gctx, obj, PDF_NAME(SMask));
-                    if (o) smask = pdf_to_num(gctx, o);
-
-                    o = pdf_dict_get(gctx, obj, PDF_NAME(Width));
-                    if (o) width = pdf_to_int(gctx, o);
-
-                    o = pdf_dict_get(gctx, obj, PDF_NAME(Height));
-                    if (o) height = pdf_to_int(gctx, o);
-
-                    if (!is_jpx) // skip image loading for JPX
-                    {
-                        image = pdf_load_image(gctx, pdf, obj);
-
-                        n = fz_colorspace_n(gctx, image->colorspace);
-                        cs_name = fz_colorspace_name(gctx, image->colorspace);
-                        fz_image_resolution(image, &xres, &yres);
-                        bpc = (int) image->bpc;
-
-                        cbuf = fz_compressed_image_buffer(gctx, image);
-                        if (cbuf)
-                        {
-                            type = cbuf->params.type;
-                            buffer = cbuf->buffer;
-                        }
-                    }
-                    else
-                    {
-                        // handling JPX
-                        buffer = pdf_load_stream_number(gctx, pdf, xref);
-                        freebuf = buffer;   // so it will be dropped!
-                        type = FZ_IMAGE_JPX;
-                        o = pdf_dict_get(gctx, obj, PDF_NAME(ColorSpace));
-                        if (o) cs_name = pdf_to_name(gctx, o);
-                        o = pdf_dict_get(gctx, obj, PDF_NAME(BitsPerComponent));
-                        if (o) bpc = pdf_to_int(gctx, o);
-                    }
-
-                    // ensure returning a PNG for unsupported images ----------
-                    if (type < FZ_IMAGE_BMP ||
-                        type == FZ_IMAGE_JBIG2)
-                        type = FZ_IMAGE_UNKNOWN;
-
-                    if (type != FZ_IMAGE_UNKNOWN)
-                    {
-                        ext = JM_image_extension(type);
-                    }
-                    else  // need to make a PNG buffer
-                    {
-                        buffer = freebuf = fz_new_buffer_from_image_as_png(gctx, image, fz_default_color_params);
-                        ext = "png";
-                    }
-
-                    rc = PyDict_New();
-                    DICT_SETITEM_DROP(rc, dictkey_ext,
-                                      JM_UnicodeFromStr(ext));
-                    DICT_SETITEM_DROP(rc, dictkey_smask,
-                                      PyInt_FromLong((long) smask));
-                    DICT_SETITEM_DROP(rc, dictkey_width,
-                                      PyInt_FromLong((long) width));
-                    DICT_SETITEM_DROP(rc, dictkey_height,
-                                      PyInt_FromLong((long) height));
-                    DICT_SETITEM_DROP(rc, dictkey_colorspace,
-                                      PyInt_FromLong((long) n));
-                    DICT_SETITEM_DROP(rc, dictkey_bpc,
-                                      PyInt_FromLong((long) bpc));
-                    DICT_SETITEM_DROP(rc, dictkey_xres,
-                                      PyInt_FromLong((long) xres));
-                    DICT_SETITEM_DROP(rc, dictkey_yres,
-                                      PyInt_FromLong((long) yres));
-                    DICT_SETITEM_DROP(rc, dictkey_cs_name,
-                                      JM_UnicodeFromStr(cs_name));
-                    DICT_SETITEM_DROP(rc, dictkey_image,
-                                      JM_BinFromBuffer(gctx, buffer));
+                    img = fz_new_image_from_buffer(gctx, res);
+                    ext = JM_image_extension(img_type);
                 }
                 else
-                    rc = PyDict_New();
+                {
+                    fz_drop_buffer(gctx, res);
+                    res = NULL;
+                    img = pdf_load_image(gctx, pdf, obj);
+                    res = fz_new_buffer_from_image_as_png(gctx, img,
+                                fz_default_color_params);
+                    ext = "png";
+                }
+                fz_image_resolution(img, &xres, &yres);
+                width = img->w;
+                height = img->h;
+                colorspace = img->n;
+                bpc = img->bpc;
+                cs_name = fz_colorspace_name(gctx, img->colorspace);
+
+                rc = PyDict_New();
+                DICT_SETITEM_DROP(rc, dictkey_ext,
+                                    JM_UnicodeFromStr(ext));
+                DICT_SETITEM_DROP(rc, dictkey_smask,
+                                    Py_BuildValue("i", smask));
+                DICT_SETITEM_DROP(rc, dictkey_width,
+                                    Py_BuildValue("i", width));
+                DICT_SETITEM_DROP(rc, dictkey_height,
+                                    Py_BuildValue("i", height));
+                DICT_SETITEM_DROP(rc, dictkey_colorspace,
+                                    Py_BuildValue("i", colorspace));
+                DICT_SETITEM_DROP(rc, dictkey_bpc,
+                                    Py_BuildValue("i", bpc));
+                DICT_SETITEM_DROP(rc, dictkey_xres,
+                                    Py_BuildValue("i", xres));
+                DICT_SETITEM_DROP(rc, dictkey_yres,
+                                    Py_BuildValue("i", yres));
+                DICT_SETITEM_DROP(rc, dictkey_cs_name,
+                                    JM_UnicodeFromStr(cs_name));
+                DICT_SETITEM_DROP(rc, dictkey_image,
+                                    JM_BinFromBuffer(gctx, res));
             }
             fz_always(gctx)
             {
-                fz_drop_image(gctx, image);
-                fz_drop_buffer(gctx, freebuf);
+                fz_drop_image(gctx, img);
+                fz_drop_buffer(gctx, res);
                 pdf_drop_obj(gctx, obj);
             }
 
-            fz_catch(gctx) return NULL;
-
+            fz_catch(gctx)
+            {
+                Py_CLEAR(rc);
+                return NULL;
+            }
             return rc;
         }
 SWIGINTERN PyObject *fz_document_s__delToC(struct fz_document_s *self){
@@ -10073,6 +10061,10 @@ SWIGINTERN PyObject *fz_page_s__insertImage(struct fz_page_s *self,char const *f
 
                     // test for alpha (which would require making an SMask)
                     pix = fz_get_pixmap_from_image(gctx, image, NULL, NULL, 0, 0);
+                    int xres, yres;
+                    fz_image_resolution(image, &xres, &yres);
+                    pix->xres = xres;
+                    pix->yres = yres;
                     if (pix->alpha == 1)
                     {   // have alpha: create an SMask
 
@@ -10435,6 +10427,10 @@ SWIGINTERN struct fz_pixmap_s *new_fz_pixmap_s__SWIG_5(char *filename){
             fz_try(gctx) {
                 img = fz_new_image_from_file(gctx, filename);
                 pm = fz_get_pixmap_from_image(gctx, img, NULL, NULL, NULL, NULL);
+                int xres, yres;
+                fz_image_resolution(img, &xres, &yres);
+                pm->xres = xres;
+                pm->yres = yres;
             }
             fz_always(gctx)
             {
@@ -10456,6 +10452,10 @@ SWIGINTERN struct fz_pixmap_s *new_fz_pixmap_s__SWIG_6(PyObject *imagedata){
                 if (!res) THROWMSG("bad image data");
                 img = fz_new_image_from_buffer(gctx, res);
                 pm = fz_get_pixmap_from_image(gctx, img, NULL, NULL, NULL, NULL);
+                int xres, yres;
+                fz_image_resolution(img, &xres, &yres);
+                pm->xres = xres;
+                pm->yres = yres;
             }
             fz_always(gctx)
             {
@@ -10468,6 +10468,7 @@ SWIGINTERN struct fz_pixmap_s *new_fz_pixmap_s__SWIG_6(PyObject *imagedata){
 SWIGINTERN struct fz_pixmap_s *new_fz_pixmap_s__SWIG_7(struct fz_document_s *doc,int xref){
             fz_image *img = NULL;
             fz_pixmap *pix = NULL;
+            fz_buffer *res = NULL;
             pdf_obj *ref = NULL;
             pdf_obj *type;
             pdf_document *pdf = pdf_specifics(gctx, doc);
@@ -10480,13 +10481,29 @@ SWIGINTERN struct fz_pixmap_s *new_fz_pixmap_s__SWIG_7(struct fz_document_s *doc
                 ref = pdf_new_indirect(gctx, pdf, xref, 0);
                 type = pdf_dict_get(gctx, ref, PDF_NAME(Subtype));
                 if (!pdf_name_eq(gctx, type, PDF_NAME(Image)))
-                    THROWMSG("xref not an image");
-                img = pdf_load_image(gctx, pdf, ref);
+                    THROWMSG("xref is not an image");
+                res = pdf_load_raw_stream(gctx, ref);
+                unsigned char *c = NULL;
+                fz_buffer_storage(gctx, res, &c);
+                int img_type = fz_recognize_image_format(gctx, c);
+                if (img_type != FZ_IMAGE_UNKNOWN)
+                {
+                    img = fz_new_image_from_buffer(gctx, res);
+                }
+                else
+                {
+                    img = pdf_load_image(gctx, pdf, ref);
+                }
                 pix = fz_get_pixmap_from_image(gctx, img, NULL, NULL, NULL, NULL);
+                int xres, yres;
+                fz_image_resolution(img, &xres, &yres);
+                pix->xres = xres;
+                pix->yres= yres;
             }
             fz_always(gctx)
             {
                 fz_drop_image(gctx, img);
+                fz_drop_buffer(gctx, res);
                 pdf_drop_obj(gctx, ref);
             }
             fz_catch(gctx)
@@ -10709,6 +10726,11 @@ SWIGINTERN PyObject *fz_pixmap_s_setPixel(struct fz_pixmap_s *self,int x,int y,P
                 return NULL;
             }
             return_none;
+        }
+SWIGINTERN PyObject *fz_pixmap_s_setResolution(struct fz_pixmap_s *self,int xres,int yres){
+            self->xres = xres;
+            self->yres = yres;
+            Py_RETURN_NONE;
         }
 SWIGINTERN PyObject *fz_pixmap_s_setRect(struct fz_pixmap_s *self,PyObject *irect,PyObject *color){
             PyObject *rc = JM_BOOL(0);
@@ -13981,7 +14003,7 @@ fail:
 SWIGINTERN PyObject *_wrap_Document_extractImage(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct fz_document_s *arg1 = (struct fz_document_s *) 0 ;
-  int arg2 = (int) 0 ;
+  int arg2 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int val2 ;
@@ -13989,19 +14011,17 @@ SWIGINTERN PyObject *_wrap_Document_extractImage(PyObject *SWIGUNUSEDPARM(self),
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Document_extractImage", 1, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Document_extractImage", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_document_s, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_extractImage" "', argument " "1"" of type '" "struct fz_document_s *""'"); 
   }
   arg1 = (struct fz_document_s *)(argp1);
-  if (swig_obj[1]) {
-    ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
-    if (!SWIG_IsOK(ecode2)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_extractImage" "', argument " "2"" of type '" "int""'");
-    } 
-    arg2 = (int)(val2);
-  }
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_extractImage" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
   {
     result = (PyObject *)fz_document_s_extractImage(arg1,arg2);
     if (!result)
@@ -17967,6 +17987,44 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Pixmap_setResolution(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_pixmap_s *arg1 = (struct fz_pixmap_s *) 0 ;
+  int arg2 ;
+  int arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Pixmap_setResolution", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_pixmap_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Pixmap_setResolution" "', argument " "1"" of type '" "struct fz_pixmap_s *""'"); 
+  }
+  arg1 = (struct fz_pixmap_s *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Pixmap_setResolution" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Pixmap_setResolution" "', argument " "3"" of type '" "int""'");
+  } 
+  arg3 = (int)(val3);
+  result = (PyObject *)fz_pixmap_s_setResolution(arg1,arg2,arg3);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Pixmap_setRect(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct fz_pixmap_s *arg1 = (struct fz_pixmap_s *) 0 ;
@@ -21592,7 +21650,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document__getPageObjNumber", _wrap_Document__getPageObjNumber, METH_VARARGS, "Document__getPageObjNumber(self, pno) -> PyObject *"},
 	 { "Document__getPageInfo", _wrap_Document__getPageInfo, METH_VARARGS, "Show fonts or images used on a page."},
 	 { "Document_extractFont", _wrap_Document_extractFont, METH_VARARGS, "Document_extractFont(self, xref=0, info_only=0) -> PyObject *"},
-	 { "Document_extractImage", _wrap_Document_extractImage, METH_VARARGS, "Extract image which 'xref' is pointing to."},
+	 { "Document_extractImage", _wrap_Document_extractImage, METH_VARARGS, "Extract image pointed to by 'xref'."},
 	 { "Document__delToC", _wrap_Document__delToC, METH_O, "Document__delToC(self) -> PyObject *"},
 	 { "Document_isStream", _wrap_Document_isStream, METH_VARARGS, "Document_isStream(self, xref=0) -> PyObject *"},
 	 { "Document_getSigFlags", _wrap_Document_getSigFlags, METH_O, "Document_getSigFlags(self) -> PyObject *"},
@@ -21701,6 +21759,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Pixmap_invertIRect", _wrap_Pixmap_invertIRect, METH_VARARGS, "Pixmap_invertIRect(self, irect=None) -> PyObject *"},
 	 { "Pixmap_pixel", _wrap_Pixmap_pixel, METH_VARARGS, "Return the pixel at (x,y) as a list. Last item is the alpha if Pixmap.alpha is true."},
 	 { "Pixmap_setPixel", _wrap_Pixmap_setPixel, METH_VARARGS, "Set the pixel at (x,y) to the integers in sequence 'color'."},
+	 { "Pixmap_setResolution", _wrap_Pixmap_setResolution, METH_VARARGS, "Set the resolution."},
 	 { "Pixmap_setRect", _wrap_Pixmap_setRect, METH_VARARGS, "Set a rectangle to the integers in sequence 'color'."},
 	 { "Pixmap_stride", _wrap_Pixmap_stride, METH_O, "Pixmap_stride(self) -> int"},
 	 { "Pixmap_alpha", _wrap_Pixmap_alpha, METH_O, "Pixmap_alpha(self) -> int"},
