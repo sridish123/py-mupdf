@@ -3947,11 +3947,46 @@ class Page(object):
         r"""_makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"""
         return _fitz.Page__makePixmap(self, doc, ctm, cs, alpha, annots, clip)
 
-    def insertString(self, point, text, fontsize, fontname, color, language):
-        r"""insertString(self, point, text, fontsize, fontname, color, language) -> PyObject *"""
-        CheckParent(self)
+    def insertString(self, point, text, fontsize=11, fontname=None, fontfile=None, fontbuffer=None, color=None, language=None, script=0, opacity=1, ordering=-1, overlay=1, is_bold=0, is_italic=0):
+        r"""Insert a string on a page"""
 
-        return _fitz.Page_insertString(self, point, text, fontsize, fontname, color, language)
+        if not text:
+            return None
+        doc = self.parent
+        if type(text) not in (list, tuple):
+            text = text.splitlines()
+        if fontname:
+            try:
+                ordering = ("china-t", "china-s", "japan", "korea","china-ts", "china-ss", "japan-s", "korea-s").index(fontname.lower()) % 4
+            except ValueError:
+                ordering = -1
+            if ordering < 0:
+                fontname = Base14_fontdict.get(fontname.lower(), fontname)
+
+
+        val = _fitz.Page_insertString(self, point, text, fontsize, fontname, fontfile, fontbuffer, color, language, script, opacity, ordering, overlay, is_bold, is_italic)
+
+        max_alp, max_font = val[2]
+        old_cont_lines = val[3].splitlines()
+        new_cont_lines = ["q"]
+        for line in old_cont_lines:
+            if line.endswith(" cm"):
+                continue
+            if line.endswith(" gs"):
+                alp = int(line.split()[0][4:]) + max_alp
+                line = "/Alp%i gs" % alp
+            elif line.endswith(" Tf"):
+                temp = line.split()
+                font = int(temp[0][2:]) + max_font
+                line = " ".join(["/F%i" % font,] + temp[1:])
+            new_cont_lines.append(line)
+        new_cont_lines.append("Q")
+        content = "\n".join(new_cont_lines).encode("utf-8")
+        TOOLS._insert_contents(self, content, overlay=overlay)
+        val = val[:2]
+
+
+        return val
 
 
     def setMediaBox(self, rect):
