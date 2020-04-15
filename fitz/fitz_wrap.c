@@ -2639,15 +2639,16 @@ SWIGINTERN PyObject *SWIG_PyStaticMethod_New(PyObject *SWIGUNUSEDPARM(self), PyO
 #define SWIGTYPE_p_fz_colorspace_s swig_types[3]
 #define SWIGTYPE_p_fz_display_list_s swig_types[4]
 #define SWIGTYPE_p_fz_document_s swig_types[5]
-#define SWIGTYPE_p_fz_link_s swig_types[6]
-#define SWIGTYPE_p_fz_outline_s swig_types[7]
-#define SWIGTYPE_p_fz_page_s swig_types[8]
-#define SWIGTYPE_p_fz_pixmap_s swig_types[9]
-#define SWIGTYPE_p_fz_stext_page_s swig_types[10]
-#define SWIGTYPE_p_pdf_annot_s swig_types[11]
-#define SWIGTYPE_p_pdf_graft_map_s swig_types[12]
-static swig_type_info *swig_types[14];
-static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
+#define SWIGTYPE_p_fz_font_s swig_types[6]
+#define SWIGTYPE_p_fz_link_s swig_types[7]
+#define SWIGTYPE_p_fz_outline_s swig_types[8]
+#define SWIGTYPE_p_fz_page_s swig_types[9]
+#define SWIGTYPE_p_fz_pixmap_s swig_types[10]
+#define SWIGTYPE_p_fz_stext_page_s swig_types[11]
+#define SWIGTYPE_p_pdf_annot_s swig_types[12]
+#define SWIGTYPE_p_pdf_graft_map_s swig_types[13]
+static swig_type_info *swig_types[15];
+static swig_module_info swig_module = {swig_types, 14, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -2710,7 +2711,7 @@ static swig_module_info swig_module = {swig_types, 13, 0, 0, 0, 0};
 #define JM_Free(x) free(x)
 #endif
 
-#define EXISTS(x) (PyObject_IsTrue(x)==1)
+#define EXISTS(x) (x != NULL && PyObject_IsTrue(x)==1)
 #define THROWMSG(msg) fz_throw(gctx, FZ_ERROR_GENERIC, msg)
 #define assert_PDF(cond) if (cond == NULL) THROWMSG("not a PDF")
 #define INRANGE(v, low, high) ((low) <= v && v <= (high))
@@ -3013,6 +3014,161 @@ struct DeviceWrapper {
 #define TEXT_FONT_SERIFED 4
 #define TEXT_FONT_MONOSPACED 8
 #define TEXT_FONT_BOLD 16
+
+// UCDN Script codes
+#define UCDN_SCRIPT_COMMON 0
+#define UCDN_SCRIPT_LATIN 1
+#define UCDN_SCRIPT_GREEK 2
+#define UCDN_SCRIPT_CYRILLIC 3
+#define UCDN_SCRIPT_ARMENIAN 4
+#define UCDN_SCRIPT_HEBREW 5
+#define UCDN_SCRIPT_ARABIC 6
+#define UCDN_SCRIPT_SYRIAC 7
+#define UCDN_SCRIPT_THAANA 8
+#define UCDN_SCRIPT_DEVANAGARI 9
+#define UCDN_SCRIPT_BENGALI 10
+#define UCDN_SCRIPT_GURMUKHI 11
+#define UCDN_SCRIPT_GUJARATI 12
+#define UCDN_SCRIPT_ORIYA 13
+#define UCDN_SCRIPT_TAMIL 14
+#define UCDN_SCRIPT_TELUGU 15
+#define UCDN_SCRIPT_KANNADA 16
+#define UCDN_SCRIPT_MALAYALAM 17
+#define UCDN_SCRIPT_SINHALA 18
+#define UCDN_SCRIPT_THAI 19
+#define UCDN_SCRIPT_LAO 20
+#define UCDN_SCRIPT_TIBETAN 21
+#define UCDN_SCRIPT_MYANMAR 22
+#define UCDN_SCRIPT_GEORGIAN 23
+#define UCDN_SCRIPT_HANGUL 24
+#define UCDN_SCRIPT_ETHIOPIC 25
+#define UCDN_SCRIPT_CHEROKEE 26
+#define UCDN_SCRIPT_CANADIAN_ABORIGINAL 27
+#define UCDN_SCRIPT_OGHAM 28
+#define UCDN_SCRIPT_RUNIC 29
+#define UCDN_SCRIPT_KHMER 30
+#define UCDN_SCRIPT_MONGOLIAN 31
+#define UCDN_SCRIPT_HIRAGANA 32
+#define UCDN_SCRIPT_KATAKANA 33
+#define UCDN_SCRIPT_BOPOMOFO 34
+#define UCDN_SCRIPT_HAN 35
+#define UCDN_SCRIPT_YI 36
+#define UCDN_SCRIPT_OLD_ITALIC 37
+#define UCDN_SCRIPT_GOTHIC 38
+#define UCDN_SCRIPT_DESERET 39
+#define UCDN_SCRIPT_INHERITED 40
+#define UCDN_SCRIPT_TAGALOG 41
+#define UCDN_SCRIPT_HANUNOO 42
+#define UCDN_SCRIPT_BUHID 43
+#define UCDN_SCRIPT_TAGBANWA 44
+#define UCDN_SCRIPT_LIMBU 45
+#define UCDN_SCRIPT_TAI_LE 46
+#define UCDN_SCRIPT_LINEAR_B 47
+#define UCDN_SCRIPT_UGARITIC 48
+#define UCDN_SCRIPT_SHAVIAN 49
+#define UCDN_SCRIPT_OSMANYA 50
+#define UCDN_SCRIPT_CYPRIOT 51
+#define UCDN_SCRIPT_BRAILLE 52
+#define UCDN_SCRIPT_BUGINESE 53
+#define UCDN_SCRIPT_COPTIC 54
+#define UCDN_SCRIPT_NEW_TAI_LUE 55
+#define UCDN_SCRIPT_GLAGOLITIC 56
+#define UCDN_SCRIPT_TIFINAGH 57
+#define UCDN_SCRIPT_SYLOTI_NAGRI 58
+#define UCDN_SCRIPT_OLD_PERSIAN 59
+#define UCDN_SCRIPT_KHAROSHTHI 60
+#define UCDN_SCRIPT_BALINESE 61
+#define UCDN_SCRIPT_CUNEIFORM 62
+#define UCDN_SCRIPT_PHOENICIAN 63
+#define UCDN_SCRIPT_PHAGS_PA 64
+#define UCDN_SCRIPT_NKO 65
+#define UCDN_SCRIPT_SUNDANESE 66
+#define UCDN_SCRIPT_LEPCHA 67
+#define UCDN_SCRIPT_OL_CHIKI 68
+#define UCDN_SCRIPT_VAI 69
+#define UCDN_SCRIPT_SAURASHTRA 70
+#define UCDN_SCRIPT_KAYAH_LI 71
+#define UCDN_SCRIPT_REJANG 72
+#define UCDN_SCRIPT_LYCIAN 73
+#define UCDN_SCRIPT_CARIAN 74
+#define UCDN_SCRIPT_LYDIAN 75
+#define UCDN_SCRIPT_CHAM 76
+#define UCDN_SCRIPT_TAI_THAM 77
+#define UCDN_SCRIPT_TAI_VIET 78
+#define UCDN_SCRIPT_AVESTAN 79
+#define UCDN_SCRIPT_EGYPTIAN_HIEROGLYPHS 80
+#define UCDN_SCRIPT_SAMARITAN 81
+#define UCDN_SCRIPT_LISU 82
+#define UCDN_SCRIPT_BAMUM 83
+#define UCDN_SCRIPT_JAVANESE 84
+#define UCDN_SCRIPT_MEETEI_MAYEK 85
+#define UCDN_SCRIPT_IMPERIAL_ARAMAIC 86
+#define UCDN_SCRIPT_OLD_SOUTH_ARABIAN 87
+#define UCDN_SCRIPT_INSCRIPTIONAL_PARTHIAN 88
+#define UCDN_SCRIPT_INSCRIPTIONAL_PAHLAVI 89
+#define UCDN_SCRIPT_OLD_TURKIC 90
+#define UCDN_SCRIPT_KAITHI 91
+#define UCDN_SCRIPT_BATAK 92
+#define UCDN_SCRIPT_BRAHMI 93
+#define UCDN_SCRIPT_MANDAIC 94
+#define UCDN_SCRIPT_CHAKMA 95
+#define UCDN_SCRIPT_MEROITIC_CURSIVE 96
+#define UCDN_SCRIPT_MEROITIC_HIEROGLYPHS 97
+#define UCDN_SCRIPT_MIAO 98
+#define UCDN_SCRIPT_SHARADA 99
+#define UCDN_SCRIPT_SORA_SOMPENG 100
+#define UCDN_SCRIPT_TAKRI 101
+#define UCDN_SCRIPT_UNKNOWN 102
+#define UCDN_SCRIPT_BASSA_VAH 103
+#define UCDN_SCRIPT_CAUCASIAN_ALBANIAN 104
+#define UCDN_SCRIPT_DUPLOYAN 105
+#define UCDN_SCRIPT_ELBASAN 106
+#define UCDN_SCRIPT_GRANTHA 107
+#define UCDN_SCRIPT_KHOJKI 108
+#define UCDN_SCRIPT_KHUDAWADI 109
+#define UCDN_SCRIPT_LINEAR_A 110
+#define UCDN_SCRIPT_MAHAJANI 111
+#define UCDN_SCRIPT_MANICHAEAN 112
+#define UCDN_SCRIPT_MENDE_KIKAKUI 113
+#define UCDN_SCRIPT_MODI 114
+#define UCDN_SCRIPT_MRO 115
+#define UCDN_SCRIPT_NABATAEAN 116
+#define UCDN_SCRIPT_OLD_NORTH_ARABIAN 117
+#define UCDN_SCRIPT_OLD_PERMIC 118
+#define UCDN_SCRIPT_PAHAWH_HMONG 119
+#define UCDN_SCRIPT_PALMYRENE 120
+#define UCDN_SCRIPT_PAU_CIN_HAU 121
+#define UCDN_SCRIPT_PSALTER_PAHLAVI 122
+#define UCDN_SCRIPT_SIDDHAM 123
+#define UCDN_SCRIPT_TIRHUTA 124
+#define UCDN_SCRIPT_WARANG_CITI 125
+#define UCDN_SCRIPT_AHOM 126
+#define UCDN_SCRIPT_ANATOLIAN_HIEROGLYPHS 127
+#define UCDN_SCRIPT_HATRAN 128
+#define UCDN_SCRIPT_MULTANI 129
+#define UCDN_SCRIPT_OLD_HUNGARIAN 130
+#define UCDN_SCRIPT_SIGNWRITING 131
+#define UCDN_SCRIPT_ADLAM 132
+#define UCDN_SCRIPT_BHAIKSUKI 133
+#define UCDN_SCRIPT_MARCHEN 134
+#define UCDN_SCRIPT_NEWA 135
+#define UCDN_SCRIPT_OSAGE 136
+#define UCDN_SCRIPT_TANGUT 137
+#define UCDN_SCRIPT_MASARAM_GONDI 138
+#define UCDN_SCRIPT_NUSHU 139
+#define UCDN_SCRIPT_SOYOMBO 140
+#define UCDN_SCRIPT_ZANABAZAR_SQUARE 141
+#define UCDN_SCRIPT_DOGRA 142
+#define UCDN_SCRIPT_GUNJALA_GONDI 143
+#define UCDN_SCRIPT_HANIFI_ROHINGYA 144
+#define UCDN_SCRIPT_MAKASAR 145
+#define UCDN_SCRIPT_MEDEFAIDRIN 146
+#define UCDN_SCRIPT_OLD_SOGDIAN 147
+#define UCDN_SCRIPT_SOGDIAN 148
+#define UCDN_SCRIPT_ELYMAIC 149
+#define UCDN_SCRIPT_NANDINAGARI 150
+#define UCDN_SCRIPT_NYIAKENG_PUACHUE_HMONG 151
+#define UCDN_SCRIPT_WANCHO 152
 
 
 
@@ -3984,7 +4140,7 @@ PyObject *JM_outline_xrefs(fz_context *ctx, pdf_obj *obj, PyObject *xrefs)
 }
 
 //-----------------------------------------------------------------------------
-// Return the contents of a font file
+// Return the contents of a font file, identified by xref
 //-----------------------------------------------------------------------------
 fz_buffer *JM_get_fontbuffer(fz_context *ctx, pdf_document *doc, int xref)
 {
@@ -4048,7 +4204,7 @@ fz_buffer *JM_get_fontbuffer(fz_context *ctx, pdf_document *doc, int xref)
 }
 
 //-----------------------------------------------------------------------------
-// Return the file extension of an embedded font file
+// Return the file extension of a font file, identified by xref
 //-----------------------------------------------------------------------------
 char *JM_get_fontextension(fz_context *ctx, pdf_document *doc, int xref)
 {
@@ -4095,114 +4251,6 @@ char *JM_get_fontextension(fz_context *ctx, pdf_document *doc, int xref)
     }
 
     return "n/a";
-}
-
-
-//-----------------------------------------------------------------------------
-// version of fz_show_string, also covering UCDN script
-//-----------------------------------------------------------------------------
-fz_matrix JM_show_string(fz_context *ctx, fz_text *text, fz_font *user_font, fz_matrix trm, const char *s, int wmode, int bidi_level, fz_bidi_direction markup_dir, fz_text_language language, int script)
-{
-    fz_font *font;
-    int gid, ucs;
-    float adv;
-
-    while (*s)
-    {
-        s += fz_chartorune(&ucs, s);
-        gid = fz_encode_character_with_fallback(ctx, user_font, ucs, script, language, &font);
-        fz_show_glyph(ctx, text, font, trm, gid, ucs, wmode, bidi_level, markup_dir, language);
-        adv = fz_advance_glyph(ctx, font, gid, wmode);
-        if (wmode == 0)
-            trm = fz_pre_translate(trm, adv, 0);
-        else
-            trm = fz_pre_translate(trm, 0, -adv);
-    }
-
-    return trm;
-}
-
-
-//-----------------------------------------------------------------------------
-// return fz_font from given alternatives
-//-----------------------------------------------------------------------------
-fz_font *JM_get_font(fz_context *ctx,
-    char *fontname,
-    char *fontfile,
-    PyObject *fontbuffer,
-    int script,
-    int lang,
-    int ordering,
-    int is_bold,
-    int is_italic)
-{
-    const unsigned char *data = NULL;
-    int size, index=0;
-    fz_buffer *res = NULL;
-    fz_font *font = NULL;
-    fz_try(ctx)
-    {
-        if (fontfile) goto have_file;
-        if (EXISTS(fontbuffer)) goto have_buffer;
-        if (ordering > -1) goto have_cjk;
-        if (fontname) goto have_base14;
-        goto have_noto;
-        // Base-14 font
-        have_base14:;
-        data = fz_lookup_base14_font(ctx, fontname, &size);
-        if (data)
-        {
-            font = fz_new_font_from_memory(ctx, fontname, data, size, 0, 0);
-            goto fertig;
-        }
-        data = fz_lookup_builtin_font(gctx, fontname, is_bold, is_italic, &size);
-        if (data)
-        {
-            font = fz_new_font_from_memory(ctx, fontname, data, size, 0, 0);
-        }
-        goto fertig;
-
-        // CJK font
-        have_cjk:;
-        data = fz_lookup_cjk_font(ctx, ordering, &size, &index);
-        if (data)
-        {
-            font = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
-        }
-        goto fertig;
-
-        // fontfile
-        have_file:;
-        font = fz_new_font_from_file(ctx, NULL, fontfile, index, 0);
-        goto fertig;
-
-        // fontbuffer
-        have_buffer:;
-        res = JM_BufferFromBytes(ctx, fontbuffer);
-        font = fz_new_font_from_buffer(ctx, NULL, res, index, 0);
-        goto fertig;
-
-        // Check for NOTO font
-        have_noto:;
-        data = fz_lookup_noto_font(ctx, script, lang, &size, &index);
-        if (data)
-        {
-            font = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
-        }
-        goto fertig;
-
-        fertig:;
-    }
-    fz_always(ctx)
-    {
-        fz_drop_buffer(ctx, res);
-    }
-    fz_catch(ctx)
-    {
-        PySys_WriteStderr("error allocating the font");
-        fz_rethrow(ctx);
-    }
-    return font;
 }
 
 
@@ -4286,7 +4334,7 @@ int JM_norm_rotation(int rotate)
 
 
 //----------------------------------------------------------------------------
-// return a PDF page's /Rotate value
+// return a PDF page's /Rotate value: normalized degrees
 //----------------------------------------------------------------------------
 int JM_page_rotation(fz_context *ctx, pdf_page *page)
 {
@@ -4436,10 +4484,7 @@ fz_rect JM_rotate_rect(fz_context *ctx, pdf_page *page, fz_rect rect)
     {
         fz_point p;
         p = JM_rotate_point(ctx, page, fz_make_point(rect.x0, rect.y0));
-        newr.x0 = p.x;
-        newr.y0 = p.y;
-        newr.x1 = p.x;
-        newr.y1 = p.y;
+        newr = fz_make_rect(p.x, p.y, p.x, p.y);
         p = JM_rotate_point(ctx, page, fz_make_point(rect.x1, rect.y0));
         newr = fz_include_point_in_rect(newr, p);
         p = JM_rotate_point(ctx, page, fz_make_point(rect.x0, rect.y1));
@@ -4462,10 +4507,7 @@ fz_rect JM_derotate_rect(fz_context *ctx, pdf_page *page, fz_rect rect)
     {
         fz_point p;
         p = JM_derotate_point(ctx, page, fz_make_point(rect.x0, rect.y0));
-        newr.x0 = p.x;
-        newr.y0 = p.y;
-        newr.x1 = p.x;
-        newr.y1 = p.y;
+        newr = fz_make_rect(p.x, p.y, p.x, p.y);
         p = JM_derotate_point(ctx, page, fz_make_point(rect.x1, rect.y0));
         newr = fz_include_point_in_rect(newr, p);
         p = JM_derotate_point(ctx, page, fz_make_point(rect.x0, rect.y1));
@@ -5363,7 +5405,7 @@ PyObject *JM_repl_char()
 }
 
 //-----------------------------------------------------------------------------
-// append non-ascii runes in unicode escape format
+// APPEND non-ascii runes in unicode escape format to a fz_buffer
 //-----------------------------------------------------------------------------
 void JM_append_rune(fz_context *ctx, fz_buffer *buff, int ch)
 {
@@ -5383,7 +5425,7 @@ void JM_append_rune(fz_context *ctx, fz_buffer *buff, int ch)
 
 
 //-----------------------------------------------------------------------------
-// write non-ascii runes in unicode escape format
+// WRITE non-ascii runes in unicode escape format to a fz_output
 //-----------------------------------------------------------------------------
 void JM_write_rune(fz_context *ctx, fz_output *out, int ch)
 {
@@ -5724,88 +5766,196 @@ PyObject *JM_object_to_string(fz_context *ctx, pdf_obj *what, int compress, int 
     {
         fz_drop_output(ctx, out);
         fz_drop_buffer(ctx, res);
+        PyErr_Clear();
     }
     fz_catch(ctx)
     {
-        text = PyUnicode_FromString("");
-        return text;
+        return PyUnicode_FromString("");
     }
     return text;
 }
 
+//-----------------------------------------------------------------------------
+// Merge the /Resources object created by a text pdf device into the page.
+// The device may have created multiple /ExtGState/Alp? and /Font/F? objects.
+// These need to be renamed (renumbered) to not overwrite existing page
+// objects from previous executions.
+// Returns the next available numbers n, m for objects /Alp<n>, /F<m>.
+//-----------------------------------------------------------------------------
 PyObject *JM_merge_resources(fz_context *ctx, pdf_page *page, pdf_obj *temp_res)
 {
+    // page objects /Resources, /Resources/ExtGState, /Resources/Font
     pdf_obj *resources = pdf_dict_get(ctx, page->obj, PDF_NAME(Resources));
     pdf_obj *main_extg = pdf_dict_get(ctx, resources, PDF_NAME(ExtGState));
     pdf_obj *main_fonts = pdf_dict_get(ctx, resources, PDF_NAME(Font));
+
+    // text pdf device objects /ExtGState, /Font
     pdf_obj *temp_extg = pdf_dict_get(ctx, temp_res, PDF_NAME(ExtGState));
     pdf_obj *temp_fonts = pdf_dict_get(ctx, temp_res, PDF_NAME(Font));
+
     int max_alp = 0, max_fonts = 0, i, n;
-//start-trace
-    char start_alp[32] = {0};
-    char text[32] = {0};
-    // copy over renumbered temp alpha values
-    if (pdf_is_dict(ctx, temp_extg))
+    char start_str[32] = {0};  // string for comparison
+    char text[32] = {0};  // string for comparison
+
+    // Handle /Alp objects
+    if (pdf_is_dict(ctx, temp_extg))  // any created at all?
     {
         n = pdf_dict_len(ctx, temp_extg);
-        if (pdf_is_dict(ctx, main_extg))
+        if (pdf_is_dict(ctx, main_extg))  // does page have /ExtGState yet?
         {
             for (i = 0; i < pdf_dict_len(ctx, main_extg); i++)
-            {
+            {   // get highest number of objects named /Alp?
                 char *alp = (char *) pdf_to_name(ctx, pdf_dict_get_key(ctx, main_extg, i));
                 if (strncmp(alp, "Alp", 3) != 0) continue;
-                if (strcmp(start_alp, alp) < 0) strcpy(start_alp, alp);
+                if (strcmp(start_str, alp) < 0) strcpy(start_str, alp);
             }
-            i = 0;
-            while (strcmp(text, start_alp) < 0)
-            {
-                fz_snprintf(text, sizeof(text), "Alp%d", i);
-                i++;
+            while (strcmp(text, start_str) < 0)
+            {   // compute next available number
+                fz_snprintf(text, sizeof(text), "Alp%d", max_alp);
+                max_alp++;
             }
-            max_alp = i;
         }
-        else
+        else  // create a /ExtGState for the page
             main_extg = pdf_dict_put_dict(ctx, resources, PDF_NAME(ExtGState), n);
 
-        for (i = 0; i < n; i++)
+        for (i = 0; i < n; i++)  // copy over renumbered /Alp objects
         {
-            fz_snprintf(text, sizeof(text), "Alp%d", i + max_alp);
+            fz_snprintf(text, sizeof(text), "Alp%d", i + max_alp);  // new name
             pdf_obj *val = pdf_dict_get_val(ctx, temp_extg, i);
             pdf_dict_puts(ctx, main_extg, text, val);
         }
     }
-    text[0] = 0;
-    start_alp[0] = 0;
-    
-    if (pdf_is_dict(ctx, main_fonts))
+
+    text[0] = 0;  // empty comparison string
+    start_str[0] = 0;  // empty comparison string
+
+    if (pdf_is_dict(ctx, main_fonts))  // has page any fonts yet?
     {
         for (i = 0; i < pdf_dict_len(ctx, main_fonts); i++)
-        {
+        {   // get highest number of fonts named /F?
             char *font = (char *) pdf_to_name(ctx, pdf_dict_get_key(ctx, main_fonts, i));
             if (strncmp(font, "F", 1) != 0) continue;
-            if (strcmp(start_alp, font) < 0) strcpy(start_alp, font);
+            if (strcmp(start_str, font) < 0) strcpy(start_str, font);
         }
-        i = 0;
-        while (strcmp(text, start_alp) < 0)
-        {
-            fz_snprintf(text, sizeof(text), "F%d", i);
-            i++;
+        while (strcmp(text, start_str) < 0)
+        {   // compute next available number
+            fz_snprintf(text, sizeof(text), "F%d", max_fonts);
+            max_fonts++;
         }
-        max_fonts = i;
     }
-    else
-    {
+    else  // create a Resources/Font for the page
         main_fonts = pdf_dict_put_dict(ctx, resources, PDF_NAME(Font), 2);
-    }
+
     for (i = 0; i < pdf_dict_len(ctx, temp_fonts); i++)
-    {
+    {   // copy over renumbered font objects
         fz_snprintf(text, sizeof(text), "F%d", i + max_fonts);
         pdf_obj *val = pdf_dict_get_val(ctx, temp_fonts, i);
-        pdf_dict_puts_drop(ctx, main_fonts, text, val);
+        pdf_dict_puts(ctx, main_fonts, text, val);
     }
-//end-trace
-    return Py_BuildValue("ii", max_alp, max_fonts);
+    return Py_BuildValue("ii", max_alp, max_fonts); // next available numbers
 }
+
+
+//-----------------------------------------------------------------------------
+// version of fz_show_string, which also covers UCDN script
+//-----------------------------------------------------------------------------
+fz_matrix JM_show_string(fz_context *ctx, fz_text *text, fz_font *user_font, fz_matrix trm, const char *s, int wmode, int bidi_level, fz_bidi_direction markup_dir, fz_text_language language, int script)
+{
+    fz_font *font;
+    int gid, ucs;
+    float adv;
+
+    while (*s)
+    {
+        s += fz_chartorune(&ucs, s);
+        gid = fz_encode_character_with_fallback(ctx, user_font, ucs, script, language, &font);
+        fz_show_glyph(ctx, text, font, trm, gid, ucs, wmode, bidi_level, markup_dir, language);
+        adv = fz_advance_glyph(ctx, font, gid, wmode);
+        if (wmode == 0)
+            trm = fz_pre_translate(trm, adv, 0);
+        else
+            trm = fz_pre_translate(trm, 0, -adv);
+    }
+
+    return trm;
+}
+
+
+//-----------------------------------------------------------------------------
+// return a fz_font from a number of parameters
+//-----------------------------------------------------------------------------
+fz_font *JM_get_font(fz_context *ctx,
+    char *fontname,
+    char *fontfile,
+    PyObject *fontbuffer,
+    int script,
+    int lang,
+    int ordering,
+    int is_bold,
+    int is_italic,
+    int is_serif)
+{
+    const unsigned char *data = NULL;
+    int size, index=0;
+    fz_buffer *res = NULL;
+    fz_font *font = NULL;
+    fz_try(ctx)
+    {
+        if (fontfile) goto have_file;
+        if (EXISTS(fontbuffer)) goto have_buffer;
+        if (ordering > -1) goto have_cjk;
+        if (fontname) goto have_base14;
+        goto have_noto;
+
+        // Base-14 font
+        have_base14:;
+        data = fz_lookup_base14_font(ctx, fontname, &size);
+        if (data) font = fz_new_font_from_memory(ctx, fontname, data, size, 0, 0);
+        if(font) goto fertig;
+
+        data = fz_lookup_builtin_font(gctx, fontname, is_bold, is_italic, &size);
+        if (data) font = fz_new_font_from_memory(ctx, fontname, data, size, 0, 0);
+        goto fertig;
+
+        // CJK font
+        have_cjk:;
+        data = fz_lookup_cjk_font(ctx, ordering, &size, &index);
+        if (data) font = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
+        goto fertig;
+
+        // fontfile
+        have_file:;
+        font = fz_new_font_from_file(ctx, NULL, fontfile, index, 0);
+        goto fertig;
+
+        // fontbuffer
+        have_buffer:;
+        res = JM_BufferFromBytes(ctx, fontbuffer);
+        font = fz_new_font_from_buffer(ctx, NULL, res, index, 0);
+        goto fertig;
+
+        // Check for NOTO font
+        have_noto:;
+        data = fz_lookup_noto_font(ctx, script, lang, &size, &index);
+        if (data) font = fz_new_font_from_memory(ctx, NULL, data, size, index, 0);
+        if (font) goto fertig;
+        font = fz_load_fallback_font(ctx, script, lang, is_serif, is_bold, is_italic);
+        goto fertig;
+
+        fertig:;
+        if (!font) THROWMSG("could not find a matching font");
+    }
+    fz_always(ctx)
+    {
+        fz_drop_buffer(ctx, res);
+    }
+    fz_catch(ctx)
+    {
+        fz_rethrow(ctx);
+    }
+    return font;
+}
+
 
 
 #define SETATTR(a, v) PyObject_SetAttrString(Widget, a, v)
@@ -9088,8 +9238,6 @@ SWIGINTERN PyObject *fz_document_s__delXmlMetadata(struct fz_document_s *self){
 SWIGINTERN PyObject *fz_document_s__getXrefString(struct fz_document_s *self,int xref,int compressed,int ascii){
             pdf_document *pdf = pdf_specifics(gctx, self); // conv doc to pdf
             pdf_obj *obj = NULL;
-            fz_buffer *res = NULL;
-            fz_output *out = NULL;
             PyObject *text = NULL;
             fz_try(gctx)
             {
@@ -9097,48 +9245,25 @@ SWIGINTERN PyObject *fz_document_s__getXrefString(struct fz_document_s *self,int
                 int xreflen = pdf_xref_len(gctx, pdf);
                 if (!INRANGE(xref, 1, xreflen-1))
                     THROWMSG("xref out of range");
-                res = fz_new_buffer(gctx, 1024);
-                out = fz_new_output_with_buffer(gctx, res);
                 obj = pdf_load_object(gctx, pdf, xref);
-                pdf_print_obj(gctx, out, pdf_resolve_indirect(gctx, obj),
-                              compressed, ascii);
-                text = JM_EscapeStrFromBuffer(gctx, res);
+                text = JM_object_to_string(gctx, pdf_resolve_indirect(gctx, obj), compressed, ascii);
             }
             fz_always(gctx)
             {
                 pdf_drop_obj(gctx, obj);
-                fz_drop_output(gctx, out);
-                fz_drop_buffer(gctx, res);
-                PyErr_Clear();
             }
-            fz_catch(gctx) return NULL;
+            fz_catch(gctx) return PyUnicode_FromString("");
             return text;
         }
 SWIGINTERN PyObject *fz_document_s__getTrailerString(struct fz_document_s *self,int compressed,int ascii){
             pdf_document *pdf = pdf_specifics(gctx, self); // conv doc to pdf
             if (!pdf) return_none;
-            pdf_obj *obj = NULL;
-            fz_buffer *res = NULL;
-            fz_output *out = NULL;
             PyObject *text = NULL;
             fz_try(gctx)
             {
-                obj = pdf_trailer(gctx, pdf);
-                if (obj)
-                {
-                    res = fz_new_buffer(gctx, 1024);
-                    out = fz_new_output_with_buffer(gctx, res);
-                    pdf_print_obj(gctx, out, obj, compressed, ascii);
-                    text = JM_EscapeStrFromBuffer(gctx, res);
-                }
-                else text = Py_None;
+                text = JM_object_to_string(gctx, pdf_trailer(gctx, pdf), compressed, ascii);
             }
-            fz_always(gctx)
-            {
-                fz_drop_output(gctx, out);
-                fz_drop_buffer(gctx, res);
-            }
-            fz_catch(gctx) return NULL;
+            fz_catch(gctx) return PyUnicode_FromString("PDF trailer damaged");
             return text;
         }
 SWIGINTERN PyObject *fz_document_s__getXrefStreamRaw(struct fz_document_s *self,int xref){
@@ -9890,95 +10015,136 @@ SWIGINTERN struct fz_pixmap_s *fz_page_s__makePixmap(struct fz_page_s *self,stru
             fz_catch(gctx) return NULL;
             return pix;
         }
-SWIGINTERN PyObject *fz_page_s_insertString(struct fz_page_s *self,PyObject *point,PyObject *text,float fontsize,char *fontname,char *fontfile,PyObject *fontbuffer,PyObject *color,char *language,int script,float opacity,int ordering,int overlay,int is_bold,int is_italic){
+SWIGINTERN PyObject *fz_page_s__write_text(struct fz_page_s *self,PyObject *matrix,PyObject *store,float opacity,PyObject *color){
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
-            fz_text_language lang = fz_text_language_from_string(language);
+            fz_rect mediabox = fz_bound_page(gctx, self);
             fz_text *text_obj = NULL;
             fz_device *dev = NULL;
             pdf_obj *resources = NULL;
             fz_buffer *contents = NULL;
-            PyObject *result=NULL, *cont_string=NULL, *max_nums=NULL;
-            int xref;
-            fz_rect text_rect;
-            fz_point last_point;
-            fz_font *user_font = NULL;
+            fz_buffer *text_buffer = NULL;
+            PyObject *result = NULL, *temp_py, *temp_py2;
+            PyObject *arg_rect = NULL, *arg_point, *cont_string;
+            PyObject *max_nums = NULL;
+            fz_matrix ctm = JM_matrix_from_py(matrix);
+            fz_matrix ictm = fz_invert_matrix(ctm);
+            float alpha = 1;
+            if (opacity >= 0 && opacity < 1)
+                alpha = opacity;
+            fz_colorspace *colorspace;
+            int ncol = 3;
+            float dev_color[4] = {0, 0, 0, 0};
+            if (color) JM_color_FromSequence(color, &ncol, dev_color);
+            if (ncol == 3) colorspace = fz_device_rgb(gctx);
+            if (ncol == 4) colorspace = fz_device_cmyk(gctx);
+            if (ncol == 1) colorspace = fz_device_gray(gctx);
             fz_try(gctx)
             {
-                assert_PDF(page);
-                user_font = JM_get_font(gctx, fontname, fontfile,
-                                                 fontbuffer, script,
-                                                 lang, ordering,
-                                                 is_bold, is_italic);
-                if (!user_font)
-                    THROWMSG("Could not insert desired font.");
-                fz_matrix ctm = fz_identity;
-                pdf_page_transform(gctx, page, NULL, &ctm);
-                fz_matrix ictm = fz_invert_matrix(ctm);
-                fz_point p = fz_transform_point(JM_point_from_py(point), ictm);
-                fz_matrix trm0 = {fontsize, 0, 0, fontsize, p.x, p.y};
-                fz_matrix trm = trm0;
-                text_rect.x0 = p.x;
-                text_rect.y0 = p.y;
-                text_rect.x1 = p.x;
-                text_rect.y1 = p.y + fontsize;
-                int wmode = 0;
-                float alpha = 1;
-                if (opacity >= 0 && opacity < 1)
-                    alpha = opacity;
-                int bidi_level = 0;
-                fz_colorspace *colorspace;
-                int ncol = 3;
-                float dev_color[4] = {0,0,0,0};
-                if (color) JM_color_FromSequence(color, &ncol, dev_color);
-                if (ncol == 3) colorspace = fz_device_rgb(gctx);
-                if (ncol == 4) colorspace = fz_device_cmyk(gctx);
-                if (ncol == 1) colorspace = fz_device_gray(gctx);
-                fz_rect mediabox = fz_bound_page(gctx, self);
+                text_buffer=fz_new_buffer(gctx, 1024);
+                int wmode=0, bidi_level=0;
+                fz_bidi_direction markup_dir = 0;
+                unsigned char *user_text;
+                fz_matrix trm, trm0;
+                fz_rect text_rect;
+                fz_point last_point, p;
+                fz_font *user_font = NULL;
+                PyObject *line;
+                Py_ssize_t i, n = PySequence_Size(store);
                 text_obj = fz_new_text(gctx);
-                fz_bidi_direction markup_dir = FZ_BIDI_LTR;
-
-                Py_ssize_t i, n = PySequence_Size(text);
                 for (i = 0; i < n; i++)
                 {
-                    PyObject *line = PySequence_GetItem(text, i);
-                    if (!line) continue;
-                    char *c = JM_Python_str_AsChar(line);
-                    Py_DECREF(line);
-                    if (!c) continue;
-                    trm = JM_show_string(gctx, text_obj,
-                            user_font, trm, c, wmode, bidi_level,
-                            markup_dir, lang, script);
-                    JM_Python_str_DelForPy3(c);
+                    line = PySequence_ITEM(store, i);
+                    //---------------------------------------------------------
+                    // new insertion point
+                    //---------------------------------------------------------
+                    temp_py = PySequence_ITEM(line, 0);
+                    p = fz_transform_point(JM_point_from_py(temp_py), ictm);
+                    Py_DECREF(temp_py);
+                    //---------------------------------------------------------
+                    // new output text
+                    //---------------------------------------------------------
+                    temp_py = PySequence_ITEM(line, 1);
+                    temp_py2 = PyUnicode_AsUTF8String(temp_py);
+                    if (PyErr_Occurred())
+                    {
+                        PyErr_Print();
+                        Py_XDECREF(temp_py);
+                        Py_XDECREF(temp_py2);
+                        THROWMSG("bad text data");
+                    }
+                    fz_clear_buffer(gctx, text_buffer);
+                    fz_append_string(gctx, text_buffer, PyBytes_AsString(temp_py2));
+                    fz_terminate_buffer(gctx, text_buffer);
+                    fz_buffer_storage(gctx, text_buffer, &user_text);
+                    Py_XDECREF(temp_py);
+                    Py_XDECREF(temp_py2);
+                    //---------------------------------------------------------
+                    // new font
+                    //---------------------------------------------------------
+                    temp_py = PySequence_ITEM(line, 2);
+                    if (EXISTS(temp_py))
+                    {
+                        void *argp2 = NULL;
+                        int rc = SWIG_ConvertPtr(temp_py, &argp2, SWIGTYPE_p_fz_font_s, 0 |  0 );
+                        user_font = (struct fz_font_s *)(argp2);
+                    }
+                    Py_DECREF(temp_py);
+                    //---------------------------------------------------------
+                    // new fontsize
+                    //---------------------------------------------------------
+                    temp_py = PySequence_ITEM(line, 3);
+                    int fsize = (float) PyFloat_AsDouble(temp_py);
+                    Py_DECREF(temp_py);
+                    //---------------------------------------------------------
+                    // new language
+                    //---------------------------------------------------------
+                    temp_py = PySequence_ITEM(line, 4);
+                    int lang = (int) PyInt_AsLong(temp_py);
+                    Py_DECREF(temp_py);
+                    trm = fz_make_matrix(fsize, 0, 0, fsize, p.x, p.y);
+                    if (i == 0)
+                    {
+                        trm0 = trm;
+                        text_rect = fz_make_rect(p.x, p.y, p.x, p.y + fsize*1.3);
+                    }
+                    text_rect = fz_include_point_in_rect(text_rect, p);
+                    trm = fz_show_string(gctx, text_obj,
+                            user_font, trm, user_text, wmode, bidi_level,
+                            markup_dir, lang);
                     last_point = fz_make_point(trm.e, trm.f);
                     text_rect = fz_include_point_in_rect(text_rect, last_point);
-                    trm.e = p.x;
-                    trm.f -= fontsize*1.2;
                 }
 
-                // let the pdf device write into dummy resources and content
+                arg_rect = JM_py_from_rect(fz_transform_rect(text_rect, ctm));
+                arg_point = JM_py_from_point(fz_transform_point(last_point, ctm));
                 resources = pdf_new_dict(gctx, page->doc, 5);
                 contents = fz_new_buffer(gctx, 1024);
-                dev = pdf_new_pdf_device(gctx, page->doc, fz_identity, mediabox, resources, contents);
+                dev = pdf_new_pdf_device(gctx, page->doc, fz_identity,
+                            mediabox, resources, contents);
+
                 fz_fill_text(gctx, dev, text_obj, trm0,
                     colorspace, dev_color, alpha, fz_default_color_params);
                 fz_close_device(gctx, dev);
 
-                // merge the created resources with the existing one
+                // copy created resources into the page /Resources
                 max_nums = JM_merge_resources(gctx, page, resources);
                 cont_string = JM_EscapeStrFromBuffer(gctx, contents);
-                text_rect = fz_transform_rect(text_rect, ctm);
-                last_point = fz_transform_point(last_point, ctm);
-                result = Py_BuildValue("(ffff)(ff)OO", text_rect.x0,
-                    text_rect.y0, text_rect.x1, text_rect.y1,
-                    last_point.x, last_point.y, max_nums, cont_string);
+                result = Py_BuildValue("OOOO",
+                                       arg_rect,
+                                       arg_point,
+                                       max_nums,
+                                       cont_string);
                 Py_DECREF(cont_string);
                 Py_DECREF(max_nums);
+                Py_DECREF(arg_rect);
+                Py_DECREF(arg_point);
             }
             fz_always(gctx)
             {
                 fz_drop_device(gctx, dev);
                 fz_drop_text(gctx, text_obj);
                 pdf_drop_obj(gctx, resources);
+                fz_drop_buffer(gctx, text_buffer);
                 fz_drop_buffer(gctx, contents);
             }
             fz_catch(gctx)
@@ -12124,6 +12290,75 @@ SWIGINTERN struct pdf_graft_map_s *new_pdf_graft_map_s(struct fz_document_s *doc
             fz_catch(gctx) return NULL;
             return map;
         }
+SWIGINTERN void delete_fz_font_s(struct fz_font_s *self){
+            DEBUGMSG1("font");
+            fz_drop_font(gctx, self);
+            DEBUGMSG2;
+        }
+SWIGINTERN struct fz_font_s *new_fz_font_s(char *fontname,char *fontfile,PyObject *fontbuffer,int script,char *language,int ordering,int is_bold,int is_italic,int is_serif){
+            fz_font *font = NULL;
+            fz_try(gctx)
+            {
+                fz_text_language lang = fz_text_language_from_string(language);
+                font = JM_get_font(gctx, fontname, fontfile,
+                           fontbuffer, script, lang, ordering,
+                           is_bold, is_italic, is_serif);
+            }
+            fz_catch(gctx) return NULL;
+            return font;
+        }
+SWIGINTERN PyObject *fz_font_s_unicode_to_glyph_name(struct fz_font_s *self,int c,char *language,int script){
+            fz_font *font;
+            fz_text_language lang = fz_text_language_from_string(language);
+            char name[32];
+            int gid = fz_encode_character_with_fallback(gctx, self, c,
+                          script, lang, &font);
+            fz_get_glyph_name(gctx, font, gid, name, sizeof(name));
+            return Py_BuildValue("s", name);
+        }
+SWIGINTERN PyObject *fz_font_s_glyph_name_to_unicode(struct fz_font_s *self,char const *name){
+            if (strncmp(name, "a", 1) == 0)
+                return Py_BuildValue("i", 65533);
+            return Py_BuildValue("i", fz_unicode_from_glyph_name(name));
+        }
+SWIGINTERN float fz_font_s_glyph_advance(struct fz_font_s *self,int chr,char *language,int script,int wmode){
+            fz_font *font;
+            fz_text_language lang = fz_text_language_from_string(language);
+            int gid = fz_encode_character_with_fallback(gctx, self, chr,
+                          script, lang, &font);
+            return fz_advance_glyph(gctx, font, gid, wmode);
+        }
+
+SWIGINTERNINLINE PyObject *
+SWIG_From_float  (float value)
+{    
+  return SWIG_From_double  (value);
+}
+
+SWIGINTERN PyObject *fz_font_s_has_glyph(struct fz_font_s *self,int chr,char *language,int script,int wmode){
+            fz_font *font;
+            fz_text_language lang = fz_text_language_from_string(language);
+            int gid = fz_encode_character_with_fallback(gctx, self, chr,
+                          script, lang, &font);
+            if (gid > 0) Py_RETURN_TRUE;
+            Py_RETURN_FALSE;
+        }
+SWIGINTERN PyObject *fz_font_s_flags(struct fz_font_s *self){
+            fz_font_flags_t *f = fz_font_flags(self);
+            if (!f) Py_RETURN_NONE;
+            return Py_BuildValue("{s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i}",
+            "mono", f->is_mono, "serif", f->is_serif, "bold", f->is_bold,
+            "italic", f->is_italic, "substitute", f->ft_substitute,
+            "stretch", f->ft_stretch, "fake-bold", f->fake_bold,
+            "fake-italic", f->fake_italic, "opentype", f->has_opentype,
+            "invalid-bbox", f->invalid_bbox);
+        }
+SWIGINTERN PyObject *fz_font_s_name(struct fz_font_s *self){
+            return JM_UnicodeFromStr(fz_font_name(gctx, self));
+        }
+SWIGINTERN PyObject *fz_font_s_bbox(struct fz_font_s *self){
+            return JM_py_from_rect(fz_font_bbox(gctx, self));
+        }
 SWIGINTERN PyObject *Tools_gen_id(struct Tools *self){
             JM_UNIQUE_ID += 1;
             if (JM_UNIQUE_ID < 0) JM_UNIQUE_ID = 1;
@@ -12287,6 +12522,9 @@ SWIGINTERN PyObject *Tools_mupdf_warnings(struct Tools *self,int reset){
             Py_INCREF(JM_mupdf_warnings_store);
             return JM_mupdf_warnings_store;
         }
+SWIGINTERN int Tools__int_from_language(struct Tools *self,char *language){
+            return fz_text_language_from_string(language);
+        }
 SWIGINTERN void Tools_reset_mupdf_warnings(struct Tools *self){
             Py_CLEAR(JM_mupdf_warnings_store);
             JM_mupdf_warnings_store = PyList_New(0);
@@ -12362,13 +12600,6 @@ SWIGINTERN float Tools_measure_string(struct Tools *self,char const *text,char c
             }
             return w * fontsize;
         }
-
-SWIGINTERNINLINE PyObject *
-SWIG_From_float  (float value)
-{    
-  return SWIG_From_double  (value);
-}
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -16029,55 +16260,24 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Page_insertString(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Page__write_text(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
   PyObject *arg2 = (PyObject *) 0 ;
   PyObject *arg3 = (PyObject *) 0 ;
-  float arg4 = (float) 11 ;
-  char *arg5 = (char *) NULL ;
-  char *arg6 = (char *) NULL ;
-  PyObject *arg7 = (PyObject *) NULL ;
-  PyObject *arg8 = (PyObject *) NULL ;
-  char *arg9 = (char *) NULL ;
-  int arg10 = (int) 0 ;
-  float arg11 = (float) 1 ;
-  int arg12 = (int) -1 ;
-  int arg13 = (int) 1 ;
-  int arg14 = (int) 0 ;
-  int arg15 = (int) 0 ;
+  float arg4 = (float) 1 ;
+  PyObject *arg5 = (PyObject *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   float val4 ;
   int ecode4 = 0 ;
-  int res5 ;
-  char *buf5 = 0 ;
-  int alloc5 = 0 ;
-  int res6 ;
-  char *buf6 = 0 ;
-  int alloc6 = 0 ;
-  int res9 ;
-  char *buf9 = 0 ;
-  int alloc9 = 0 ;
-  int val10 ;
-  int ecode10 = 0 ;
-  float val11 ;
-  int ecode11 = 0 ;
-  int val12 ;
-  int ecode12 = 0 ;
-  int val13 ;
-  int ecode13 = 0 ;
-  int val14 ;
-  int ecode14 = 0 ;
-  int val15 ;
-  int ecode15 = 0 ;
-  PyObject *swig_obj[15] ;
+  PyObject *swig_obj[5] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Page_insertString", 3, 15, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Page__write_text", 3, 5, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_page_s, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page_insertString" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__write_text" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
   }
   arg1 = (struct fz_page_s *)(argp1);
   arg2 = swig_obj[1];
@@ -16085,81 +16285,15 @@ SWIGINTERN PyObject *_wrap_Page_insertString(PyObject *SWIGUNUSEDPARM(self), PyO
   if (swig_obj[3]) {
     ecode4 = SWIG_AsVal_float(swig_obj[3], &val4);
     if (!SWIG_IsOK(ecode4)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Page_insertString" "', argument " "4"" of type '" "float""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Page__write_text" "', argument " "4"" of type '" "float""'");
     } 
     arg4 = (float)(val4);
   }
   if (swig_obj[4]) {
-    res5 = SWIG_AsCharPtrAndSize(swig_obj[4], &buf5, NULL, &alloc5);
-    if (!SWIG_IsOK(res5)) {
-      SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "Page_insertString" "', argument " "5"" of type '" "char *""'");
-    }
-    arg5 = (char *)(buf5);
-  }
-  if (swig_obj[5]) {
-    res6 = SWIG_AsCharPtrAndSize(swig_obj[5], &buf6, NULL, &alloc6);
-    if (!SWIG_IsOK(res6)) {
-      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "Page_insertString" "', argument " "6"" of type '" "char *""'");
-    }
-    arg6 = (char *)(buf6);
-  }
-  if (swig_obj[6]) {
-    arg7 = swig_obj[6];
-  }
-  if (swig_obj[7]) {
-    arg8 = swig_obj[7];
-  }
-  if (swig_obj[8]) {
-    res9 = SWIG_AsCharPtrAndSize(swig_obj[8], &buf9, NULL, &alloc9);
-    if (!SWIG_IsOK(res9)) {
-      SWIG_exception_fail(SWIG_ArgError(res9), "in method '" "Page_insertString" "', argument " "9"" of type '" "char *""'");
-    }
-    arg9 = (char *)(buf9);
-  }
-  if (swig_obj[9]) {
-    ecode10 = SWIG_AsVal_int(swig_obj[9], &val10);
-    if (!SWIG_IsOK(ecode10)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode10), "in method '" "Page_insertString" "', argument " "10"" of type '" "int""'");
-    } 
-    arg10 = (int)(val10);
-  }
-  if (swig_obj[10]) {
-    ecode11 = SWIG_AsVal_float(swig_obj[10], &val11);
-    if (!SWIG_IsOK(ecode11)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode11), "in method '" "Page_insertString" "', argument " "11"" of type '" "float""'");
-    } 
-    arg11 = (float)(val11);
-  }
-  if (swig_obj[11]) {
-    ecode12 = SWIG_AsVal_int(swig_obj[11], &val12);
-    if (!SWIG_IsOK(ecode12)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode12), "in method '" "Page_insertString" "', argument " "12"" of type '" "int""'");
-    } 
-    arg12 = (int)(val12);
-  }
-  if (swig_obj[12]) {
-    ecode13 = SWIG_AsVal_int(swig_obj[12], &val13);
-    if (!SWIG_IsOK(ecode13)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode13), "in method '" "Page_insertString" "', argument " "13"" of type '" "int""'");
-    } 
-    arg13 = (int)(val13);
-  }
-  if (swig_obj[13]) {
-    ecode14 = SWIG_AsVal_int(swig_obj[13], &val14);
-    if (!SWIG_IsOK(ecode14)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode14), "in method '" "Page_insertString" "', argument " "14"" of type '" "int""'");
-    } 
-    arg14 = (int)(val14);
-  }
-  if (swig_obj[14]) {
-    ecode15 = SWIG_AsVal_int(swig_obj[14], &val15);
-    if (!SWIG_IsOK(ecode15)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode15), "in method '" "Page_insertString" "', argument " "15"" of type '" "int""'");
-    } 
-    arg15 = (int)(val15);
+    arg5 = swig_obj[4];
   }
   {
-    result = (PyObject *)fz_page_s_insertString(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10,arg11,arg12,arg13,arg14,arg15);
+    result = (PyObject *)fz_page_s__write_text(arg1,arg2,arg3,arg4,arg5);
     if (!result)
     {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
@@ -16167,14 +16301,8 @@ SWIGINTERN PyObject *_wrap_Page_insertString(PyObject *SWIGUNUSEDPARM(self), PyO
     }
   }
   resultobj = result;
-  if (alloc5 == SWIG_NEWOBJ) free((char*)buf5);
-  if (alloc6 == SWIG_NEWOBJ) free((char*)buf6);
-  if (alloc9 == SWIG_NEWOBJ) free((char*)buf9);
   return resultobj;
 fail:
-  if (alloc5 == SWIG_NEWOBJ) free((char*)buf5);
-  if (alloc6 == SWIG_NEWOBJ) free((char*)buf6);
-  if (alloc9 == SWIG_NEWOBJ) free((char*)buf9);
   return NULL;
 }
 
@@ -20891,6 +21019,434 @@ SWIGINTERN PyObject *Graftmap_swiginit(PyObject *SWIGUNUSEDPARM(self), PyObject 
   return SWIG_Python_InitShadowInstance(args);
 }
 
+SWIGINTERN PyObject *_wrap_delete_Font(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_Font" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
+  }
+  arg1 = (struct fz_font_s *)(argp1);
+  delete_fz_font_s(arg1);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_Font(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  char *arg1 = (char *) NULL ;
+  char *arg2 = (char *) NULL ;
+  PyObject *arg3 = (PyObject *) NULL ;
+  int arg4 = (int) 0 ;
+  char *arg5 = (char *) NULL ;
+  int arg6 = (int) -1 ;
+  int arg7 = (int) 0 ;
+  int arg8 = (int) 0 ;
+  int arg9 = (int) 0 ;
+  int res1 ;
+  char *buf1 = 0 ;
+  int alloc1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  int res5 ;
+  char *buf5 = 0 ;
+  int alloc5 = 0 ;
+  int val6 ;
+  int ecode6 = 0 ;
+  int val7 ;
+  int ecode7 = 0 ;
+  int val8 ;
+  int ecode8 = 0 ;
+  int val9 ;
+  int ecode9 = 0 ;
+  PyObject *swig_obj[9] ;
+  struct fz_font_s *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "new_Font", 0, 9, swig_obj)) SWIG_fail;
+  if (swig_obj[0]) {
+    res1 = SWIG_AsCharPtrAndSize(swig_obj[0], &buf1, NULL, &alloc1);
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "new_Font" "', argument " "1"" of type '" "char *""'");
+    }
+    arg1 = (char *)(buf1);
+  }
+  if (swig_obj[1]) {
+    res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "new_Font" "', argument " "2"" of type '" "char *""'");
+    }
+    arg2 = (char *)(buf2);
+  }
+  if (swig_obj[2]) {
+    arg3 = swig_obj[2];
+  }
+  if (swig_obj[3]) {
+    ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+    if (!SWIG_IsOK(ecode4)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "new_Font" "', argument " "4"" of type '" "int""'");
+    } 
+    arg4 = (int)(val4);
+  }
+  if (swig_obj[4]) {
+    res5 = SWIG_AsCharPtrAndSize(swig_obj[4], &buf5, NULL, &alloc5);
+    if (!SWIG_IsOK(res5)) {
+      SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "new_Font" "', argument " "5"" of type '" "char *""'");
+    }
+    arg5 = (char *)(buf5);
+  }
+  if (swig_obj[5]) {
+    ecode6 = SWIG_AsVal_int(swig_obj[5], &val6);
+    if (!SWIG_IsOK(ecode6)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "new_Font" "', argument " "6"" of type '" "int""'");
+    } 
+    arg6 = (int)(val6);
+  }
+  if (swig_obj[6]) {
+    ecode7 = SWIG_AsVal_int(swig_obj[6], &val7);
+    if (!SWIG_IsOK(ecode7)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode7), "in method '" "new_Font" "', argument " "7"" of type '" "int""'");
+    } 
+    arg7 = (int)(val7);
+  }
+  if (swig_obj[7]) {
+    ecode8 = SWIG_AsVal_int(swig_obj[7], &val8);
+    if (!SWIG_IsOK(ecode8)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode8), "in method '" "new_Font" "', argument " "8"" of type '" "int""'");
+    } 
+    arg8 = (int)(val8);
+  }
+  if (swig_obj[8]) {
+    ecode9 = SWIG_AsVal_int(swig_obj[8], &val9);
+    if (!SWIG_IsOK(ecode9)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode9), "in method '" "new_Font" "', argument " "9"" of type '" "int""'");
+    } 
+    arg9 = (int)(val9);
+  }
+  {
+    result = (struct fz_font_s *)new_fz_font_s(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_fz_font_s, SWIG_POINTER_NEW |  0 );
+  if (alloc1 == SWIG_NEWOBJ) free((char*)buf1);
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  if (alloc5 == SWIG_NEWOBJ) free((char*)buf5);
+  return resultobj;
+fail:
+  if (alloc1 == SWIG_NEWOBJ) free((char*)buf1);
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  if (alloc5 == SWIG_NEWOBJ) free((char*)buf5);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_unicode_to_glyph_name(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
+  int arg2 ;
+  char *arg3 = (char *) NULL ;
+  int arg4 = (int) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int res3 ;
+  char *buf3 = 0 ;
+  int alloc3 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  PyObject *swig_obj[4] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Font_unicode_to_glyph_name", 2, 4, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_unicode_to_glyph_name" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
+  }
+  arg1 = (struct fz_font_s *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Font_unicode_to_glyph_name" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  if (swig_obj[2]) {
+    res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Font_unicode_to_glyph_name" "', argument " "3"" of type '" "char *""'");
+    }
+    arg3 = (char *)(buf3);
+  }
+  if (swig_obj[3]) {
+    ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+    if (!SWIG_IsOK(ecode4)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Font_unicode_to_glyph_name" "', argument " "4"" of type '" "int""'");
+    } 
+    arg4 = (int)(val4);
+  }
+  result = (PyObject *)fz_font_s_unicode_to_glyph_name(arg1,arg2,arg3,arg4);
+  resultobj = result;
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return resultobj;
+fail:
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_glyph_name_to_unicode(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
+  char *arg2 = (char *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Font_glyph_name_to_unicode", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_glyph_name_to_unicode" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
+  }
+  arg1 = (struct fz_font_s *)(argp1);
+  res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Font_glyph_name_to_unicode" "', argument " "2"" of type '" "char const *""'");
+  }
+  arg2 = (char *)(buf2);
+  result = (PyObject *)fz_font_s_glyph_name_to_unicode(arg1,(char const *)arg2);
+  resultobj = result;
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_glyph_advance(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
+  int arg2 ;
+  char *arg3 = (char *) NULL ;
+  int arg4 = (int) 0 ;
+  int arg5 = (int) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int res3 ;
+  char *buf3 = 0 ;
+  int alloc3 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  int val5 ;
+  int ecode5 = 0 ;
+  PyObject *swig_obj[5] ;
+  float result;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Font_glyph_advance", 2, 5, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_glyph_advance" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
+  }
+  arg1 = (struct fz_font_s *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Font_glyph_advance" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  if (swig_obj[2]) {
+    res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Font_glyph_advance" "', argument " "3"" of type '" "char *""'");
+    }
+    arg3 = (char *)(buf3);
+  }
+  if (swig_obj[3]) {
+    ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+    if (!SWIG_IsOK(ecode4)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Font_glyph_advance" "', argument " "4"" of type '" "int""'");
+    } 
+    arg4 = (int)(val4);
+  }
+  if (swig_obj[4]) {
+    ecode5 = SWIG_AsVal_int(swig_obj[4], &val5);
+    if (!SWIG_IsOK(ecode5)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "Font_glyph_advance" "', argument " "5"" of type '" "int""'");
+    } 
+    arg5 = (int)(val5);
+  }
+  result = (float)fz_font_s_glyph_advance(arg1,arg2,arg3,arg4,arg5);
+  resultobj = SWIG_From_float((float)(result));
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return resultobj;
+fail:
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_has_glyph(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
+  int arg2 ;
+  char *arg3 = (char *) NULL ;
+  int arg4 = (int) 0 ;
+  int arg5 = (int) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int res3 ;
+  char *buf3 = 0 ;
+  int alloc3 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  int val5 ;
+  int ecode5 = 0 ;
+  PyObject *swig_obj[5] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Font_has_glyph", 2, 5, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_has_glyph" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
+  }
+  arg1 = (struct fz_font_s *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Font_has_glyph" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  if (swig_obj[2]) {
+    res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Font_has_glyph" "', argument " "3"" of type '" "char *""'");
+    }
+    arg3 = (char *)(buf3);
+  }
+  if (swig_obj[3]) {
+    ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+    if (!SWIG_IsOK(ecode4)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Font_has_glyph" "', argument " "4"" of type '" "int""'");
+    } 
+    arg4 = (int)(val4);
+  }
+  if (swig_obj[4]) {
+    ecode5 = SWIG_AsVal_int(swig_obj[4], &val5);
+    if (!SWIG_IsOK(ecode5)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "Font_has_glyph" "', argument " "5"" of type '" "int""'");
+    } 
+    arg5 = (int)(val5);
+  }
+  result = (PyObject *)fz_font_s_has_glyph(arg1,arg2,arg3,arg4,arg5);
+  resultobj = result;
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return resultobj;
+fail:
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_flags(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_flags" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
+  }
+  arg1 = (struct fz_font_s *)(argp1);
+  result = (PyObject *)fz_font_s_flags(arg1);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_name(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_name" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
+  }
+  arg1 = (struct fz_font_s *)(argp1);
+  result = (PyObject *)fz_font_s_name(arg1);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_bbox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_bbox" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
+  }
+  arg1 = (struct fz_font_s *)(argp1);
+  result = (PyObject *)fz_font_s_bbox(arg1);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *Font_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *obj;
+  if (!SWIG_Python_UnpackTuple(args, "swigregister", 1, 1, &obj)) return NULL;
+  SWIG_TypeNewClientData(SWIGTYPE_p_fz_font_s, SWIG_NewClientData(obj));
+  return SWIG_Py_Void();
+}
+
+SWIGINTERN PyObject *Font_swiginit(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  return SWIG_Python_InitShadowInstance(args);
+}
+
 SWIGINTERN PyObject *_wrap_Tools_gen_id(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
@@ -21614,6 +22170,39 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Tools__int_from_language(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Tools *arg1 = (struct Tools *) 0 ;
+  char *arg2 = (char *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  PyObject *swig_obj[2] ;
+  int result;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Tools__int_from_language", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools__int_from_language" "', argument " "1"" of type '" "struct Tools *""'"); 
+  }
+  arg1 = (struct Tools *)(argp1);
+  res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Tools__int_from_language" "', argument " "2"" of type '" "char *""'");
+  }
+  arg2 = (char *)(buf2);
+  result = (int)Tools__int_from_language(arg1,arg2);
+  resultobj = SWIG_From_int((int)(result));
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Tools_reset_mupdf_warnings(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
@@ -22040,7 +22629,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page_getDisplayList", _wrap_Page_getDisplayList, METH_VARARGS, "Page_getDisplayList(self, annots=1) -> DisplayList"},
 	 { "Page__apply_redactions", _wrap_Page__apply_redactions, METH_O, "Page__apply_redactions(self) -> PyObject *"},
 	 { "Page__makePixmap", _wrap_Page__makePixmap, METH_VARARGS, "Page__makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"},
-	 { "Page_insertString", _wrap_Page_insertString, METH_VARARGS, "Insert a string on a page"},
+	 { "Page__write_text", _wrap_Page__write_text, METH_VARARGS, "Page__write_text(self, matrix, store, opacity=1, color=None) -> PyObject *"},
 	 { "Page_setMediaBox", _wrap_Page_setMediaBox, METH_VARARGS, "Page_setMediaBox(self, rect) -> PyObject *"},
 	 { "Page_setCropBox", _wrap_Page_setCropBox, METH_VARARGS, "Page_setCropBox(self, rect) -> PyObject *"},
 	 { "Page_loadLinks", _wrap_Page_loadLinks, METH_O, "Page_loadLinks(self) -> Link"},
@@ -22203,6 +22792,17 @@ static PyMethodDef SwigMethods[] = {
 	 { "new_Graftmap", _wrap_new_Graftmap, METH_O, "new_Graftmap(doc) -> Graftmap"},
 	 { "Graftmap_swigregister", Graftmap_swigregister, METH_O, NULL},
 	 { "Graftmap_swiginit", Graftmap_swiginit, METH_VARARGS, NULL},
+	 { "delete_Font", _wrap_delete_Font, METH_O, "delete_Font(self)"},
+	 { "new_Font", _wrap_new_Font, METH_VARARGS, "new_Font(fontname=None, fontfile=None, fontbuffer=None, script=0, language=None, ordering=-1, is_bold=0, is_italic=0, is_serif=0) -> Font"},
+	 { "Font_unicode_to_glyph_name", _wrap_Font_unicode_to_glyph_name, METH_VARARGS, "Return the glyph name of a uncode."},
+	 { "Font_glyph_name_to_unicode", _wrap_Font_glyph_name_to_unicode, METH_VARARGS, "Return the unicode for a glyph name."},
+	 { "Font_glyph_advance", _wrap_Font_glyph_advance, METH_VARARGS, "Return the glyph advance of a character."},
+	 { "Font_has_glyph", _wrap_Font_has_glyph, METH_VARARGS, "Returns whether the font has a glyph for this character."},
+	 { "Font_flags", _wrap_Font_flags, METH_O, "Font_flags(self) -> PyObject *"},
+	 { "Font_name", _wrap_Font_name, METH_O, "Font_name(self) -> PyObject *"},
+	 { "Font_bbox", _wrap_Font_bbox, METH_O, "Font_bbox(self) -> PyObject *"},
+	 { "Font_swigregister", Font_swigregister, METH_O, NULL},
+	 { "Font_swiginit", Font_swiginit, METH_VARARGS, NULL},
 	 { "Tools_gen_id", _wrap_Tools_gen_id, METH_O, "Return a unique positive integer."},
 	 { "Tools_set_icc", _wrap_Tools_set_icc, METH_VARARGS, "Set ICC color handling on or off."},
 	 { "Tools_store_shrink", _wrap_Tools_store_shrink, METH_VARARGS, "Free 'percent' of current store size."},
@@ -22226,6 +22826,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools__insert_contents", _wrap_Tools__insert_contents, METH_VARARGS, "Make a new /Contents object for a page from bytes, and return its xref."},
 	 { "Tools_mupdf_version", _wrap_Tools_mupdf_version, METH_O, "Return compiled MuPDF version."},
 	 { "Tools_mupdf_warnings", _wrap_Tools_mupdf_warnings, METH_VARARGS, "Return the MuPDF warnings store."},
+	 { "Tools__int_from_language", _wrap_Tools__int_from_language, METH_VARARGS, "Return integer language code."},
 	 { "Tools_reset_mupdf_warnings", _wrap_Tools_reset_mupdf_warnings, METH_O, "Reset MuPDF warnings."},
 	 { "Tools_mupdf_display_errors", _wrap_Tools_mupdf_display_errors, METH_VARARGS, "Set MuPDF error display to True or False."},
 	 { "Tools__transform_rect", _wrap_Tools__transform_rect, METH_VARARGS, "Transform rectangle with matrix."},
@@ -22256,6 +22857,7 @@ static swig_type_info _swigt__p_char = {"_p_char", "char *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_fz_colorspace_s = {"_p_fz_colorspace_s", "struct fz_colorspace_s *|fz_colorspace_s *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_fz_display_list_s = {"_p_fz_display_list_s", "struct fz_display_list_s *|fz_display_list_s *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_fz_document_s = {"_p_fz_document_s", "struct fz_document_s *|fz_document_s *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_fz_font_s = {"_p_fz_font_s", "struct fz_font_s *|fz_font_s *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_fz_link_s = {"_p_fz_link_s", "struct fz_link_s *|fz_link_s *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_fz_outline_s = {"_p_fz_outline_s", "struct fz_outline_s *|fz_outline_s *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_fz_page_s = {"_p_fz_page_s", "struct fz_page_s *|fz_page_s *", 0, 0, (void*)0, 0};
@@ -22271,6 +22873,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_fz_colorspace_s,
   &_swigt__p_fz_display_list_s,
   &_swigt__p_fz_document_s,
+  &_swigt__p_fz_font_s,
   &_swigt__p_fz_link_s,
   &_swigt__p_fz_outline_s,
   &_swigt__p_fz_page_s,
@@ -22286,6 +22889,7 @@ static swig_cast_info _swigc__p_char[] = {  {&_swigt__p_char, 0, 0, 0},{0, 0, 0,
 static swig_cast_info _swigc__p_fz_colorspace_s[] = {  {&_swigt__p_fz_colorspace_s, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_fz_display_list_s[] = {  {&_swigt__p_fz_display_list_s, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_fz_document_s[] = {  {&_swigt__p_fz_document_s, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_fz_font_s[] = {  {&_swigt__p_fz_font_s, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_fz_link_s[] = {  {&_swigt__p_fz_link_s, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_fz_outline_s[] = {  {&_swigt__p_fz_outline_s, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_fz_page_s[] = {  {&_swigt__p_fz_page_s, 0, 0, 0},{0, 0, 0, 0}};
@@ -22301,6 +22905,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_fz_colorspace_s,
   _swigc__p_fz_display_list_s,
   _swigc__p_fz_document_s,
+  _swigc__p_fz_font_s,
   _swigc__p_fz_link_s,
   _swigc__p_fz_outline_s,
   _swigc__p_fz_page_s,
@@ -23309,6 +23914,159 @@ SWIG_init(void) {
   SWIG_Python_SetConstant(d, "TEXT_FONT_SERIFED",SWIG_From_int((int)(4)));
   SWIG_Python_SetConstant(d, "TEXT_FONT_MONOSPACED",SWIG_From_int((int)(8)));
   SWIG_Python_SetConstant(d, "TEXT_FONT_BOLD",SWIG_From_int((int)(16)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_COMMON",SWIG_From_int((int)(0)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_LATIN",SWIG_From_int((int)(1)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_GREEK",SWIG_From_int((int)(2)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_CYRILLIC",SWIG_From_int((int)(3)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_ARMENIAN",SWIG_From_int((int)(4)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_HEBREW",SWIG_From_int((int)(5)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_ARABIC",SWIG_From_int((int)(6)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SYRIAC",SWIG_From_int((int)(7)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_THAANA",SWIG_From_int((int)(8)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_DEVANAGARI",SWIG_From_int((int)(9)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BENGALI",SWIG_From_int((int)(10)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_GURMUKHI",SWIG_From_int((int)(11)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_GUJARATI",SWIG_From_int((int)(12)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_ORIYA",SWIG_From_int((int)(13)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TAMIL",SWIG_From_int((int)(14)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TELUGU",SWIG_From_int((int)(15)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_KANNADA",SWIG_From_int((int)(16)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MALAYALAM",SWIG_From_int((int)(17)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SINHALA",SWIG_From_int((int)(18)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_THAI",SWIG_From_int((int)(19)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_LAO",SWIG_From_int((int)(20)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TIBETAN",SWIG_From_int((int)(21)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MYANMAR",SWIG_From_int((int)(22)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_GEORGIAN",SWIG_From_int((int)(23)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_HANGUL",SWIG_From_int((int)(24)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_ETHIOPIC",SWIG_From_int((int)(25)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_CHEROKEE",SWIG_From_int((int)(26)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_CANADIAN_ABORIGINAL",SWIG_From_int((int)(27)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OGHAM",SWIG_From_int((int)(28)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_RUNIC",SWIG_From_int((int)(29)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_KHMER",SWIG_From_int((int)(30)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MONGOLIAN",SWIG_From_int((int)(31)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_HIRAGANA",SWIG_From_int((int)(32)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_KATAKANA",SWIG_From_int((int)(33)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BOPOMOFO",SWIG_From_int((int)(34)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_HAN",SWIG_From_int((int)(35)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_YI",SWIG_From_int((int)(36)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OLD_ITALIC",SWIG_From_int((int)(37)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_GOTHIC",SWIG_From_int((int)(38)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_DESERET",SWIG_From_int((int)(39)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_INHERITED",SWIG_From_int((int)(40)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TAGALOG",SWIG_From_int((int)(41)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_HANUNOO",SWIG_From_int((int)(42)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BUHID",SWIG_From_int((int)(43)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TAGBANWA",SWIG_From_int((int)(44)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_LIMBU",SWIG_From_int((int)(45)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TAI_LE",SWIG_From_int((int)(46)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_LINEAR_B",SWIG_From_int((int)(47)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_UGARITIC",SWIG_From_int((int)(48)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SHAVIAN",SWIG_From_int((int)(49)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OSMANYA",SWIG_From_int((int)(50)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_CYPRIOT",SWIG_From_int((int)(51)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BRAILLE",SWIG_From_int((int)(52)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BUGINESE",SWIG_From_int((int)(53)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_COPTIC",SWIG_From_int((int)(54)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_NEW_TAI_LUE",SWIG_From_int((int)(55)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_GLAGOLITIC",SWIG_From_int((int)(56)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TIFINAGH",SWIG_From_int((int)(57)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SYLOTI_NAGRI",SWIG_From_int((int)(58)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OLD_PERSIAN",SWIG_From_int((int)(59)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_KHAROSHTHI",SWIG_From_int((int)(60)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BALINESE",SWIG_From_int((int)(61)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_CUNEIFORM",SWIG_From_int((int)(62)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_PHOENICIAN",SWIG_From_int((int)(63)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_PHAGS_PA",SWIG_From_int((int)(64)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_NKO",SWIG_From_int((int)(65)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SUNDANESE",SWIG_From_int((int)(66)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_LEPCHA",SWIG_From_int((int)(67)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OL_CHIKI",SWIG_From_int((int)(68)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_VAI",SWIG_From_int((int)(69)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SAURASHTRA",SWIG_From_int((int)(70)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_KAYAH_LI",SWIG_From_int((int)(71)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_REJANG",SWIG_From_int((int)(72)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_LYCIAN",SWIG_From_int((int)(73)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_CARIAN",SWIG_From_int((int)(74)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_LYDIAN",SWIG_From_int((int)(75)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_CHAM",SWIG_From_int((int)(76)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TAI_THAM",SWIG_From_int((int)(77)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TAI_VIET",SWIG_From_int((int)(78)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_AVESTAN",SWIG_From_int((int)(79)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_EGYPTIAN_HIEROGLYPHS",SWIG_From_int((int)(80)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SAMARITAN",SWIG_From_int((int)(81)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_LISU",SWIG_From_int((int)(82)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BAMUM",SWIG_From_int((int)(83)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_JAVANESE",SWIG_From_int((int)(84)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MEETEI_MAYEK",SWIG_From_int((int)(85)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_IMPERIAL_ARAMAIC",SWIG_From_int((int)(86)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OLD_SOUTH_ARABIAN",SWIG_From_int((int)(87)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_INSCRIPTIONAL_PARTHIAN",SWIG_From_int((int)(88)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_INSCRIPTIONAL_PAHLAVI",SWIG_From_int((int)(89)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OLD_TURKIC",SWIG_From_int((int)(90)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_KAITHI",SWIG_From_int((int)(91)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BATAK",SWIG_From_int((int)(92)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BRAHMI",SWIG_From_int((int)(93)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MANDAIC",SWIG_From_int((int)(94)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_CHAKMA",SWIG_From_int((int)(95)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MEROITIC_CURSIVE",SWIG_From_int((int)(96)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MEROITIC_HIEROGLYPHS",SWIG_From_int((int)(97)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MIAO",SWIG_From_int((int)(98)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SHARADA",SWIG_From_int((int)(99)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SORA_SOMPENG",SWIG_From_int((int)(100)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TAKRI",SWIG_From_int((int)(101)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_UNKNOWN",SWIG_From_int((int)(102)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BASSA_VAH",SWIG_From_int((int)(103)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_CAUCASIAN_ALBANIAN",SWIG_From_int((int)(104)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_DUPLOYAN",SWIG_From_int((int)(105)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_ELBASAN",SWIG_From_int((int)(106)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_GRANTHA",SWIG_From_int((int)(107)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_KHOJKI",SWIG_From_int((int)(108)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_KHUDAWADI",SWIG_From_int((int)(109)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_LINEAR_A",SWIG_From_int((int)(110)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MAHAJANI",SWIG_From_int((int)(111)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MANICHAEAN",SWIG_From_int((int)(112)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MENDE_KIKAKUI",SWIG_From_int((int)(113)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MODI",SWIG_From_int((int)(114)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MRO",SWIG_From_int((int)(115)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_NABATAEAN",SWIG_From_int((int)(116)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OLD_NORTH_ARABIAN",SWIG_From_int((int)(117)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OLD_PERMIC",SWIG_From_int((int)(118)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_PAHAWH_HMONG",SWIG_From_int((int)(119)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_PALMYRENE",SWIG_From_int((int)(120)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_PAU_CIN_HAU",SWIG_From_int((int)(121)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_PSALTER_PAHLAVI",SWIG_From_int((int)(122)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SIDDHAM",SWIG_From_int((int)(123)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TIRHUTA",SWIG_From_int((int)(124)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_WARANG_CITI",SWIG_From_int((int)(125)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_AHOM",SWIG_From_int((int)(126)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_ANATOLIAN_HIEROGLYPHS",SWIG_From_int((int)(127)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_HATRAN",SWIG_From_int((int)(128)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MULTANI",SWIG_From_int((int)(129)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OLD_HUNGARIAN",SWIG_From_int((int)(130)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SIGNWRITING",SWIG_From_int((int)(131)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_ADLAM",SWIG_From_int((int)(132)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_BHAIKSUKI",SWIG_From_int((int)(133)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MARCHEN",SWIG_From_int((int)(134)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_NEWA",SWIG_From_int((int)(135)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OSAGE",SWIG_From_int((int)(136)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_TANGUT",SWIG_From_int((int)(137)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MASARAM_GONDI",SWIG_From_int((int)(138)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_NUSHU",SWIG_From_int((int)(139)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SOYOMBO",SWIG_From_int((int)(140)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_ZANABAZAR_SQUARE",SWIG_From_int((int)(141)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_DOGRA",SWIG_From_int((int)(142)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_GUNJALA_GONDI",SWIG_From_int((int)(143)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_HANIFI_ROHINGYA",SWIG_From_int((int)(144)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MAKASAR",SWIG_From_int((int)(145)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_MEDEFAIDRIN",SWIG_From_int((int)(146)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_OLD_SOGDIAN",SWIG_From_int((int)(147)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_SOGDIAN",SWIG_From_int((int)(148)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_ELYMAIC",SWIG_From_int((int)(149)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_NANDINAGARI",SWIG_From_int((int)(150)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_NYIAKENG_PUACHUE_HMONG",SWIG_From_int((int)(151)));
+  SWIG_Python_SetConstant(d, "UCDN_SCRIPT_WANCHO",SWIG_From_int((int)(152)));
 #if PY_VERSION_HEX >= 0x03000000
   return m;
 #else

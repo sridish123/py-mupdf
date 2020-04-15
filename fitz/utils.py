@@ -13,6 +13,38 @@ The following is a collection of functions to extend PyMupdf.
 """
 
 
+def newTextwriter(page, opacity=1, color=None):
+    return Textwriter(page, opacity=opacity, color=color)
+
+
+def writeText(
+    page, rect=None, writers=None, overlay=True, keep_proportion=True, rotate=0
+):
+    if writers in (None, (), []):
+        raise ValueError("specify at least one Textwriter")
+    clip = writers[0].textRect
+    textdoc = Document()
+    tpage = textdoc.newPage(width=page.rect.width, height=page.rect.height)
+    for writer in writers:
+        writer.page = tpage
+        writer.doc = textdoc
+        clip |= writer.textRect
+        writer.writeText()
+    if rect is None:
+        rect = clip
+    page.showPDFpage(
+        rect,
+        textdoc,
+        0,
+        overlay=overlay,
+        keep_proportion=keep_proportion,
+        rotate=rotate,
+        clip=clip,
+    )
+    textdoc = None
+    tpage = None
+
+
 def showPDFpage(
     page,
     rect,
@@ -72,7 +104,7 @@ def showPDFpage(
 
         m *= Matrix(fw, fh)  # concat scale matrix
         m *= Matrix(1, 0, 0, 1, tmp.x, tmp.y)  # concat move to target center
-        return m
+        return JM_TUPLE(m)
 
     CheckParent(page)
     doc = page.parent
@@ -105,7 +137,7 @@ def showPDFpage(
     # list of existing /Form /XObjects
     ilst = [i[1] for i in doc._getPageInfo(page.number, 3)]
 
-    # create a name that is not in that list
+    # create a name not in that list
     n = "fzFrm"
     i = 0
     _imgname = n + "0"
@@ -2383,9 +2415,128 @@ def getCharWidths(doc, xref, limit=256, idx=0):
     return glyphs
 
 
+class Textwriter(object):
+    """Create a new text writer object."""
+
+    def __init__(self, page, opacity=1, color=None):
+        CheckParent(page)
+        self.page = page
+        self.doc = page.parent
+        if not self.doc.isPDF:
+            raise ValueError("not a PDF")
+
+        self.pctm = page._getTransformation()  # page transf. matrix
+        self.textStore = []
+        self.textRect = Rect()
+        self.lastPoint = Point()
+        self.opacity = opacity
+        self.color = color
+
+    def validate(self, item):
+        pos, text, font, fontsize, lang = item
+        if not (type(pos) is Point or len(pos) == 2):
+            raise ValueError("position must be point-like")
+        pos = Point(pos)
+        if str is bytes and type(text) is str:
+            raise ValueError("text must be unicode not str")
+        if type(font) is not Font and font is not None:
+            raise ValueError("font must be a Font")
+        if fontsize.__float__() <= 0:
+            raise ValueError("fontsize must be positive")
+        if lang is None:
+            lang = ""
+        lang = TOOLS._int_from_language("")
+        if font is None:
+            font = Font("helv")
+        return pos, text, font, fontsize, lang
+
+    def append(self, position, text, font=None, fontsize=11, language=None):
+        """Add a new string to the internal store.
+
+        Args:
+            position: (point-like) the bottom left coordinates of the first
+                       character bbox.
+            text: (str) the text string (UTF-8 unicode)
+            font: (Font) the font to use. Default is 'Helvetica'
+            fontsize: (float > 0) the fontsize to use
+            language: (str) to help interpreting the text - seems not really
+                       be used by the library. Use ISO 639, 1, 2, 3 or 5
+        Returns:
+            Tuple (pos, index), where 'pos' is the bottom right point of the
+            last written character and 'idx' is the index in the store list.
+        Remarks:
+            The method only maintains a list of text strings which shall be
+            written. The actual output happens in method 'write'.
+        """
+        pos, text, font, fontsize, lang = self.validate(
+            (position, text, font, fontsize, language)
+        )
+        if self.textStore == []:
+            self.lastPoint = Point(position)
+            self.textRect = Rect(self.lastPoint, self.lastPoint)
+            self.textRect.y0 -= fontsize * 1.3
+
+        tl = font.text_length(text, fontsize)
+        self.textRect |= pos
+        self.lastPoint = pos + (tl, 0)
+        self.textRect |= self.lastPoint
+        self.textStore.append((pos, text, font, fontsize, lang))
+        return (Rect(JM_TUPLE(self.textRect)), Point(JM_TUPLE(self.lastPoint)))
+
+    def computeLayout(self):
+        """Recalculate textRect and lastPoint."""
+        if self.textStore == []:
+            raise ValueError("text store is empty")
+        lastPoint = self.textStore[0][0]
+        textRect = Rect(lastPoint, lastPoint)
+        for line in self.textStore:
+            pos, text, font, fsize = line[:4]
+            topleft = pos + (0, -fsize * 1.3)
+            lastPoint = pos + (font.text_length(text, fsize), 0)
+            textRect |= topleft
+            textRect |= lastPoint
+        self.textRect = textRect
+        self.lastPoint = lastPoint
+
+    def writeText(self, overlay=True):
+        """Write the 'textStore' to the PDF page.
+
+        Args:
+            overlay: (bool) put in foreground or background
+        Returns:
+            A tuple (rect, point), where 'rect' is the overall area covered by
+            all text, and 'point' are the coordinates of the last character's
+            bbox bottom right point.
+        """
+        if len(self.textStore) == 0:
+            raise ValueError("text store is empty")
+        for line in self.textStore:
+            pos, text, font, fsize, lang = self.validate(line)
+        val = self.page._write_text(self.pctm, self.textStore, self.opacity, self.color)
+        textRect = val[0]
+        lastPoint = val[1]
+        max_alp, max_font = val[2]
+        old_cont_lines = val[3].splitlines()
+        new_cont_lines = ["q"]
+        for line in old_cont_lines:
+            if line.endswith(" cm"):
+                continue
+            if line.endswith(" gs"):
+                alp = int(line.split()[0][4:]) + max_alp
+                line = "/Alp%i gs" % alp
+            elif line.endswith(" Tf"):
+                temp = line.split()
+                font = int(temp[0][2:]) + max_font
+                line = " ".join(["/F%i" % font] + temp[1:])
+            new_cont_lines.append(line)
+        new_cont_lines.append("Q")
+        content = "\n".join(new_cont_lines).encode("utf-8")
+        TOOLS._insert_contents(self.page, content, overlay=overlay)
+        return (Rect(JM_TUPLE(textRect)), Point(JM_TUPLE(lastPoint)))
+
+
 class Shape(object):
-    """Create a new shape.
-    """
+    """Create a new shape."""
 
     @staticmethod
     def horizontal_angle(C, P):

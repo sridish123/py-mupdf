@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.16.0"
-VersionBind = "1.16.17"
-VersionDate = "2020-03-31 08:53:33"
-version = (VersionBind, VersionFitz, "20200331085333")
+VersionBind = "1.16.18"
+VersionDate = "2020-04-09 13:35:20"
+version = (VersionBind, VersionFitz, "20200409133520")
 
 EPSILON = _fitz.EPSILON
 
@@ -475,6 +475,312 @@ TEXT_FONT_SERIFED = _fitz.TEXT_FONT_SERIFED
 TEXT_FONT_MONOSPACED = _fitz.TEXT_FONT_MONOSPACED
 
 TEXT_FONT_BOLD = _fitz.TEXT_FONT_BOLD
+
+UCDN_SCRIPT_COMMON = _fitz.UCDN_SCRIPT_COMMON
+
+UCDN_SCRIPT_LATIN = _fitz.UCDN_SCRIPT_LATIN
+
+UCDN_SCRIPT_GREEK = _fitz.UCDN_SCRIPT_GREEK
+
+UCDN_SCRIPT_CYRILLIC = _fitz.UCDN_SCRIPT_CYRILLIC
+
+UCDN_SCRIPT_ARMENIAN = _fitz.UCDN_SCRIPT_ARMENIAN
+
+UCDN_SCRIPT_HEBREW = _fitz.UCDN_SCRIPT_HEBREW
+
+UCDN_SCRIPT_ARABIC = _fitz.UCDN_SCRIPT_ARABIC
+
+UCDN_SCRIPT_SYRIAC = _fitz.UCDN_SCRIPT_SYRIAC
+
+UCDN_SCRIPT_THAANA = _fitz.UCDN_SCRIPT_THAANA
+
+UCDN_SCRIPT_DEVANAGARI = _fitz.UCDN_SCRIPT_DEVANAGARI
+
+UCDN_SCRIPT_BENGALI = _fitz.UCDN_SCRIPT_BENGALI
+
+UCDN_SCRIPT_GURMUKHI = _fitz.UCDN_SCRIPT_GURMUKHI
+
+UCDN_SCRIPT_GUJARATI = _fitz.UCDN_SCRIPT_GUJARATI
+
+UCDN_SCRIPT_ORIYA = _fitz.UCDN_SCRIPT_ORIYA
+
+UCDN_SCRIPT_TAMIL = _fitz.UCDN_SCRIPT_TAMIL
+
+UCDN_SCRIPT_TELUGU = _fitz.UCDN_SCRIPT_TELUGU
+
+UCDN_SCRIPT_KANNADA = _fitz.UCDN_SCRIPT_KANNADA
+
+UCDN_SCRIPT_MALAYALAM = _fitz.UCDN_SCRIPT_MALAYALAM
+
+UCDN_SCRIPT_SINHALA = _fitz.UCDN_SCRIPT_SINHALA
+
+UCDN_SCRIPT_THAI = _fitz.UCDN_SCRIPT_THAI
+
+UCDN_SCRIPT_LAO = _fitz.UCDN_SCRIPT_LAO
+
+UCDN_SCRIPT_TIBETAN = _fitz.UCDN_SCRIPT_TIBETAN
+
+UCDN_SCRIPT_MYANMAR = _fitz.UCDN_SCRIPT_MYANMAR
+
+UCDN_SCRIPT_GEORGIAN = _fitz.UCDN_SCRIPT_GEORGIAN
+
+UCDN_SCRIPT_HANGUL = _fitz.UCDN_SCRIPT_HANGUL
+
+UCDN_SCRIPT_ETHIOPIC = _fitz.UCDN_SCRIPT_ETHIOPIC
+
+UCDN_SCRIPT_CHEROKEE = _fitz.UCDN_SCRIPT_CHEROKEE
+
+UCDN_SCRIPT_CANADIAN_ABORIGINAL = _fitz.UCDN_SCRIPT_CANADIAN_ABORIGINAL
+
+UCDN_SCRIPT_OGHAM = _fitz.UCDN_SCRIPT_OGHAM
+
+UCDN_SCRIPT_RUNIC = _fitz.UCDN_SCRIPT_RUNIC
+
+UCDN_SCRIPT_KHMER = _fitz.UCDN_SCRIPT_KHMER
+
+UCDN_SCRIPT_MONGOLIAN = _fitz.UCDN_SCRIPT_MONGOLIAN
+
+UCDN_SCRIPT_HIRAGANA = _fitz.UCDN_SCRIPT_HIRAGANA
+
+UCDN_SCRIPT_KATAKANA = _fitz.UCDN_SCRIPT_KATAKANA
+
+UCDN_SCRIPT_BOPOMOFO = _fitz.UCDN_SCRIPT_BOPOMOFO
+
+UCDN_SCRIPT_HAN = _fitz.UCDN_SCRIPT_HAN
+
+UCDN_SCRIPT_YI = _fitz.UCDN_SCRIPT_YI
+
+UCDN_SCRIPT_OLD_ITALIC = _fitz.UCDN_SCRIPT_OLD_ITALIC
+
+UCDN_SCRIPT_GOTHIC = _fitz.UCDN_SCRIPT_GOTHIC
+
+UCDN_SCRIPT_DESERET = _fitz.UCDN_SCRIPT_DESERET
+
+UCDN_SCRIPT_INHERITED = _fitz.UCDN_SCRIPT_INHERITED
+
+UCDN_SCRIPT_TAGALOG = _fitz.UCDN_SCRIPT_TAGALOG
+
+UCDN_SCRIPT_HANUNOO = _fitz.UCDN_SCRIPT_HANUNOO
+
+UCDN_SCRIPT_BUHID = _fitz.UCDN_SCRIPT_BUHID
+
+UCDN_SCRIPT_TAGBANWA = _fitz.UCDN_SCRIPT_TAGBANWA
+
+UCDN_SCRIPT_LIMBU = _fitz.UCDN_SCRIPT_LIMBU
+
+UCDN_SCRIPT_TAI_LE = _fitz.UCDN_SCRIPT_TAI_LE
+
+UCDN_SCRIPT_LINEAR_B = _fitz.UCDN_SCRIPT_LINEAR_B
+
+UCDN_SCRIPT_UGARITIC = _fitz.UCDN_SCRIPT_UGARITIC
+
+UCDN_SCRIPT_SHAVIAN = _fitz.UCDN_SCRIPT_SHAVIAN
+
+UCDN_SCRIPT_OSMANYA = _fitz.UCDN_SCRIPT_OSMANYA
+
+UCDN_SCRIPT_CYPRIOT = _fitz.UCDN_SCRIPT_CYPRIOT
+
+UCDN_SCRIPT_BRAILLE = _fitz.UCDN_SCRIPT_BRAILLE
+
+UCDN_SCRIPT_BUGINESE = _fitz.UCDN_SCRIPT_BUGINESE
+
+UCDN_SCRIPT_COPTIC = _fitz.UCDN_SCRIPT_COPTIC
+
+UCDN_SCRIPT_NEW_TAI_LUE = _fitz.UCDN_SCRIPT_NEW_TAI_LUE
+
+UCDN_SCRIPT_GLAGOLITIC = _fitz.UCDN_SCRIPT_GLAGOLITIC
+
+UCDN_SCRIPT_TIFINAGH = _fitz.UCDN_SCRIPT_TIFINAGH
+
+UCDN_SCRIPT_SYLOTI_NAGRI = _fitz.UCDN_SCRIPT_SYLOTI_NAGRI
+
+UCDN_SCRIPT_OLD_PERSIAN = _fitz.UCDN_SCRIPT_OLD_PERSIAN
+
+UCDN_SCRIPT_KHAROSHTHI = _fitz.UCDN_SCRIPT_KHAROSHTHI
+
+UCDN_SCRIPT_BALINESE = _fitz.UCDN_SCRIPT_BALINESE
+
+UCDN_SCRIPT_CUNEIFORM = _fitz.UCDN_SCRIPT_CUNEIFORM
+
+UCDN_SCRIPT_PHOENICIAN = _fitz.UCDN_SCRIPT_PHOENICIAN
+
+UCDN_SCRIPT_PHAGS_PA = _fitz.UCDN_SCRIPT_PHAGS_PA
+
+UCDN_SCRIPT_NKO = _fitz.UCDN_SCRIPT_NKO
+
+UCDN_SCRIPT_SUNDANESE = _fitz.UCDN_SCRIPT_SUNDANESE
+
+UCDN_SCRIPT_LEPCHA = _fitz.UCDN_SCRIPT_LEPCHA
+
+UCDN_SCRIPT_OL_CHIKI = _fitz.UCDN_SCRIPT_OL_CHIKI
+
+UCDN_SCRIPT_VAI = _fitz.UCDN_SCRIPT_VAI
+
+UCDN_SCRIPT_SAURASHTRA = _fitz.UCDN_SCRIPT_SAURASHTRA
+
+UCDN_SCRIPT_KAYAH_LI = _fitz.UCDN_SCRIPT_KAYAH_LI
+
+UCDN_SCRIPT_REJANG = _fitz.UCDN_SCRIPT_REJANG
+
+UCDN_SCRIPT_LYCIAN = _fitz.UCDN_SCRIPT_LYCIAN
+
+UCDN_SCRIPT_CARIAN = _fitz.UCDN_SCRIPT_CARIAN
+
+UCDN_SCRIPT_LYDIAN = _fitz.UCDN_SCRIPT_LYDIAN
+
+UCDN_SCRIPT_CHAM = _fitz.UCDN_SCRIPT_CHAM
+
+UCDN_SCRIPT_TAI_THAM = _fitz.UCDN_SCRIPT_TAI_THAM
+
+UCDN_SCRIPT_TAI_VIET = _fitz.UCDN_SCRIPT_TAI_VIET
+
+UCDN_SCRIPT_AVESTAN = _fitz.UCDN_SCRIPT_AVESTAN
+
+UCDN_SCRIPT_EGYPTIAN_HIEROGLYPHS = _fitz.UCDN_SCRIPT_EGYPTIAN_HIEROGLYPHS
+
+UCDN_SCRIPT_SAMARITAN = _fitz.UCDN_SCRIPT_SAMARITAN
+
+UCDN_SCRIPT_LISU = _fitz.UCDN_SCRIPT_LISU
+
+UCDN_SCRIPT_BAMUM = _fitz.UCDN_SCRIPT_BAMUM
+
+UCDN_SCRIPT_JAVANESE = _fitz.UCDN_SCRIPT_JAVANESE
+
+UCDN_SCRIPT_MEETEI_MAYEK = _fitz.UCDN_SCRIPT_MEETEI_MAYEK
+
+UCDN_SCRIPT_IMPERIAL_ARAMAIC = _fitz.UCDN_SCRIPT_IMPERIAL_ARAMAIC
+
+UCDN_SCRIPT_OLD_SOUTH_ARABIAN = _fitz.UCDN_SCRIPT_OLD_SOUTH_ARABIAN
+
+UCDN_SCRIPT_INSCRIPTIONAL_PARTHIAN = _fitz.UCDN_SCRIPT_INSCRIPTIONAL_PARTHIAN
+
+UCDN_SCRIPT_INSCRIPTIONAL_PAHLAVI = _fitz.UCDN_SCRIPT_INSCRIPTIONAL_PAHLAVI
+
+UCDN_SCRIPT_OLD_TURKIC = _fitz.UCDN_SCRIPT_OLD_TURKIC
+
+UCDN_SCRIPT_KAITHI = _fitz.UCDN_SCRIPT_KAITHI
+
+UCDN_SCRIPT_BATAK = _fitz.UCDN_SCRIPT_BATAK
+
+UCDN_SCRIPT_BRAHMI = _fitz.UCDN_SCRIPT_BRAHMI
+
+UCDN_SCRIPT_MANDAIC = _fitz.UCDN_SCRIPT_MANDAIC
+
+UCDN_SCRIPT_CHAKMA = _fitz.UCDN_SCRIPT_CHAKMA
+
+UCDN_SCRIPT_MEROITIC_CURSIVE = _fitz.UCDN_SCRIPT_MEROITIC_CURSIVE
+
+UCDN_SCRIPT_MEROITIC_HIEROGLYPHS = _fitz.UCDN_SCRIPT_MEROITIC_HIEROGLYPHS
+
+UCDN_SCRIPT_MIAO = _fitz.UCDN_SCRIPT_MIAO
+
+UCDN_SCRIPT_SHARADA = _fitz.UCDN_SCRIPT_SHARADA
+
+UCDN_SCRIPT_SORA_SOMPENG = _fitz.UCDN_SCRIPT_SORA_SOMPENG
+
+UCDN_SCRIPT_TAKRI = _fitz.UCDN_SCRIPT_TAKRI
+
+UCDN_SCRIPT_UNKNOWN = _fitz.UCDN_SCRIPT_UNKNOWN
+
+UCDN_SCRIPT_BASSA_VAH = _fitz.UCDN_SCRIPT_BASSA_VAH
+
+UCDN_SCRIPT_CAUCASIAN_ALBANIAN = _fitz.UCDN_SCRIPT_CAUCASIAN_ALBANIAN
+
+UCDN_SCRIPT_DUPLOYAN = _fitz.UCDN_SCRIPT_DUPLOYAN
+
+UCDN_SCRIPT_ELBASAN = _fitz.UCDN_SCRIPT_ELBASAN
+
+UCDN_SCRIPT_GRANTHA = _fitz.UCDN_SCRIPT_GRANTHA
+
+UCDN_SCRIPT_KHOJKI = _fitz.UCDN_SCRIPT_KHOJKI
+
+UCDN_SCRIPT_KHUDAWADI = _fitz.UCDN_SCRIPT_KHUDAWADI
+
+UCDN_SCRIPT_LINEAR_A = _fitz.UCDN_SCRIPT_LINEAR_A
+
+UCDN_SCRIPT_MAHAJANI = _fitz.UCDN_SCRIPT_MAHAJANI
+
+UCDN_SCRIPT_MANICHAEAN = _fitz.UCDN_SCRIPT_MANICHAEAN
+
+UCDN_SCRIPT_MENDE_KIKAKUI = _fitz.UCDN_SCRIPT_MENDE_KIKAKUI
+
+UCDN_SCRIPT_MODI = _fitz.UCDN_SCRIPT_MODI
+
+UCDN_SCRIPT_MRO = _fitz.UCDN_SCRIPT_MRO
+
+UCDN_SCRIPT_NABATAEAN = _fitz.UCDN_SCRIPT_NABATAEAN
+
+UCDN_SCRIPT_OLD_NORTH_ARABIAN = _fitz.UCDN_SCRIPT_OLD_NORTH_ARABIAN
+
+UCDN_SCRIPT_OLD_PERMIC = _fitz.UCDN_SCRIPT_OLD_PERMIC
+
+UCDN_SCRIPT_PAHAWH_HMONG = _fitz.UCDN_SCRIPT_PAHAWH_HMONG
+
+UCDN_SCRIPT_PALMYRENE = _fitz.UCDN_SCRIPT_PALMYRENE
+
+UCDN_SCRIPT_PAU_CIN_HAU = _fitz.UCDN_SCRIPT_PAU_CIN_HAU
+
+UCDN_SCRIPT_PSALTER_PAHLAVI = _fitz.UCDN_SCRIPT_PSALTER_PAHLAVI
+
+UCDN_SCRIPT_SIDDHAM = _fitz.UCDN_SCRIPT_SIDDHAM
+
+UCDN_SCRIPT_TIRHUTA = _fitz.UCDN_SCRIPT_TIRHUTA
+
+UCDN_SCRIPT_WARANG_CITI = _fitz.UCDN_SCRIPT_WARANG_CITI
+
+UCDN_SCRIPT_AHOM = _fitz.UCDN_SCRIPT_AHOM
+
+UCDN_SCRIPT_ANATOLIAN_HIEROGLYPHS = _fitz.UCDN_SCRIPT_ANATOLIAN_HIEROGLYPHS
+
+UCDN_SCRIPT_HATRAN = _fitz.UCDN_SCRIPT_HATRAN
+
+UCDN_SCRIPT_MULTANI = _fitz.UCDN_SCRIPT_MULTANI
+
+UCDN_SCRIPT_OLD_HUNGARIAN = _fitz.UCDN_SCRIPT_OLD_HUNGARIAN
+
+UCDN_SCRIPT_SIGNWRITING = _fitz.UCDN_SCRIPT_SIGNWRITING
+
+UCDN_SCRIPT_ADLAM = _fitz.UCDN_SCRIPT_ADLAM
+
+UCDN_SCRIPT_BHAIKSUKI = _fitz.UCDN_SCRIPT_BHAIKSUKI
+
+UCDN_SCRIPT_MARCHEN = _fitz.UCDN_SCRIPT_MARCHEN
+
+UCDN_SCRIPT_NEWA = _fitz.UCDN_SCRIPT_NEWA
+
+UCDN_SCRIPT_OSAGE = _fitz.UCDN_SCRIPT_OSAGE
+
+UCDN_SCRIPT_TANGUT = _fitz.UCDN_SCRIPT_TANGUT
+
+UCDN_SCRIPT_MASARAM_GONDI = _fitz.UCDN_SCRIPT_MASARAM_GONDI
+
+UCDN_SCRIPT_NUSHU = _fitz.UCDN_SCRIPT_NUSHU
+
+UCDN_SCRIPT_SOYOMBO = _fitz.UCDN_SCRIPT_SOYOMBO
+
+UCDN_SCRIPT_ZANABAZAR_SQUARE = _fitz.UCDN_SCRIPT_ZANABAZAR_SQUARE
+
+UCDN_SCRIPT_DOGRA = _fitz.UCDN_SCRIPT_DOGRA
+
+UCDN_SCRIPT_GUNJALA_GONDI = _fitz.UCDN_SCRIPT_GUNJALA_GONDI
+
+UCDN_SCRIPT_HANIFI_ROHINGYA = _fitz.UCDN_SCRIPT_HANIFI_ROHINGYA
+
+UCDN_SCRIPT_MAKASAR = _fitz.UCDN_SCRIPT_MAKASAR
+
+UCDN_SCRIPT_MEDEFAIDRIN = _fitz.UCDN_SCRIPT_MEDEFAIDRIN
+
+UCDN_SCRIPT_OLD_SOGDIAN = _fitz.UCDN_SCRIPT_OLD_SOGDIAN
+
+UCDN_SCRIPT_SOGDIAN = _fitz.UCDN_SCRIPT_SOGDIAN
+
+UCDN_SCRIPT_ELYMAIC = _fitz.UCDN_SCRIPT_ELYMAIC
+
+UCDN_SCRIPT_NANDINAGARI = _fitz.UCDN_SCRIPT_NANDINAGARI
+
+UCDN_SCRIPT_NYIAKENG_PUACHUE_HMONG = _fitz.UCDN_SCRIPT_NYIAKENG_PUACHUE_HMONG
+
+UCDN_SCRIPT_WANCHO = _fitz.UCDN_SCRIPT_WANCHO
 
 
 class Matrix(object):
@@ -3798,7 +4104,7 @@ class Page(object):
     def addHighlightAnnot(self, quads=None, start=None, stop=None, clip=None):
         """Add a 'Highlight' annotation."""
         if quads is None:
-            quads = get_highlight_selection(self, start=start, stop=stop, clip=rect)
+            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
         if quads:
             return self._add_text_marker(quads, PDF_ANNOT_HIGHLIGHT)
         else:
@@ -3947,47 +4253,9 @@ class Page(object):
         r"""_makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"""
         return _fitz.Page__makePixmap(self, doc, ctm, cs, alpha, annots, clip)
 
-    def insertString(self, point, text, fontsize=11, fontname=None, fontfile=None, fontbuffer=None, color=None, language=None, script=0, opacity=1, ordering=-1, overlay=1, is_bold=0, is_italic=0):
-        r"""Insert a string on a page"""
-
-        if not text:
-            return None
-        doc = self.parent
-        if type(text) not in (list, tuple):
-            text = text.splitlines()
-        if fontname:
-            try:
-                ordering = ("china-t", "china-s", "japan", "korea","china-ts", "china-ss", "japan-s", "korea-s").index(fontname.lower()) % 4
-            except ValueError:
-                ordering = -1
-            if ordering < 0:
-                fontname = Base14_fontdict.get(fontname.lower(), fontname)
-
-
-        val = _fitz.Page_insertString(self, point, text, fontsize, fontname, fontfile, fontbuffer, color, language, script, opacity, ordering, overlay, is_bold, is_italic)
-
-        max_alp, max_font = val[2]
-        old_cont_lines = val[3].splitlines()
-        new_cont_lines = ["q"]
-        for line in old_cont_lines:
-            if line.endswith(" cm"):
-                continue
-            if line.endswith(" gs"):
-                alp = int(line.split()[0][4:]) + max_alp
-                line = "/Alp%i gs" % alp
-            elif line.endswith(" Tf"):
-                temp = line.split()
-                font = int(temp[0][2:]) + max_font
-                line = " ".join(["/F%i" % font,] + temp[1:])
-            new_cont_lines.append(line)
-        new_cont_lines.append("Q")
-        content = "\n".join(new_cont_lines).encode("utf-8")
-        TOOLS._insert_contents(self, content, overlay=overlay)
-        val = val[:2]
-
-
-        return val
-
+    def _write_text(self, matrix, store, opacity=1, color=None):
+        r"""_write_text(self, matrix, store, opacity=1, color=None) -> PyObject *"""
+        return _fitz.Page__write_text(self, matrix, store, opacity, color)
 
     def setMediaBox(self, rect):
         r"""setMediaBox(self, rect) -> PyObject *"""
@@ -5524,6 +5792,73 @@ class Graftmap(object):
 # Register Graftmap in _fitz:
 _fitz.Graftmap_swigregister(Graftmap)
 
+class Font(object):
+    r"""Proxy of C fz_font_s struct."""
+
+    thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
+    __repr__ = _swig_repr
+    __swig_destroy__ = _fitz.delete_Font
+
+    def __init__(self, fontname=None, fontfile=None, fontbuffer=None, script=0, language=None, ordering=-1, is_bold=0, is_italic=0, is_serif=0):
+        r"""__init__(self, fontname=None, fontfile=None, fontbuffer=None, script=0, language=None, ordering=-1, is_bold=0, is_italic=0, is_serif=0) -> Font"""
+
+        if fontname:
+            try:
+                ordering = ("china-t", "china-s", "japan", "korea","china-ts", "china-ss", "japan-s", "korea-s").index(fontname.lower()) % 4
+            except ValueError:
+                ordering = -1
+            if ordering < 0:
+                fontname = Base14_fontdict.get(fontname.lower(), fontname)
+
+
+        _fitz.Font_swiginit(self, _fitz.new_Font(fontname, fontfile, fontbuffer, script, language, ordering, is_bold, is_italic, is_serif))
+
+    def unicode_to_glyph_name(self, c, language=None, script=0):
+        r"""Return the glyph name of a uncode."""
+        return _fitz.Font_unicode_to_glyph_name(self, c, language, script)
+
+    def glyph_name_to_unicode(self, name):
+        r"""Return the unicode for a glyph name."""
+        return _fitz.Font_glyph_name_to_unicode(self, name)
+
+    def glyph_advance(self, chr, language=None, script=0, wmode=0):
+        r"""Return the glyph advance of a character."""
+        return _fitz.Font_glyph_advance(self, chr, language, script, wmode)
+
+    def has_glyph(self, chr, language=None, script=0, wmode=0):
+        r"""Returns whether the font has a glyph for this character."""
+        return _fitz.Font_has_glyph(self, chr, language, script, wmode)
+    @property
+
+    def flags(self):
+        r"""flags(self) -> PyObject *"""
+        return _fitz.Font_flags(self)
+    @property
+
+    def name(self):
+        r"""name(self) -> PyObject *"""
+        return _fitz.Font_name(self)
+    @property
+
+    def bbox(self):
+        r"""bbox(self) -> PyObject *"""
+        val = _fitz.Font_bbox(self)
+        val = Rect(val)
+
+        return val
+
+
+    def text_length(self, text, fontsize=11, wmode=0):
+        """Calculate the length of a string for this font."""
+        return fontsize * sum([self.glyph_advance(ord(c), wmode=wmode) for c in text])
+
+    def __repr__(self):
+        return "Font('%s')" % self.name
+
+
+# Register Font in _fitz:
+_fitz.Font_swigregister(Font)
+
 class Tools(object):
     r"""A collection of tools and utilities"""
 
@@ -5689,6 +6024,10 @@ class Tools(object):
 
         return val
 
+
+    def _int_from_language(self, language):
+        r"""Return integer language code."""
+        return _fitz.Tools__int_from_language(self, language)
 
     def reset_mupdf_warnings(self):
         r"""Reset MuPDF warnings."""
