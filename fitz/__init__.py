@@ -69,12 +69,10 @@ fitz.Page.insertLink = fitz.utils.insertLink
 fitz.Page.insertText = fitz.utils.insertText
 fitz.Page.insertTextbox = fitz.utils.insertTextbox
 fitz.Page.newShape = lambda x: fitz.utils.Shape(x)
-fitz.Page.newTextwriter = fitz.utils.newTextwriter
 fitz.Page.searchFor = fitz.utils.searchFor
 fitz.Page.showPDFpage = fitz.utils.showPDFpage
 fitz.Page.updateLink = fitz.utils.updateLink
 fitz.Page.writeText = fitz.utils.writeText
-
 # ------------------------------------------------------------------------------
 # Rect
 # ------------------------------------------------------------------------------

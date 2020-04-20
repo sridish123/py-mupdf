@@ -2645,10 +2645,11 @@ SWIGINTERN PyObject *SWIG_PyStaticMethod_New(PyObject *SWIGUNUSEDPARM(self), PyO
 #define SWIGTYPE_p_fz_page_s swig_types[9]
 #define SWIGTYPE_p_fz_pixmap_s swig_types[10]
 #define SWIGTYPE_p_fz_stext_page_s swig_types[11]
-#define SWIGTYPE_p_pdf_annot_s swig_types[12]
-#define SWIGTYPE_p_pdf_graft_map_s swig_types[13]
-static swig_type_info *swig_types[15];
-static swig_module_info swig_module = {swig_types, 14, 0, 0, 0, 0};
+#define SWIGTYPE_p_fz_text_s swig_types[12]
+#define SWIGTYPE_p_pdf_annot_s swig_types[13]
+#define SWIGTYPE_p_pdf_graft_map_s swig_types[14]
+static swig_type_info *swig_types[16];
+static swig_module_info swig_module = {swig_types, 15, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -10015,144 +10016,6 @@ SWIGINTERN struct fz_pixmap_s *fz_page_s__makePixmap(struct fz_page_s *self,stru
             fz_catch(gctx) return NULL;
             return pix;
         }
-SWIGINTERN PyObject *fz_page_s__write_text(struct fz_page_s *self,PyObject *matrix,PyObject *store,float opacity,PyObject *color){
-            pdf_page *page = pdf_page_from_fz_page(gctx, self);
-            fz_rect mediabox = fz_bound_page(gctx, self);
-            fz_text *text_obj = NULL;
-            fz_device *dev = NULL;
-            pdf_obj *resources = NULL;
-            fz_buffer *contents = NULL;
-            fz_buffer *text_buffer = NULL;
-            PyObject *result = NULL, *temp_py, *temp_py2;
-            PyObject *arg_rect = NULL, *arg_point, *cont_string;
-            PyObject *max_nums = NULL;
-            fz_matrix ctm = JM_matrix_from_py(matrix);
-            fz_matrix ictm = fz_invert_matrix(ctm);
-            float alpha = 1;
-            if (opacity >= 0 && opacity < 1)
-                alpha = opacity;
-            fz_colorspace *colorspace;
-            int ncol = 3;
-            float dev_color[4] = {0, 0, 0, 0};
-            if (color) JM_color_FromSequence(color, &ncol, dev_color);
-            if (ncol == 3) colorspace = fz_device_rgb(gctx);
-            if (ncol == 4) colorspace = fz_device_cmyk(gctx);
-            if (ncol == 1) colorspace = fz_device_gray(gctx);
-            fz_try(gctx)
-            {
-                text_buffer=fz_new_buffer(gctx, 1024);
-                int wmode=0, bidi_level=0;
-                fz_bidi_direction markup_dir = 0;
-                unsigned char *user_text;
-                fz_matrix trm, trm0;
-                fz_rect text_rect;
-                fz_point last_point, p;
-                fz_font *user_font = NULL;
-                PyObject *line;
-                Py_ssize_t i, n = PySequence_Size(store);
-                text_obj = fz_new_text(gctx);
-                for (i = 0; i < n; i++)
-                {
-                    line = PySequence_ITEM(store, i);
-                    //---------------------------------------------------------
-                    // new insertion point
-                    //---------------------------------------------------------
-                    temp_py = PySequence_ITEM(line, 0);
-                    p = fz_transform_point(JM_point_from_py(temp_py), ictm);
-                    Py_DECREF(temp_py);
-                    //---------------------------------------------------------
-                    // new output text
-                    //---------------------------------------------------------
-                    temp_py = PySequence_ITEM(line, 1);
-                    temp_py2 = PyUnicode_AsUTF8String(temp_py);
-                    if (PyErr_Occurred())
-                    {
-                        PyErr_Print();
-                        Py_XDECREF(temp_py);
-                        Py_XDECREF(temp_py2);
-                        THROWMSG("bad text data");
-                    }
-                    fz_clear_buffer(gctx, text_buffer);
-                    fz_append_string(gctx, text_buffer, PyBytes_AsString(temp_py2));
-                    fz_terminate_buffer(gctx, text_buffer);
-                    fz_buffer_storage(gctx, text_buffer, &user_text);
-                    Py_XDECREF(temp_py);
-                    Py_XDECREF(temp_py2);
-                    //---------------------------------------------------------
-                    // new font
-                    //---------------------------------------------------------
-                    temp_py = PySequence_ITEM(line, 2);
-                    if (EXISTS(temp_py))
-                    {
-                        void *argp2 = NULL;
-                        int rc = SWIG_ConvertPtr(temp_py, &argp2, SWIGTYPE_p_fz_font_s, 0 |  0 );
-                        user_font = (struct fz_font_s *)(argp2);
-                    }
-                    Py_DECREF(temp_py);
-                    //---------------------------------------------------------
-                    // new fontsize
-                    //---------------------------------------------------------
-                    temp_py = PySequence_ITEM(line, 3);
-                    int fsize = (float) PyFloat_AsDouble(temp_py);
-                    Py_DECREF(temp_py);
-                    //---------------------------------------------------------
-                    // new language
-                    //---------------------------------------------------------
-                    temp_py = PySequence_ITEM(line, 4);
-                    int lang = (int) PyInt_AsLong(temp_py);
-                    Py_DECREF(temp_py);
-                    trm = fz_make_matrix(fsize, 0, 0, fsize, p.x, p.y);
-                    if (i == 0)
-                    {
-                        trm0 = trm;
-                        text_rect = fz_make_rect(p.x, p.y, p.x, p.y + fsize*1.3);
-                    }
-                    text_rect = fz_include_point_in_rect(text_rect, p);
-                    trm = fz_show_string(gctx, text_obj,
-                            user_font, trm, user_text, wmode, bidi_level,
-                            markup_dir, lang);
-                    last_point = fz_make_point(trm.e, trm.f);
-                    text_rect = fz_include_point_in_rect(text_rect, last_point);
-                }
-
-                arg_rect = JM_py_from_rect(fz_transform_rect(text_rect, ctm));
-                arg_point = JM_py_from_point(fz_transform_point(last_point, ctm));
-                resources = pdf_new_dict(gctx, page->doc, 5);
-                contents = fz_new_buffer(gctx, 1024);
-                dev = pdf_new_pdf_device(gctx, page->doc, fz_identity,
-                            mediabox, resources, contents);
-
-                fz_fill_text(gctx, dev, text_obj, trm0,
-                    colorspace, dev_color, alpha, fz_default_color_params);
-                fz_close_device(gctx, dev);
-
-                // copy created resources into the page /Resources
-                max_nums = JM_merge_resources(gctx, page, resources);
-                cont_string = JM_EscapeStrFromBuffer(gctx, contents);
-                result = Py_BuildValue("OOOO",
-                                       arg_rect,
-                                       arg_point,
-                                       max_nums,
-                                       cont_string);
-                Py_DECREF(cont_string);
-                Py_DECREF(max_nums);
-                Py_DECREF(arg_rect);
-                Py_DECREF(arg_point);
-            }
-            fz_always(gctx)
-            {
-                fz_drop_device(gctx, dev);
-                fz_drop_text(gctx, text_obj);
-                pdf_drop_obj(gctx, resources);
-                fz_drop_buffer(gctx, text_buffer);
-                fz_drop_buffer(gctx, contents);
-            }
-            fz_catch(gctx)
-            {
-                return NULL;
-            }
-            return result;
-        }
 SWIGINTERN PyObject *fz_page_s_setMediaBox(struct fz_page_s *self,PyObject *rect){
             pdf_page *page = pdf_page_from_fz_page(gctx, self);
             fz_try(gctx)
@@ -10902,7 +10765,6 @@ SWIGINTERN struct fz_pixmap_s *new_fz_pixmap_s__SWIG_6(PyObject *imagedata){
 SWIGINTERN struct fz_pixmap_s *new_fz_pixmap_s__SWIG_7(struct fz_document_s *doc,int xref){
             fz_image *img = NULL;
             fz_pixmap *pix = NULL;
-            fz_buffer *res = NULL;
             pdf_obj *ref = NULL;
             pdf_obj *type;
             pdf_document *pdf = pdf_specifics(gctx, doc);
@@ -10915,29 +10777,13 @@ SWIGINTERN struct fz_pixmap_s *new_fz_pixmap_s__SWIG_7(struct fz_document_s *doc
                 ref = pdf_new_indirect(gctx, pdf, xref, 0);
                 type = pdf_dict_get(gctx, ref, PDF_NAME(Subtype));
                 if (!pdf_name_eq(gctx, type, PDF_NAME(Image)))
-                    THROWMSG("xref is not an image");
-                res = pdf_load_raw_stream(gctx, ref);
-                unsigned char *c = NULL;
-                fz_buffer_storage(gctx, res, &c);
-                int img_type = fz_recognize_image_format(gctx, c);
-                if (img_type != FZ_IMAGE_UNKNOWN)
-                {
-                    img = fz_new_image_from_buffer(gctx, res);
-                }
-                else
-                {
-                    img = pdf_load_image(gctx, pdf, ref);
-                }
+                    THROWMSG("xref not an image");
+                img = pdf_load_image(gctx, pdf, ref);
                 pix = fz_get_pixmap_from_image(gctx, img, NULL, NULL, NULL, NULL);
-                int xres, yres;
-                fz_image_resolution(img, &xres, &yres);
-                pix->xres = xres;
-                pix->yres= yres;
             }
             fz_always(gctx)
             {
                 fz_drop_image(gctx, img);
-                fz_drop_buffer(gctx, res);
                 pdf_drop_obj(gctx, ref);
             }
             fz_catch(gctx)
@@ -12290,8 +12136,86 @@ SWIGINTERN struct pdf_graft_map_s *new_pdf_graft_map_s(struct fz_document_s *doc
             fz_catch(gctx) return NULL;
             return map;
         }
+SWIGINTERN void delete_fz_text_s(struct fz_text_s *self){
+            DEBUGMSG1("TextWriter");
+            fz_drop_text(gctx, self);
+            DEBUGMSG2;
+        }
+SWIGINTERN struct fz_text_s *new_fz_text_s(PyObject *page_rect,int opacity,PyObject *color){
+            fz_text *text = NULL;
+            fz_try(gctx)
+            {
+                text = fz_new_text(gctx);
+            }
+            fz_catch(gctx) return NULL;
+            return text;
+        }
+SWIGINTERN PyObject *fz_text_s_append(struct fz_text_s *self,PyObject *pos,char *text,struct fz_font_s *font,float fontsize,char *language,int wmode,int bidi_level){
+            fz_text_language lang = fz_text_language_from_string(language);
+            fz_bidi_direction markup_dir = 0;
+            fz_point p = JM_point_from_py(pos);
+            fz_matrix trm = fz_make_matrix(fontsize, 0, 0, fontsize, p.x, p.y);
+            fz_try(gctx)
+            {
+                trm = fz_show_string(gctx, self, font, trm, text, wmode, bidi_level, markup_dir, lang);
+            }
+            fz_catch(gctx) { return NULL;}
+            return JM_py_from_matrix(trm);
+        }
+SWIGINTERN PyObject *fz_text_s_bbox(struct fz_text_s *self){
+            return JM_py_from_rect(fz_bound_text(gctx, self, NULL, fz_identity));
+        }
+SWIGINTERN PyObject *fz_text_s_writeText(struct fz_text_s *self,struct fz_page_s *page,PyObject *color,float opacity,int overlay){
+            pdf_page *pdf_page = pdf_page_from_fz_page(gctx, page);
+            fz_rect mediabox = fz_bound_page(gctx, page);
+            pdf_obj *resources = NULL;
+            fz_buffer *contents = NULL;
+            fz_device *dev = NULL;
+            PyObject *result = NULL, *max_nums, *cont_string;
+            float alpha = 1;
+            if (opacity >= 0 && opacity < 1)
+                alpha = opacity;
+            fz_colorspace *colorspace;
+            int ncol = 1;
+            float dev_color[4] = {0, 0, 0, 0};
+            if (color) JM_color_FromSequence(color, &ncol, dev_color);
+            switch(ncol)
+            {
+                case 3: colorspace = fz_device_rgb(gctx); break;
+                case 4: colorspace = fz_device_cmyk(gctx); break;
+                default: colorspace = fz_device_gray(gctx); break;
+            }
+
+            fz_try(gctx)
+            {
+                assert_PDF(pdf_page);
+                resources = pdf_new_dict(gctx, pdf_page->doc, 5);
+                contents = fz_new_buffer(gctx, 1024);
+                dev = pdf_new_pdf_device(gctx, pdf_page->doc, fz_identity,
+                            mediabox, resources, contents);
+                fz_fill_text(gctx, dev, self, fz_identity,
+                    colorspace, dev_color, alpha, fz_default_color_params);
+                fz_close_device(gctx, dev);
+                max_nums = JM_merge_resources(gctx, pdf_page, resources);
+                cont_string = JM_EscapeStrFromBuffer(gctx, contents);
+                result = Py_BuildValue("OO", max_nums, cont_string);
+                Py_DECREF(cont_string);
+                Py_DECREF(max_nums);
+            }
+            fz_always(gctx)
+            {
+                fz_drop_buffer(gctx, contents);
+                pdf_drop_obj(gctx, resources);
+                fz_drop_device(gctx, dev);
+            }
+            fz_catch(gctx)
+            {
+                return NULL;
+            }
+            return result;
+        }
 SWIGINTERN void delete_fz_font_s(struct fz_font_s *self){
-            DEBUGMSG1("font");
+            DEBUGMSG1("Font");
             fz_drop_font(gctx, self);
             DEBUGMSG2;
         }
@@ -12317,8 +12241,6 @@ SWIGINTERN PyObject *fz_font_s_unicode_to_glyph_name(struct fz_font_s *self,int 
             return Py_BuildValue("s", name);
         }
 SWIGINTERN PyObject *fz_font_s_glyph_name_to_unicode(struct fz_font_s *self,char const *name){
-            if (strncmp(name, "a", 1) == 0)
-                return Py_BuildValue("i", 65533);
             return Py_BuildValue("i", fz_unicode_from_glyph_name(name));
         }
 SWIGINTERN float fz_font_s_glyph_advance(struct fz_font_s *self,int chr,char *language,int script,int wmode){
@@ -12335,7 +12257,7 @@ SWIG_From_float  (float value)
   return SWIG_From_double  (value);
 }
 
-SWIGINTERN PyObject *fz_font_s_has_glyph(struct fz_font_s *self,int chr,char *language,int script,int wmode){
+SWIGINTERN PyObject *fz_font_s_has_glyph(struct fz_font_s *self,int chr,char *language,int script){
             fz_font *font;
             fz_text_language lang = fz_text_language_from_string(language);
             int gid = fz_encode_character_with_fallback(gctx, self, chr,
@@ -12355,6 +12277,9 @@ SWIGINTERN PyObject *fz_font_s_flags(struct fz_font_s *self){
         }
 SWIGINTERN PyObject *fz_font_s_name(struct fz_font_s *self){
             return JM_UnicodeFromStr(fz_font_name(gctx, self));
+        }
+SWIGINTERN int fz_font_s_glyph_count(struct fz_font_s *self){
+            return self->glyph_count;
         }
 SWIGINTERN PyObject *fz_font_s_bbox(struct fz_font_s *self){
             return JM_py_from_rect(fz_font_bbox(gctx, self));
@@ -12499,6 +12424,26 @@ SWIGINTERN PyObject *Tools__update_da(struct Tools *self,struct pdf_annot_s *ann
             }
             fz_catch(gctx) return NULL;
             return_none;
+        }
+SWIGINTERN PyObject *Tools__get_all_contents(struct Tools *self,struct fz_page_s *fzpage){
+            pdf_page *page = pdf_page_from_fz_page(gctx, fzpage);
+            fz_buffer *res = NULL;
+            PyObject *result = NULL;
+            fz_try(gctx)
+            {
+                assert_PDF(page);
+                res = JM_read_contents(gctx, page->obj);
+                result = JM_BinFromBuffer(gctx, res);
+            }
+            fz_always(gctx)
+            {
+                fz_drop_buffer(gctx, res);
+            }
+            fz_catch(gctx)
+            {
+                return NULL;
+            }
+            return result;
         }
 SWIGINTERN PyObject *Tools__insert_contents(struct Tools *self,struct fz_page_s *page,PyObject *newcont,int overlay){
             fz_buffer *contbuf = NULL;
@@ -16254,53 +16199,6 @@ SWIGINTERN PyObject *_wrap_Page__makePixmap(PyObject *SWIGUNUSEDPARM(self), PyOb
     }
   }
   resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_fz_pixmap_s, 0 |  0 );
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_Page__write_text(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  struct fz_page_s *arg1 = (struct fz_page_s *) 0 ;
-  PyObject *arg2 = (PyObject *) 0 ;
-  PyObject *arg3 = (PyObject *) 0 ;
-  float arg4 = (float) 1 ;
-  PyObject *arg5 = (PyObject *) NULL ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  float val4 ;
-  int ecode4 = 0 ;
-  PyObject *swig_obj[5] ;
-  PyObject *result = 0 ;
-  
-  if (!SWIG_Python_UnpackTuple(args, "Page__write_text", 3, 5, swig_obj)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_page_s, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__write_text" "', argument " "1"" of type '" "struct fz_page_s *""'"); 
-  }
-  arg1 = (struct fz_page_s *)(argp1);
-  arg2 = swig_obj[1];
-  arg3 = swig_obj[2];
-  if (swig_obj[3]) {
-    ecode4 = SWIG_AsVal_float(swig_obj[3], &val4);
-    if (!SWIG_IsOK(ecode4)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Page__write_text" "', argument " "4"" of type '" "float""'");
-    } 
-    arg4 = (float)(val4);
-  }
-  if (swig_obj[4]) {
-    arg5 = swig_obj[4];
-  }
-  {
-    result = (PyObject *)fz_page_s__write_text(arg1,arg2,arg3,arg4,arg5);
-    if (!result)
-    {
-      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
-      return NULL;
-    }
-  }
-  resultobj = result;
   return resultobj;
 fail:
   return NULL;
@@ -21019,6 +20917,255 @@ SWIGINTERN PyObject *Graftmap_swiginit(PyObject *SWIGUNUSEDPARM(self), PyObject 
   return SWIG_Python_InitShadowInstance(args);
 }
 
+SWIGINTERN PyObject *_wrap_delete_TextWriter(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_text_s *arg1 = (struct fz_text_s *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_text_s, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_TextWriter" "', argument " "1"" of type '" "struct fz_text_s *""'"); 
+  }
+  arg1 = (struct fz_text_s *)(argp1);
+  delete_fz_text_s(arg1);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_TextWriter(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  PyObject *arg1 = (PyObject *) 0 ;
+  int arg2 = (int) 1 ;
+  PyObject *arg3 = (PyObject *) NULL ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[3] ;
+  struct fz_text_s *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "new_TextWriter", 1, 3, swig_obj)) SWIG_fail;
+  arg1 = swig_obj[0];
+  if (swig_obj[1]) {
+    ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+    if (!SWIG_IsOK(ecode2)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "new_TextWriter" "', argument " "2"" of type '" "int""'");
+    } 
+    arg2 = (int)(val2);
+  }
+  if (swig_obj[2]) {
+    arg3 = swig_obj[2];
+  }
+  {
+    result = (struct fz_text_s *)new_fz_text_s(arg1,arg2,arg3);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_fz_text_s, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_TextWriter_append(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_text_s *arg1 = (struct fz_text_s *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  char *arg3 = (char *) 0 ;
+  struct fz_font_s *arg4 = (struct fz_font_s *) NULL ;
+  float arg5 = (float) 11 ;
+  char *arg6 = (char *) NULL ;
+  int arg7 = (int) 0 ;
+  int arg8 = (int) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res3 ;
+  char *buf3 = 0 ;
+  int alloc3 = 0 ;
+  void *argp4 = 0 ;
+  int res4 = 0 ;
+  float val5 ;
+  int ecode5 = 0 ;
+  int res6 ;
+  char *buf6 = 0 ;
+  int alloc6 = 0 ;
+  int val7 ;
+  int ecode7 = 0 ;
+  int val8 ;
+  int ecode8 = 0 ;
+  PyObject *swig_obj[8] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "TextWriter_append", 3, 8, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_text_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextWriter_append" "', argument " "1"" of type '" "struct fz_text_s *""'"); 
+  }
+  arg1 = (struct fz_text_s *)(argp1);
+  arg2 = swig_obj[1];
+  res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "TextWriter_append" "', argument " "3"" of type '" "char *""'");
+  }
+  arg3 = (char *)(buf3);
+  if (swig_obj[3]) {
+    res4 = SWIG_ConvertPtr(swig_obj[3], &argp4,SWIGTYPE_p_fz_font_s, 0 |  0 );
+    if (!SWIG_IsOK(res4)) {
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "TextWriter_append" "', argument " "4"" of type '" "struct fz_font_s *""'"); 
+    }
+    arg4 = (struct fz_font_s *)(argp4);
+  }
+  if (swig_obj[4]) {
+    ecode5 = SWIG_AsVal_float(swig_obj[4], &val5);
+    if (!SWIG_IsOK(ecode5)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "TextWriter_append" "', argument " "5"" of type '" "float""'");
+    } 
+    arg5 = (float)(val5);
+  }
+  if (swig_obj[5]) {
+    res6 = SWIG_AsCharPtrAndSize(swig_obj[5], &buf6, NULL, &alloc6);
+    if (!SWIG_IsOK(res6)) {
+      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "TextWriter_append" "', argument " "6"" of type '" "char *""'");
+    }
+    arg6 = (char *)(buf6);
+  }
+  if (swig_obj[6]) {
+    ecode7 = SWIG_AsVal_int(swig_obj[6], &val7);
+    if (!SWIG_IsOK(ecode7)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode7), "in method '" "TextWriter_append" "', argument " "7"" of type '" "int""'");
+    } 
+    arg7 = (int)(val7);
+  }
+  if (swig_obj[7]) {
+    ecode8 = SWIG_AsVal_int(swig_obj[7], &val8);
+    if (!SWIG_IsOK(ecode8)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode8), "in method '" "TextWriter_append" "', argument " "8"" of type '" "int""'");
+    } 
+    arg8 = (int)(val8);
+  }
+  {
+    result = (PyObject *)fz_text_s_append(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  if (alloc6 == SWIG_NEWOBJ) free((char*)buf6);
+  return resultobj;
+fail:
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  if (alloc6 == SWIG_NEWOBJ) free((char*)buf6);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_TextWriter_bbox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_text_s *arg1 = (struct fz_text_s *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_text_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextWriter_bbox" "', argument " "1"" of type '" "struct fz_text_s *""'"); 
+  }
+  arg1 = (struct fz_text_s *)(argp1);
+  result = (PyObject *)fz_text_s_bbox(arg1);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_TextWriter_writeText(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_text_s *arg1 = (struct fz_text_s *) 0 ;
+  struct fz_page_s *arg2 = (struct fz_page_s *) 0 ;
+  PyObject *arg3 = (PyObject *) NULL ;
+  float arg4 = (float) 1 ;
+  int arg5 = (int) 1 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  float val4 ;
+  int ecode4 = 0 ;
+  int val5 ;
+  int ecode5 = 0 ;
+  PyObject *swig_obj[5] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "TextWriter_writeText", 2, 5, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_text_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextWriter_writeText" "', argument " "1"" of type '" "struct fz_text_s *""'"); 
+  }
+  arg1 = (struct fz_text_s *)(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2,SWIGTYPE_p_fz_page_s, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "TextWriter_writeText" "', argument " "2"" of type '" "struct fz_page_s *""'"); 
+  }
+  arg2 = (struct fz_page_s *)(argp2);
+  if (swig_obj[2]) {
+    arg3 = swig_obj[2];
+  }
+  if (swig_obj[3]) {
+    ecode4 = SWIG_AsVal_float(swig_obj[3], &val4);
+    if (!SWIG_IsOK(ecode4)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "TextWriter_writeText" "', argument " "4"" of type '" "float""'");
+    } 
+    arg4 = (float)(val4);
+  }
+  if (swig_obj[4]) {
+    ecode5 = SWIG_AsVal_int(swig_obj[4], &val5);
+    if (!SWIG_IsOK(ecode5)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "TextWriter_writeText" "', argument " "5"" of type '" "int""'");
+    } 
+    arg5 = (int)(val5);
+  }
+  {
+    result = (PyObject *)fz_text_s_writeText(arg1,arg2,arg3,arg4,arg5);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *TextWriter_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *obj;
+  if (!SWIG_Python_UnpackTuple(args, "swigregister", 1, 1, &obj)) return NULL;
+  SWIG_TypeNewClientData(SWIGTYPE_p_fz_text_s, SWIG_NewClientData(obj));
+  return SWIG_Py_Void();
+}
+
+SWIGINTERN PyObject *TextWriter_swiginit(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  return SWIG_Python_InitShadowInstance(args);
+}
+
 SWIGINTERN PyObject *_wrap_delete_Font(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
@@ -21310,7 +21457,6 @@ SWIGINTERN PyObject *_wrap_Font_has_glyph(PyObject *SWIGUNUSEDPARM(self), PyObje
   int arg2 ;
   char *arg3 = (char *) NULL ;
   int arg4 = (int) 0 ;
-  int arg5 = (int) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int val2 ;
@@ -21320,12 +21466,10 @@ SWIGINTERN PyObject *_wrap_Font_has_glyph(PyObject *SWIGUNUSEDPARM(self), PyObje
   int alloc3 = 0 ;
   int val4 ;
   int ecode4 = 0 ;
-  int val5 ;
-  int ecode5 = 0 ;
-  PyObject *swig_obj[5] ;
+  PyObject *swig_obj[4] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Font_has_glyph", 2, 5, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Font_has_glyph", 2, 4, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_has_glyph" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
@@ -21350,14 +21494,7 @@ SWIGINTERN PyObject *_wrap_Font_has_glyph(PyObject *SWIGUNUSEDPARM(self), PyObje
     } 
     arg4 = (int)(val4);
   }
-  if (swig_obj[4]) {
-    ecode5 = SWIG_AsVal_int(swig_obj[4], &val5);
-    if (!SWIG_IsOK(ecode5)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "Font_has_glyph" "', argument " "5"" of type '" "int""'");
-    } 
-    arg5 = (int)(val5);
-  }
-  result = (PyObject *)fz_font_s_has_glyph(arg1,arg2,arg3,arg4,arg5);
+  result = (PyObject *)fz_font_s_has_glyph(arg1,arg2,arg3,arg4);
   resultobj = result;
   if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
   return resultobj;
@@ -21407,6 +21544,29 @@ SWIGINTERN PyObject *_wrap_Font_name(PyObject *SWIGUNUSEDPARM(self), PyObject *a
   arg1 = (struct fz_font_s *)(argp1);
   result = (PyObject *)fz_font_s_name(arg1);
   resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_glyph_count(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct fz_font_s *arg1 = (struct fz_font_s *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  int result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_fz_font_s, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_glyph_count" "', argument " "1"" of type '" "struct fz_font_s *""'"); 
+  }
+  arg1 = (struct fz_font_s *)(argp1);
+  result = (int)fz_font_s_glyph_count(arg1);
+  resultobj = SWIG_From_int((int)(result));
   return resultobj;
 fail:
   return NULL;
@@ -22066,6 +22226,43 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Tools__get_all_contents(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Tools *arg1 = (struct Tools *) 0 ;
+  struct fz_page_s *arg2 = (struct fz_page_s *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Tools__get_all_contents", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools__get_all_contents" "', argument " "1"" of type '" "struct Tools *""'"); 
+  }
+  arg1 = (struct Tools *)(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2,SWIGTYPE_p_fz_page_s, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Tools__get_all_contents" "', argument " "2"" of type '" "struct fz_page_s *""'"); 
+  }
+  arg2 = (struct fz_page_s *)(argp2);
+  {
+    result = (PyObject *)Tools__get_all_contents(arg1,arg2);
+    if (!result)
+    {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Tools__insert_contents(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
@@ -22629,7 +22826,6 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page_getDisplayList", _wrap_Page_getDisplayList, METH_VARARGS, "Page_getDisplayList(self, annots=1) -> DisplayList"},
 	 { "Page__apply_redactions", _wrap_Page__apply_redactions, METH_O, "Page__apply_redactions(self) -> PyObject *"},
 	 { "Page__makePixmap", _wrap_Page__makePixmap, METH_VARARGS, "Page__makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"},
-	 { "Page__write_text", _wrap_Page__write_text, METH_VARARGS, "Page__write_text(self, matrix, store, opacity=1, color=None) -> PyObject *"},
 	 { "Page_setMediaBox", _wrap_Page_setMediaBox, METH_VARARGS, "Page_setMediaBox(self, rect) -> PyObject *"},
 	 { "Page_setCropBox", _wrap_Page_setCropBox, METH_VARARGS, "Page_setCropBox(self, rect) -> PyObject *"},
 	 { "Page_loadLinks", _wrap_Page_loadLinks, METH_O, "Page_loadLinks(self) -> Link"},
@@ -22792,6 +22988,13 @@ static PyMethodDef SwigMethods[] = {
 	 { "new_Graftmap", _wrap_new_Graftmap, METH_O, "new_Graftmap(doc) -> Graftmap"},
 	 { "Graftmap_swigregister", Graftmap_swigregister, METH_O, NULL},
 	 { "Graftmap_swiginit", Graftmap_swiginit, METH_VARARGS, NULL},
+	 { "delete_TextWriter", _wrap_delete_TextWriter, METH_O, "delete_TextWriter(self)"},
+	 { "new_TextWriter", _wrap_new_TextWriter, METH_VARARGS, "new_TextWriter(page_rect, opacity=1, color=None) -> TextWriter"},
+	 { "TextWriter_append", _wrap_TextWriter_append, METH_VARARGS, "Store 'text' for position 'pos' using 'font' and 'fontsize'."},
+	 { "TextWriter_bbox", _wrap_TextWriter_bbox, METH_O, "TextWriter_bbox(self) -> PyObject *"},
+	 { "TextWriter_writeText", _wrap_TextWriter_writeText, METH_VARARGS, "Write the text to the page."},
+	 { "TextWriter_swigregister", TextWriter_swigregister, METH_O, NULL},
+	 { "TextWriter_swiginit", TextWriter_swiginit, METH_VARARGS, NULL},
 	 { "delete_Font", _wrap_delete_Font, METH_O, "delete_Font(self)"},
 	 { "new_Font", _wrap_new_Font, METH_VARARGS, "new_Font(fontname=None, fontfile=None, fontbuffer=None, script=0, language=None, ordering=-1, is_bold=0, is_italic=0, is_serif=0) -> Font"},
 	 { "Font_unicode_to_glyph_name", _wrap_Font_unicode_to_glyph_name, METH_VARARGS, "Return the glyph name of a uncode."},
@@ -22800,6 +23003,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Font_has_glyph", _wrap_Font_has_glyph, METH_VARARGS, "Returns whether the font has a glyph for this character."},
 	 { "Font_flags", _wrap_Font_flags, METH_O, "Font_flags(self) -> PyObject *"},
 	 { "Font_name", _wrap_Font_name, METH_O, "Font_name(self) -> PyObject *"},
+	 { "Font_glyph_count", _wrap_Font_glyph_count, METH_O, "Font_glyph_count(self) -> int"},
 	 { "Font_bbox", _wrap_Font_bbox, METH_O, "Font_bbox(self) -> PyObject *"},
 	 { "Font_swigregister", Font_swigregister, METH_O, NULL},
 	 { "Font_swiginit", Font_swiginit, METH_VARARGS, NULL},
@@ -22823,6 +23027,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools__reset_widget", _wrap_Tools__reset_widget, METH_VARARGS, "Tools__reset_widget(self, annot) -> PyObject *"},
 	 { "Tools__parse_da", _wrap_Tools__parse_da, METH_VARARGS, "Tools__parse_da(self, annot) -> PyObject *"},
 	 { "Tools__update_da", _wrap_Tools__update_da, METH_VARARGS, "Tools__update_da(self, annot, da_str) -> PyObject *"},
+	 { "Tools__get_all_contents", _wrap_Tools__get_all_contents, METH_VARARGS, "Concatenate all /Contents objects of a page into a bytes object."},
 	 { "Tools__insert_contents", _wrap_Tools__insert_contents, METH_VARARGS, "Make a new /Contents object for a page from bytes, and return its xref."},
 	 { "Tools_mupdf_version", _wrap_Tools_mupdf_version, METH_O, "Return compiled MuPDF version."},
 	 { "Tools_mupdf_warnings", _wrap_Tools_mupdf_warnings, METH_VARARGS, "Return the MuPDF warnings store."},
@@ -22863,6 +23068,7 @@ static swig_type_info _swigt__p_fz_outline_s = {"_p_fz_outline_s", "struct fz_ou
 static swig_type_info _swigt__p_fz_page_s = {"_p_fz_page_s", "struct fz_page_s *|fz_page_s *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_fz_pixmap_s = {"_p_fz_pixmap_s", "struct fz_pixmap_s *|fz_pixmap_s *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_fz_stext_page_s = {"_p_fz_stext_page_s", "struct fz_stext_page_s *|fz_stext_page_s *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_fz_text_s = {"_p_fz_text_s", "struct fz_text_s *|fz_text_s *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_pdf_annot_s = {"_p_pdf_annot_s", "struct pdf_annot_s *|pdf_annot_s *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_pdf_graft_map_s = {"_p_pdf_graft_map_s", "struct pdf_graft_map_s *|pdf_graft_map_s *", 0, 0, (void*)0, 0};
 
@@ -22879,6 +23085,7 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_fz_page_s,
   &_swigt__p_fz_pixmap_s,
   &_swigt__p_fz_stext_page_s,
+  &_swigt__p_fz_text_s,
   &_swigt__p_pdf_annot_s,
   &_swigt__p_pdf_graft_map_s,
 };
@@ -22895,6 +23102,7 @@ static swig_cast_info _swigc__p_fz_outline_s[] = {  {&_swigt__p_fz_outline_s, 0,
 static swig_cast_info _swigc__p_fz_page_s[] = {  {&_swigt__p_fz_page_s, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_fz_pixmap_s[] = {  {&_swigt__p_fz_pixmap_s, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_fz_stext_page_s[] = {  {&_swigt__p_fz_stext_page_s, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_fz_text_s[] = {  {&_swigt__p_fz_text_s, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_pdf_annot_s[] = {  {&_swigt__p_pdf_annot_s, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_pdf_graft_map_s[] = {  {&_swigt__p_pdf_graft_map_s, 0, 0, 0},{0, 0, 0, 0}};
 
@@ -22911,6 +23119,7 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_fz_page_s,
   _swigc__p_fz_pixmap_s,
   _swigc__p_fz_stext_page_s,
+  _swigc__p_fz_text_s,
   _swigc__p_pdf_annot_s,
   _swigc__p_pdf_graft_map_s,
 };

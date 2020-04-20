@@ -4253,10 +4253,6 @@ class Page(object):
         r"""_makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"""
         return _fitz.Page__makePixmap(self, doc, ctm, cs, alpha, annots, clip)
 
-    def _write_text(self, matrix, store, opacity=1, color=None):
-        r"""_write_text(self, matrix, store, opacity=1, color=None) -> PyObject *"""
-        return _fitz.Page__write_text(self, matrix, store, opacity, color)
-
     def setMediaBox(self, rect):
         r"""setMediaBox(self, rect) -> PyObject *"""
         CheckParent(self)
@@ -5792,8 +5788,98 @@ class Graftmap(object):
 # Register Graftmap in _fitz:
 _fitz.Graftmap_swigregister(Graftmap)
 
+class TextWriter(object):
+    r"""New TextWriter with opacity and color."""
+
+    thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
+    __repr__ = _swig_repr
+    __swig_destroy__ = _fitz.delete_TextWriter
+
+    def __init__(self, page_rect, opacity=1, color=None):
+        r"""__init__(self, page_rect, opacity=1, color=None) -> TextWriter"""
+        _fitz.TextWriter_swiginit(self, _fitz.new_TextWriter(page_rect, opacity, color))
+
+        self.opacity = opacity
+        self.color = color
+        self.rect = Rect(page_rect)
+        self.ctm = Matrix(1, 0, 0, -1, 0, self.rect.height)
+        self.ictm = ~self.ctm
+        self.lastPoint = Point()
+        self.textRect = Rect()
+
+
+
+
+    def append(self, pos, text, font=None, fontsize=11, language=None, wmode=0, bidi_level=0):
+        r"""Store 'text' for position 'pos' using 'font' and 'fontsize'."""
+
+        pos = Point(pos) * self.ictm
+        if font is None:
+            font = Font("helv")
+
+        val = _fitz.TextWriter_append(self, pos, text, font, fontsize, language, wmode, bidi_level)
+
+        self.lastPoint = Point(val[-2:]) * self.ctm
+        self.textRect = self.bbox * self.ctm
+        val = self.textRect, self.lastPoint
+
+
+        return val
+
+    @property
+
+    def bbox(self):
+        r"""bbox(self) -> PyObject *"""
+        val = _fitz.TextWriter_bbox(self)
+        val = Rect(val)
+
+        return val
+
+
+    def writeText(self, page, color=None, opacity=1, overlay=1):
+        r"""Write the text to the page."""
+
+        CheckParent(page)
+        if abs(self.rect - page.rect) > 1e-3:
+            raise ValueError("incompatible page rect")
+        if getattr(opacity, "__float__", None) is None:
+            opacity = self.opacity
+        if color is None:
+            color = self.color
+
+
+        val = _fitz.TextWriter_writeText(self, page, color, opacity, overlay)
+
+        max_nums = val[0]
+        content = val[1]
+        max_alp, max_font = max_nums
+        old_cont_lines = content.splitlines()
+        new_cont_lines = ["q"]
+        for line in old_cont_lines:
+            if line.endswith(" cm"):
+                continue
+            if line.endswith(" gs"):
+                alp = int(line.split()[0][4:]) + max_alp
+                line = "/Alp%i gs" % alp
+            elif line.endswith(" Tf"):
+                temp = line.split()
+                font = int(temp[0][2:]) + max_font
+                line = " ".join(["/F%i" % font] + temp[1:])
+            new_cont_lines.append(line)
+        new_cont_lines.append("Q\n")
+        content = "\n".join(new_cont_lines).encode("utf-8")
+        TOOLS._insert_contents(page, content, overlay=overlay)
+        val = None
+
+
+        return val
+
+
+# Register TextWriter in _fitz:
+_fitz.TextWriter_swigregister(TextWriter)
+
 class Font(object):
-    r"""Proxy of C fz_font_s struct."""
+    r"""Define a font choosing from a number of options."""
 
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
@@ -5803,6 +5889,8 @@ class Font(object):
         r"""__init__(self, fontname=None, fontfile=None, fontbuffer=None, script=0, language=None, ordering=-1, is_bold=0, is_italic=0, is_serif=0) -> Font"""
 
         if fontname:
+            if "/" in fontname or "\\" in fontname:
+                print("Warning: did you mean fontfile?")
             try:
                 ordering = ("china-t", "china-s", "japan", "korea","china-ts", "china-ss", "japan-s", "korea-s").index(fontname.lower()) % 4
             except ValueError:
@@ -5825,9 +5913,9 @@ class Font(object):
         r"""Return the glyph advance of a character."""
         return _fitz.Font_glyph_advance(self, chr, language, script, wmode)
 
-    def has_glyph(self, chr, language=None, script=0, wmode=0):
+    def has_glyph(self, chr, language=None, script=0):
         r"""Returns whether the font has a glyph for this character."""
-        return _fitz.Font_has_glyph(self, chr, language, script, wmode)
+        return _fitz.Font_has_glyph(self, chr, language, script)
     @property
 
     def flags(self):
@@ -5838,6 +5926,11 @@ class Font(object):
     def name(self):
         r"""name(self) -> PyObject *"""
         return _fitz.Font_name(self)
+    @property
+
+    def glyph_count(self):
+        r"""glyph_count(self) -> int"""
+        return _fitz.Font_glyph_count(self)
     @property
 
     def bbox(self):
@@ -6004,6 +6097,10 @@ class Tools(object):
     def _update_da(self, annot, da_str):
         r"""_update_da(self, annot, da_str) -> PyObject *"""
         return _fitz.Tools__update_da(self, annot, da_str)
+
+    def _get_all_contents(self, fzpage):
+        r"""Concatenate all /Contents objects of a page into a bytes object."""
+        return _fitz.Tools__get_all_contents(self, fzpage)
 
     def _insert_contents(self, page, newcont, overlay=1):
         r"""Make a new /Contents object for a page from bytes, and return its xref."""
