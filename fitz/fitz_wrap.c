@@ -6019,10 +6019,7 @@ PyObject *JM_get_script(fz_context *ctx, pdf_obj *key)
     {
         js = pdf_dict_get(ctx, key, PDF_NAME(JS));
     }
-    if (!js)
-    {
-        Py_RETURN_NONE;
-    }
+    if (!js) Py_RETURN_NONE;
 
     if (pdf_is_string(ctx, js))
     {
@@ -6415,7 +6412,6 @@ void JM_get_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
     PyObject *val;
     fz_try(ctx)
     {
-//start-trace
         int field_type = pdf_widget_type(gctx, tw);
         SETATTR_DROP("field_type", Py_BuildValue("i", field_type), val);
         if (field_type == PDF_WIDGET_TYPE_SIGNATURE)
@@ -6553,7 +6549,6 @@ void JM_get_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
             "script_calc",
             JM_get_script(ctx, pdf_dict_getl(ctx, annot->obj, PDF_NAME(AA), PDF_NAME(C), NULL)),
             val);
-//end-trace
     }
     fz_always(ctx) PyErr_Clear();
     fz_catch(ctx) fz_rethrow(ctx);
@@ -6647,6 +6642,16 @@ void JM_set_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
         char *label = JM_Python_str_AsChar(value);
         pdf_dict_put_text_string(ctx, annot->obj, PDF_NAME(TU), label);
         JM_Python_str_DelForPy3(label);
+    }
+    Py_CLEAR(value);
+
+    // field name -------------------------------------------------------------
+    value = GETATTR("field_name");
+    if (value != Py_None)
+    {
+        char *name = JM_Python_str_AsChar(value);
+        pdf_dict_put_text_string(ctx, annot->obj, PDF_NAME(T), name);
+        JM_Python_str_DelForPy3(name);
     }
     Py_CLEAR(value);
 
@@ -21099,7 +21104,7 @@ SWIGINTERN PyObject *_wrap_TextWriter_writeText(PyObject *SWIGUNUSEDPARM(self), 
   struct fz_text_s *arg1 = (struct fz_text_s *) 0 ;
   struct fz_page_s *arg2 = (struct fz_page_s *) 0 ;
   PyObject *arg3 = (PyObject *) NULL ;
-  float arg4 = (float) 1 ;
+  float arg4 = (float) -1 ;
   int arg5 = (int) 1 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
@@ -22992,7 +22997,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "new_TextWriter", _wrap_new_TextWriter, METH_VARARGS, "new_TextWriter(page_rect, opacity=1, color=None) -> TextWriter"},
 	 { "TextWriter_append", _wrap_TextWriter_append, METH_VARARGS, "Store 'text' for position 'pos' using 'font' and 'fontsize'."},
 	 { "TextWriter_bbox", _wrap_TextWriter_bbox, METH_O, "TextWriter_bbox(self) -> PyObject *"},
-	 { "TextWriter_writeText", _wrap_TextWriter_writeText, METH_VARARGS, "Write the text to the page."},
+	 { "TextWriter_writeText", _wrap_TextWriter_writeText, METH_VARARGS, "Write the text to the page. Color or opacity specified here will override object attributes temporarily."},
 	 { "TextWriter_swigregister", TextWriter_swigregister, METH_O, NULL},
 	 { "TextWriter_swiginit", TextWriter_swiginit, METH_VARARGS, NULL},
 	 { "delete_Font", _wrap_delete_Font, METH_O, "delete_Font(self)"},

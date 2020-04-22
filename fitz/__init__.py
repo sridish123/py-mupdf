@@ -85,6 +85,12 @@ fitz.Rect.getArea = fitz.utils.getRectArea
 fitz.IRect.getRectArea = fitz.utils.getRectArea
 fitz.IRect.getArea = fitz.utils.getRectArea
 
+# ------------------------------------------------------------------------------
+# IRect
+# ------------------------------------------------------------------------------
+fitz.TextWriter.fillTextbox = fitz.utils.fillTextbox
+
+
 fitz.__doc__ = """
 PyMuPDF %s: Python bindings for the MuPDF %s library.
 Version date: %s.

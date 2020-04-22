@@ -79,8 +79,8 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 VersionFitz = "1.16.0"
 VersionBind = "1.16.18"
-VersionDate = "2020-04-09 13:35:20"
-version = (VersionBind, VersionFitz, "20200409133520")
+VersionDate = "2020-04-22 14:00:00"
+version = (VersionBind, VersionFitz, "20200422140000")
 
 EPSILON = _fitz.EPSILON
 
@@ -5836,8 +5836,8 @@ class TextWriter(object):
         return val
 
 
-    def writeText(self, page, color=None, opacity=1, overlay=1):
-        r"""Write the text to the page."""
+    def writeText(self, page, color=None, opacity=-1, overlay=1):
+        r"""Write the text to the page. Color or opacity specified here will override object attributes temporarily."""
 
         CheckParent(page)
         if abs(self.rect - page.rect) > 1e-3:
