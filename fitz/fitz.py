@@ -77,292 +77,711 @@ fitz_py2 = str is bytes  # if true, this is Python 2
 string_types = (str, unicode) if fitz_py2 else (str,)
 
 
-VersionFitz = "1.17.0"
-VersionBind = "1.17.0"
-VersionDate = "2020-05-05 12:18:45"
-version = (VersionBind, VersionFitz, "20200505121845")
+VersionFitz = "1.16.0"
+VersionBind = "1.16.19"
+VersionDate = "2020-05-06 17:49:53"
+version = (VersionBind, VersionFitz, "20200506174953")
 
 EPSILON = _fitz.EPSILON
+
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
+
 PDF_ANNOT_LINK = _fitz.PDF_ANNOT_LINK
+
 PDF_ANNOT_FREE_TEXT = _fitz.PDF_ANNOT_FREE_TEXT
+
 PDF_ANNOT_LINE = _fitz.PDF_ANNOT_LINE
+
 PDF_ANNOT_SQUARE = _fitz.PDF_ANNOT_SQUARE
+
 PDF_ANNOT_CIRCLE = _fitz.PDF_ANNOT_CIRCLE
+
 PDF_ANNOT_POLYGON = _fitz.PDF_ANNOT_POLYGON
-PDF_ANNOT_POLY_LINE = _fitz.PDF_ANNOT_POLY_LINE
+
+PDF_ANNOT_POLYLINE = _fitz.PDF_ANNOT_POLYLINE
+
 PDF_ANNOT_HIGHLIGHT = _fitz.PDF_ANNOT_HIGHLIGHT
+
 PDF_ANNOT_UNDERLINE = _fitz.PDF_ANNOT_UNDERLINE
+
 PDF_ANNOT_SQUIGGLY = _fitz.PDF_ANNOT_SQUIGGLY
-PDF_ANNOT_STRIKE_OUT = _fitz.PDF_ANNOT_STRIKE_OUT
+
+PDF_ANNOT_STRIKEOUT = _fitz.PDF_ANNOT_STRIKEOUT
+
 PDF_ANNOT_REDACT = _fitz.PDF_ANNOT_REDACT
+
 PDF_ANNOT_STAMP = _fitz.PDF_ANNOT_STAMP
+
 PDF_ANNOT_CARET = _fitz.PDF_ANNOT_CARET
+
 PDF_ANNOT_INK = _fitz.PDF_ANNOT_INK
+
 PDF_ANNOT_POPUP = _fitz.PDF_ANNOT_POPUP
-PDF_ANNOT_FILE_ATTACHMENT = _fitz.PDF_ANNOT_FILE_ATTACHMENT
+
+PDF_ANNOT_FILEATTACHMENT = _fitz.PDF_ANNOT_FILEATTACHMENT
+
 PDF_ANNOT_SOUND = _fitz.PDF_ANNOT_SOUND
+
 PDF_ANNOT_MOVIE = _fitz.PDF_ANNOT_MOVIE
+
 PDF_ANNOT_WIDGET = _fitz.PDF_ANNOT_WIDGET
+
 PDF_ANNOT_SCREEN = _fitz.PDF_ANNOT_SCREEN
-PDF_ANNOT_PRINTER_MARK = _fitz.PDF_ANNOT_PRINTER_MARK
-PDF_ANNOT_TRAP_NET = _fitz.PDF_ANNOT_TRAP_NET
+
+PDF_ANNOT_PRINTERMARK = _fitz.PDF_ANNOT_PRINTERMARK
+
+PDF_ANNOT_TRAPNET = _fitz.PDF_ANNOT_TRAPNET
+
 PDF_ANNOT_WATERMARK = _fitz.PDF_ANNOT_WATERMARK
+
 PDF_ANNOT_3D = _fitz.PDF_ANNOT_3D
+
 PDF_ANNOT_UNKNOWN = _fitz.PDF_ANNOT_UNKNOWN
-PDF_ANNOT_IS_INVISIBLE = _fitz.PDF_ANNOT_IS_INVISIBLE
-PDF_ANNOT_IS_HIDDEN = _fitz.PDF_ANNOT_IS_HIDDEN
-PDF_ANNOT_IS_PRINT = _fitz.PDF_ANNOT_IS_PRINT
-PDF_ANNOT_IS_NO_ZOOM = _fitz.PDF_ANNOT_IS_NO_ZOOM
-PDF_ANNOT_IS_NO_ROTATE = _fitz.PDF_ANNOT_IS_NO_ROTATE
-PDF_ANNOT_IS_NO_VIEW = _fitz.PDF_ANNOT_IS_NO_VIEW
-PDF_ANNOT_IS_READ_ONLY = _fitz.PDF_ANNOT_IS_READ_ONLY
-PDF_ANNOT_IS_LOCKED = _fitz.PDF_ANNOT_IS_LOCKED
-PDF_ANNOT_IS_TOGGLE_NO_VIEW = _fitz.PDF_ANNOT_IS_TOGGLE_NO_VIEW
-PDF_ANNOT_IS_LOCKED_CONTENTS = _fitz.PDF_ANNOT_IS_LOCKED_CONTENTS
+
+ANNOT_TEXT = _fitz.ANNOT_TEXT
+
+ANNOT_LINK = _fitz.ANNOT_LINK
+
+ANNOT_FREETEXT = _fitz.ANNOT_FREETEXT
+
+ANNOT_LINE = _fitz.ANNOT_LINE
+
+ANNOT_SQUARE = _fitz.ANNOT_SQUARE
+
+ANNOT_CIRCLE = _fitz.ANNOT_CIRCLE
+
+ANNOT_POLYGON = _fitz.ANNOT_POLYGON
+
+ANNOT_POLYLINE = _fitz.ANNOT_POLYLINE
+
+ANNOT_HIGHLIGHT = _fitz.ANNOT_HIGHLIGHT
+
+ANNOT_UNDERLINE = _fitz.ANNOT_UNDERLINE
+
+ANNOT_SQUIGGLY = _fitz.ANNOT_SQUIGGLY
+
+ANNOT_STRIKEOUT = _fitz.ANNOT_STRIKEOUT
+
+ANNOT_STAMP = _fitz.ANNOT_STAMP
+
+ANNOT_CARET = _fitz.ANNOT_CARET
+
+ANNOT_INK = _fitz.ANNOT_INK
+
+ANNOT_POPUP = _fitz.ANNOT_POPUP
+
+ANNOT_FILEATTACHMENT = _fitz.ANNOT_FILEATTACHMENT
+
+ANNOT_SOUND = _fitz.ANNOT_SOUND
+
+ANNOT_MOVIE = _fitz.ANNOT_MOVIE
+
+ANNOT_WIDGET = _fitz.ANNOT_WIDGET
+
+ANNOT_SCREEN = _fitz.ANNOT_SCREEN
+
+ANNOT_PRINTERMARK = _fitz.ANNOT_PRINTERMARK
+
+ANNOT_TRAPNET = _fitz.ANNOT_TRAPNET
+
+ANNOT_WATERMARK = _fitz.ANNOT_WATERMARK
+
+ANNOT_3D = _fitz.ANNOT_3D
+
+PDF_ANNOT_IS_Invisible = _fitz.PDF_ANNOT_IS_Invisible
+
+PDF_ANNOT_IS_Hidden = _fitz.PDF_ANNOT_IS_Hidden
+
+PDF_ANNOT_IS_Print = _fitz.PDF_ANNOT_IS_Print
+
+PDF_ANNOT_IS_NoZoom = _fitz.PDF_ANNOT_IS_NoZoom
+
+PDF_ANNOT_IS_NoRotate = _fitz.PDF_ANNOT_IS_NoRotate
+
+PDF_ANNOT_IS_NoView = _fitz.PDF_ANNOT_IS_NoView
+
+PDF_ANNOT_IS_ReadOnly = _fitz.PDF_ANNOT_IS_ReadOnly
+
+PDF_ANNOT_IS_Locked = _fitz.PDF_ANNOT_IS_Locked
+
+PDF_ANNOT_IS_ToggleNoView = _fitz.PDF_ANNOT_IS_ToggleNoView
+
+PDF_ANNOT_IS_LockedContents = _fitz.PDF_ANNOT_IS_LockedContents
+
+ANNOT_XF_Invisible = _fitz.ANNOT_XF_Invisible
+
+ANNOT_XF_Hidden = _fitz.ANNOT_XF_Hidden
+
+ANNOT_XF_Print = _fitz.ANNOT_XF_Print
+
+ANNOT_XF_NoZoom = _fitz.ANNOT_XF_NoZoom
+
+ANNOT_XF_NoRotate = _fitz.ANNOT_XF_NoRotate
+
+ANNOT_XF_NoView = _fitz.ANNOT_XF_NoView
+
+ANNOT_XF_ReadOnly = _fitz.ANNOT_XF_ReadOnly
+
+ANNOT_XF_Locked = _fitz.ANNOT_XF_Locked
+
+ANNOT_XF_ToggleNoView = _fitz.ANNOT_XF_ToggleNoView
+
+ANNOT_XF_LockedContents = _fitz.ANNOT_XF_LockedContents
+
 PDF_ANNOT_LE_NONE = _fitz.PDF_ANNOT_LE_NONE
+
 PDF_ANNOT_LE_SQUARE = _fitz.PDF_ANNOT_LE_SQUARE
+
 PDF_ANNOT_LE_CIRCLE = _fitz.PDF_ANNOT_LE_CIRCLE
+
 PDF_ANNOT_LE_DIAMOND = _fitz.PDF_ANNOT_LE_DIAMOND
+
 PDF_ANNOT_LE_OPEN_ARROW = _fitz.PDF_ANNOT_LE_OPEN_ARROW
+
 PDF_ANNOT_LE_CLOSED_ARROW = _fitz.PDF_ANNOT_LE_CLOSED_ARROW
+
 PDF_ANNOT_LE_BUTT = _fitz.PDF_ANNOT_LE_BUTT
+
 PDF_ANNOT_LE_R_OPEN_ARROW = _fitz.PDF_ANNOT_LE_R_OPEN_ARROW
+
 PDF_ANNOT_LE_R_CLOSED_ARROW = _fitz.PDF_ANNOT_LE_R_CLOSED_ARROW
+
 PDF_ANNOT_LE_SLASH = _fitz.PDF_ANNOT_LE_SLASH
+
+ANNOT_LE_None = _fitz.ANNOT_LE_None
+
+ANNOT_LE_Square = _fitz.ANNOT_LE_Square
+
+ANNOT_LE_Circle = _fitz.ANNOT_LE_Circle
+
+ANNOT_LE_Diamond = _fitz.ANNOT_LE_Diamond
+
+ANNOT_LE_OpenArrow = _fitz.ANNOT_LE_OpenArrow
+
+ANNOT_LE_ClosedArrow = _fitz.ANNOT_LE_ClosedArrow
+
+ANNOT_LE_Butt = _fitz.ANNOT_LE_Butt
+
+ANNOT_LE_ROpenArrow = _fitz.ANNOT_LE_ROpenArrow
+
+ANNOT_LE_RClosedArrow = _fitz.ANNOT_LE_RClosedArrow
+
+ANNOT_LE_Slash = _fitz.ANNOT_LE_Slash
+
 PDF_WIDGET_TYPE_UNKNOWN = _fitz.PDF_WIDGET_TYPE_UNKNOWN
+
 PDF_WIDGET_TYPE_BUTTON = _fitz.PDF_WIDGET_TYPE_BUTTON
+
 PDF_WIDGET_TYPE_CHECKBOX = _fitz.PDF_WIDGET_TYPE_CHECKBOX
+
 PDF_WIDGET_TYPE_COMBOBOX = _fitz.PDF_WIDGET_TYPE_COMBOBOX
+
 PDF_WIDGET_TYPE_LISTBOX = _fitz.PDF_WIDGET_TYPE_LISTBOX
+
 PDF_WIDGET_TYPE_RADIOBUTTON = _fitz.PDF_WIDGET_TYPE_RADIOBUTTON
+
 PDF_WIDGET_TYPE_SIGNATURE = _fitz.PDF_WIDGET_TYPE_SIGNATURE
+
 PDF_WIDGET_TYPE_TEXT = _fitz.PDF_WIDGET_TYPE_TEXT
+
+ANNOT_WG_NOT_WIDGET = _fitz.ANNOT_WG_NOT_WIDGET
+
+ANNOT_WG_PUSHBUTTON = _fitz.ANNOT_WG_PUSHBUTTON
+
+ANNOT_WG_CHECKBOX = _fitz.ANNOT_WG_CHECKBOX
+
+ANNOT_WG_RADIOBUTTON = _fitz.ANNOT_WG_RADIOBUTTON
+
+ANNOT_WG_TEXT = _fitz.ANNOT_WG_TEXT
+
+ANNOT_WG_LISTBOX = _fitz.ANNOT_WG_LISTBOX
+
+ANNOT_WG_COMBOBOX = _fitz.ANNOT_WG_COMBOBOX
+
+ANNOT_WG_SIGNATURE = _fitz.ANNOT_WG_SIGNATURE
+
 PDF_WIDGET_TX_FORMAT_NONE = _fitz.PDF_WIDGET_TX_FORMAT_NONE
+
 PDF_WIDGET_TX_FORMAT_NUMBER = _fitz.PDF_WIDGET_TX_FORMAT_NUMBER
+
 PDF_WIDGET_TX_FORMAT_SPECIAL = _fitz.PDF_WIDGET_TX_FORMAT_SPECIAL
+
 PDF_WIDGET_TX_FORMAT_DATE = _fitz.PDF_WIDGET_TX_FORMAT_DATE
+
 PDF_WIDGET_TX_FORMAT_TIME = _fitz.PDF_WIDGET_TX_FORMAT_TIME
+
+ANNOT_WG_TEXT_UNRESTRAINED = _fitz.ANNOT_WG_TEXT_UNRESTRAINED
+
+ANNOT_WG_TEXT_NUMBER = _fitz.ANNOT_WG_TEXT_NUMBER
+
+ANNOT_WG_TEXT_SPECIAL = _fitz.ANNOT_WG_TEXT_SPECIAL
+
+ANNOT_WG_TEXT_DATE = _fitz.ANNOT_WG_TEXT_DATE
+
+ANNOT_WG_TEXT_TIME = _fitz.ANNOT_WG_TEXT_TIME
+
 PDF_FIELD_IS_READ_ONLY = _fitz.PDF_FIELD_IS_READ_ONLY
+
 PDF_FIELD_IS_REQUIRED = _fitz.PDF_FIELD_IS_REQUIRED
+
 PDF_FIELD_IS_NO_EXPORT = _fitz.PDF_FIELD_IS_NO_EXPORT
+
+WIDGET_Ff_ReadOnly = _fitz.WIDGET_Ff_ReadOnly
+
+WIDGET_Ff_Required = _fitz.WIDGET_Ff_Required
+
+WIDGET_Ff_NoExport = _fitz.WIDGET_Ff_NoExport
+
 PDF_TX_FIELD_IS_MULTILINE = _fitz.PDF_TX_FIELD_IS_MULTILINE
+
 PDF_TX_FIELD_IS_PASSWORD = _fitz.PDF_TX_FIELD_IS_PASSWORD
+
 PDF_TX_FIELD_IS_FILE_SELECT = _fitz.PDF_TX_FIELD_IS_FILE_SELECT
+
 PDF_TX_FIELD_IS_DO_NOT_SPELL_CHECK = _fitz.PDF_TX_FIELD_IS_DO_NOT_SPELL_CHECK
+
 PDF_TX_FIELD_IS_DO_NOT_SCROLL = _fitz.PDF_TX_FIELD_IS_DO_NOT_SCROLL
+
 PDF_TX_FIELD_IS_COMB = _fitz.PDF_TX_FIELD_IS_COMB
+
 PDF_TX_FIELD_IS_RICH_TEXT = _fitz.PDF_TX_FIELD_IS_RICH_TEXT
+
+WIDGET_Ff_Multiline = _fitz.WIDGET_Ff_Multiline
+
+WIDGET_Ff_Password = _fitz.WIDGET_Ff_Password
+
+WIDGET_Ff_FileSelect = _fitz.WIDGET_Ff_FileSelect
+
+WIDGET_Ff_DoNotSpellCheck = _fitz.WIDGET_Ff_DoNotSpellCheck
+
+WIDGET_Ff_DoNotScroll = _fitz.WIDGET_Ff_DoNotScroll
+
+WIDGET_Ff_Comb = _fitz.WIDGET_Ff_Comb
+
+WIDGET_Ff_RichText = _fitz.WIDGET_Ff_RichText
+
 PDF_BTN_FIELD_IS_NO_TOGGLE_TO_OFF = _fitz.PDF_BTN_FIELD_IS_NO_TOGGLE_TO_OFF
+
 PDF_BTN_FIELD_IS_RADIO = _fitz.PDF_BTN_FIELD_IS_RADIO
+
 PDF_BTN_FIELD_IS_PUSHBUTTON = _fitz.PDF_BTN_FIELD_IS_PUSHBUTTON
+
 PDF_BTN_FIELD_IS_RADIOS_IN_UNISON = _fitz.PDF_BTN_FIELD_IS_RADIOS_IN_UNISON
+
+WIDGET_Ff_NoToggleToOff = _fitz.WIDGET_Ff_NoToggleToOff
+
+WIDGET_Ff_Radio = _fitz.WIDGET_Ff_Radio
+
+WIDGET_Ff_Pushbutton = _fitz.WIDGET_Ff_Pushbutton
+
+WIDGET_Ff_RadioInUnison = _fitz.WIDGET_Ff_RadioInUnison
+
 PDF_CH_FIELD_IS_COMBO = _fitz.PDF_CH_FIELD_IS_COMBO
+
 PDF_CH_FIELD_IS_EDIT = _fitz.PDF_CH_FIELD_IS_EDIT
+
 PDF_CH_FIELD_IS_SORT = _fitz.PDF_CH_FIELD_IS_SORT
+
 PDF_CH_FIELD_IS_MULTI_SELECT = _fitz.PDF_CH_FIELD_IS_MULTI_SELECT
+
 PDF_CH_FIELD_IS_DO_NOT_SPELL_CHECK = _fitz.PDF_CH_FIELD_IS_DO_NOT_SPELL_CHECK
+
 PDF_CH_FIELD_IS_COMMIT_ON_SEL_CHANGE = _fitz.PDF_CH_FIELD_IS_COMMIT_ON_SEL_CHANGE
-PDF_SIGNATURE_ERROR_OKAY = _fitz.PDF_SIGNATURE_ERROR_OKAY
-PDF_SIGNATURE_ERROR_NO_SIGNATURES = _fitz.PDF_SIGNATURE_ERROR_NO_SIGNATURES
-PDF_SIGNATURE_ERROR_NO_CERTIFICATE = _fitz.PDF_SIGNATURE_ERROR_NO_CERTIFICATE
-PDF_SIGNATURE_ERROR_DIGEST_FAILURE = _fitz.PDF_SIGNATURE_ERROR_DIGEST_FAILURE
-PDF_SIGNATURE_ERROR_SELF_SIGNED = _fitz.PDF_SIGNATURE_ERROR_SELF_SIGNED
-PDF_SIGNATURE_ERROR_SELF_SIGNED_IN_CHAIN = _fitz.PDF_SIGNATURE_ERROR_SELF_SIGNED_IN_CHAIN
-PDF_SIGNATURE_ERROR_NOT_TRUSTED = _fitz.PDF_SIGNATURE_ERROR_NOT_TRUSTED
-PDF_SIGNATURE_ERROR_UNKNOWN = _fitz.PDF_SIGNATURE_ERROR_UNKNOWN
+
+WIDGET_Ff_Combo = _fitz.WIDGET_Ff_Combo
+
+WIDGET_Ff_Edit = _fitz.WIDGET_Ff_Edit
+
+WIDGET_Ff_Sort = _fitz.WIDGET_Ff_Sort
+
+WIDGET_Ff_MultiSelect = _fitz.WIDGET_Ff_MultiSelect
+
+WIDGET_Ff_CommitOnSelCHange = _fitz.WIDGET_Ff_CommitOnSelCHange
+
 CS_RGB = _fitz.CS_RGB
+
 CS_GRAY = _fitz.CS_GRAY
+
 CS_CMYK = _fitz.CS_CMYK
+
 PDF_ENCRYPT_KEEP = _fitz.PDF_ENCRYPT_KEEP
+
 PDF_ENCRYPT_NONE = _fitz.PDF_ENCRYPT_NONE
+
 PDF_ENCRYPT_RC4_40 = _fitz.PDF_ENCRYPT_RC4_40
+
 PDF_ENCRYPT_RC4_128 = _fitz.PDF_ENCRYPT_RC4_128
+
 PDF_ENCRYPT_AES_128 = _fitz.PDF_ENCRYPT_AES_128
+
 PDF_ENCRYPT_AES_256 = _fitz.PDF_ENCRYPT_AES_256
+
 PDF_ENCRYPT_UNKNOWN = _fitz.PDF_ENCRYPT_UNKNOWN
+
 PDF_PERM_PRINT = _fitz.PDF_PERM_PRINT
+
 PDF_PERM_MODIFY = _fitz.PDF_PERM_MODIFY
+
 PDF_PERM_COPY = _fitz.PDF_PERM_COPY
+
 PDF_PERM_ANNOTATE = _fitz.PDF_PERM_ANNOTATE
+
 PDF_PERM_FORM = _fitz.PDF_PERM_FORM
+
 PDF_PERM_ACCESSIBILITY = _fitz.PDF_PERM_ACCESSIBILITY
+
 PDF_PERM_ASSEMBLE = _fitz.PDF_PERM_ASSEMBLE
+
 PDF_PERM_PRINT_HQ = _fitz.PDF_PERM_PRINT_HQ
+
 PDF_BM_Color = _fitz.PDF_BM_Color
+
 PDF_BM_ColorBurn = _fitz.PDF_BM_ColorBurn
+
 PDF_BM_ColorDodge = _fitz.PDF_BM_ColorDodge
+
 PDF_BM_Darken = _fitz.PDF_BM_Darken
+
 PDF_BM_Difference = _fitz.PDF_BM_Difference
+
 PDF_BM_Exclusion = _fitz.PDF_BM_Exclusion
+
 PDF_BM_HardLight = _fitz.PDF_BM_HardLight
+
 PDF_BM_Hue = _fitz.PDF_BM_Hue
+
 PDF_BM_Lighten = _fitz.PDF_BM_Lighten
+
 PDF_BM_Luminosity = _fitz.PDF_BM_Luminosity
+
 PDF_BM_Multiply = _fitz.PDF_BM_Multiply
+
 PDF_BM_Normal = _fitz.PDF_BM_Normal
+
 PDF_BM_Overlay = _fitz.PDF_BM_Overlay
+
 PDF_BM_Saturation = _fitz.PDF_BM_Saturation
+
 PDF_BM_Screen = _fitz.PDF_BM_Screen
+
 PDF_BM_SoftLight = _fitz.PDF_BM_SoftLight
+
 TEXT_FONT_SUPERSCRIPT = _fitz.TEXT_FONT_SUPERSCRIPT
+
 TEXT_FONT_ITALIC = _fitz.TEXT_FONT_ITALIC
+
 TEXT_FONT_SERIFED = _fitz.TEXT_FONT_SERIFED
+
 TEXT_FONT_MONOSPACED = _fitz.TEXT_FONT_MONOSPACED
+
 TEXT_FONT_BOLD = _fitz.TEXT_FONT_BOLD
+
 UCDN_SCRIPT_COMMON = _fitz.UCDN_SCRIPT_COMMON
+
 UCDN_SCRIPT_LATIN = _fitz.UCDN_SCRIPT_LATIN
+
 UCDN_SCRIPT_GREEK = _fitz.UCDN_SCRIPT_GREEK
+
 UCDN_SCRIPT_CYRILLIC = _fitz.UCDN_SCRIPT_CYRILLIC
+
 UCDN_SCRIPT_ARMENIAN = _fitz.UCDN_SCRIPT_ARMENIAN
+
 UCDN_SCRIPT_HEBREW = _fitz.UCDN_SCRIPT_HEBREW
+
 UCDN_SCRIPT_ARABIC = _fitz.UCDN_SCRIPT_ARABIC
+
 UCDN_SCRIPT_SYRIAC = _fitz.UCDN_SCRIPT_SYRIAC
+
 UCDN_SCRIPT_THAANA = _fitz.UCDN_SCRIPT_THAANA
+
 UCDN_SCRIPT_DEVANAGARI = _fitz.UCDN_SCRIPT_DEVANAGARI
+
 UCDN_SCRIPT_BENGALI = _fitz.UCDN_SCRIPT_BENGALI
+
 UCDN_SCRIPT_GURMUKHI = _fitz.UCDN_SCRIPT_GURMUKHI
+
 UCDN_SCRIPT_GUJARATI = _fitz.UCDN_SCRIPT_GUJARATI
+
 UCDN_SCRIPT_ORIYA = _fitz.UCDN_SCRIPT_ORIYA
+
 UCDN_SCRIPT_TAMIL = _fitz.UCDN_SCRIPT_TAMIL
+
 UCDN_SCRIPT_TELUGU = _fitz.UCDN_SCRIPT_TELUGU
+
 UCDN_SCRIPT_KANNADA = _fitz.UCDN_SCRIPT_KANNADA
+
 UCDN_SCRIPT_MALAYALAM = _fitz.UCDN_SCRIPT_MALAYALAM
+
 UCDN_SCRIPT_SINHALA = _fitz.UCDN_SCRIPT_SINHALA
+
 UCDN_SCRIPT_THAI = _fitz.UCDN_SCRIPT_THAI
+
 UCDN_SCRIPT_LAO = _fitz.UCDN_SCRIPT_LAO
+
 UCDN_SCRIPT_TIBETAN = _fitz.UCDN_SCRIPT_TIBETAN
+
 UCDN_SCRIPT_MYANMAR = _fitz.UCDN_SCRIPT_MYANMAR
+
 UCDN_SCRIPT_GEORGIAN = _fitz.UCDN_SCRIPT_GEORGIAN
+
 UCDN_SCRIPT_HANGUL = _fitz.UCDN_SCRIPT_HANGUL
+
 UCDN_SCRIPT_ETHIOPIC = _fitz.UCDN_SCRIPT_ETHIOPIC
+
 UCDN_SCRIPT_CHEROKEE = _fitz.UCDN_SCRIPT_CHEROKEE
+
 UCDN_SCRIPT_CANADIAN_ABORIGINAL = _fitz.UCDN_SCRIPT_CANADIAN_ABORIGINAL
+
 UCDN_SCRIPT_OGHAM = _fitz.UCDN_SCRIPT_OGHAM
+
 UCDN_SCRIPT_RUNIC = _fitz.UCDN_SCRIPT_RUNIC
+
 UCDN_SCRIPT_KHMER = _fitz.UCDN_SCRIPT_KHMER
+
 UCDN_SCRIPT_MONGOLIAN = _fitz.UCDN_SCRIPT_MONGOLIAN
+
 UCDN_SCRIPT_HIRAGANA = _fitz.UCDN_SCRIPT_HIRAGANA
+
 UCDN_SCRIPT_KATAKANA = _fitz.UCDN_SCRIPT_KATAKANA
+
 UCDN_SCRIPT_BOPOMOFO = _fitz.UCDN_SCRIPT_BOPOMOFO
+
 UCDN_SCRIPT_HAN = _fitz.UCDN_SCRIPT_HAN
+
 UCDN_SCRIPT_YI = _fitz.UCDN_SCRIPT_YI
+
 UCDN_SCRIPT_OLD_ITALIC = _fitz.UCDN_SCRIPT_OLD_ITALIC
+
 UCDN_SCRIPT_GOTHIC = _fitz.UCDN_SCRIPT_GOTHIC
+
 UCDN_SCRIPT_DESERET = _fitz.UCDN_SCRIPT_DESERET
+
 UCDN_SCRIPT_INHERITED = _fitz.UCDN_SCRIPT_INHERITED
+
 UCDN_SCRIPT_TAGALOG = _fitz.UCDN_SCRIPT_TAGALOG
+
 UCDN_SCRIPT_HANUNOO = _fitz.UCDN_SCRIPT_HANUNOO
+
 UCDN_SCRIPT_BUHID = _fitz.UCDN_SCRIPT_BUHID
+
 UCDN_SCRIPT_TAGBANWA = _fitz.UCDN_SCRIPT_TAGBANWA
+
 UCDN_SCRIPT_LIMBU = _fitz.UCDN_SCRIPT_LIMBU
+
 UCDN_SCRIPT_TAI_LE = _fitz.UCDN_SCRIPT_TAI_LE
+
 UCDN_SCRIPT_LINEAR_B = _fitz.UCDN_SCRIPT_LINEAR_B
+
 UCDN_SCRIPT_UGARITIC = _fitz.UCDN_SCRIPT_UGARITIC
+
 UCDN_SCRIPT_SHAVIAN = _fitz.UCDN_SCRIPT_SHAVIAN
+
 UCDN_SCRIPT_OSMANYA = _fitz.UCDN_SCRIPT_OSMANYA
+
 UCDN_SCRIPT_CYPRIOT = _fitz.UCDN_SCRIPT_CYPRIOT
+
 UCDN_SCRIPT_BRAILLE = _fitz.UCDN_SCRIPT_BRAILLE
+
 UCDN_SCRIPT_BUGINESE = _fitz.UCDN_SCRIPT_BUGINESE
+
 UCDN_SCRIPT_COPTIC = _fitz.UCDN_SCRIPT_COPTIC
+
 UCDN_SCRIPT_NEW_TAI_LUE = _fitz.UCDN_SCRIPT_NEW_TAI_LUE
+
 UCDN_SCRIPT_GLAGOLITIC = _fitz.UCDN_SCRIPT_GLAGOLITIC
+
 UCDN_SCRIPT_TIFINAGH = _fitz.UCDN_SCRIPT_TIFINAGH
+
 UCDN_SCRIPT_SYLOTI_NAGRI = _fitz.UCDN_SCRIPT_SYLOTI_NAGRI
+
 UCDN_SCRIPT_OLD_PERSIAN = _fitz.UCDN_SCRIPT_OLD_PERSIAN
+
 UCDN_SCRIPT_KHAROSHTHI = _fitz.UCDN_SCRIPT_KHAROSHTHI
+
 UCDN_SCRIPT_BALINESE = _fitz.UCDN_SCRIPT_BALINESE
+
 UCDN_SCRIPT_CUNEIFORM = _fitz.UCDN_SCRIPT_CUNEIFORM
+
 UCDN_SCRIPT_PHOENICIAN = _fitz.UCDN_SCRIPT_PHOENICIAN
+
 UCDN_SCRIPT_PHAGS_PA = _fitz.UCDN_SCRIPT_PHAGS_PA
+
 UCDN_SCRIPT_NKO = _fitz.UCDN_SCRIPT_NKO
+
 UCDN_SCRIPT_SUNDANESE = _fitz.UCDN_SCRIPT_SUNDANESE
+
 UCDN_SCRIPT_LEPCHA = _fitz.UCDN_SCRIPT_LEPCHA
+
 UCDN_SCRIPT_OL_CHIKI = _fitz.UCDN_SCRIPT_OL_CHIKI
+
 UCDN_SCRIPT_VAI = _fitz.UCDN_SCRIPT_VAI
+
 UCDN_SCRIPT_SAURASHTRA = _fitz.UCDN_SCRIPT_SAURASHTRA
+
 UCDN_SCRIPT_KAYAH_LI = _fitz.UCDN_SCRIPT_KAYAH_LI
+
 UCDN_SCRIPT_REJANG = _fitz.UCDN_SCRIPT_REJANG
+
 UCDN_SCRIPT_LYCIAN = _fitz.UCDN_SCRIPT_LYCIAN
+
 UCDN_SCRIPT_CARIAN = _fitz.UCDN_SCRIPT_CARIAN
+
 UCDN_SCRIPT_LYDIAN = _fitz.UCDN_SCRIPT_LYDIAN
+
 UCDN_SCRIPT_CHAM = _fitz.UCDN_SCRIPT_CHAM
+
 UCDN_SCRIPT_TAI_THAM = _fitz.UCDN_SCRIPT_TAI_THAM
+
 UCDN_SCRIPT_TAI_VIET = _fitz.UCDN_SCRIPT_TAI_VIET
+
 UCDN_SCRIPT_AVESTAN = _fitz.UCDN_SCRIPT_AVESTAN
+
 UCDN_SCRIPT_EGYPTIAN_HIEROGLYPHS = _fitz.UCDN_SCRIPT_EGYPTIAN_HIEROGLYPHS
+
 UCDN_SCRIPT_SAMARITAN = _fitz.UCDN_SCRIPT_SAMARITAN
+
 UCDN_SCRIPT_LISU = _fitz.UCDN_SCRIPT_LISU
+
 UCDN_SCRIPT_BAMUM = _fitz.UCDN_SCRIPT_BAMUM
+
 UCDN_SCRIPT_JAVANESE = _fitz.UCDN_SCRIPT_JAVANESE
+
 UCDN_SCRIPT_MEETEI_MAYEK = _fitz.UCDN_SCRIPT_MEETEI_MAYEK
+
 UCDN_SCRIPT_IMPERIAL_ARAMAIC = _fitz.UCDN_SCRIPT_IMPERIAL_ARAMAIC
+
 UCDN_SCRIPT_OLD_SOUTH_ARABIAN = _fitz.UCDN_SCRIPT_OLD_SOUTH_ARABIAN
+
 UCDN_SCRIPT_INSCRIPTIONAL_PARTHIAN = _fitz.UCDN_SCRIPT_INSCRIPTIONAL_PARTHIAN
+
 UCDN_SCRIPT_INSCRIPTIONAL_PAHLAVI = _fitz.UCDN_SCRIPT_INSCRIPTIONAL_PAHLAVI
+
 UCDN_SCRIPT_OLD_TURKIC = _fitz.UCDN_SCRIPT_OLD_TURKIC
+
 UCDN_SCRIPT_KAITHI = _fitz.UCDN_SCRIPT_KAITHI
+
 UCDN_SCRIPT_BATAK = _fitz.UCDN_SCRIPT_BATAK
+
 UCDN_SCRIPT_BRAHMI = _fitz.UCDN_SCRIPT_BRAHMI
+
 UCDN_SCRIPT_MANDAIC = _fitz.UCDN_SCRIPT_MANDAIC
+
 UCDN_SCRIPT_CHAKMA = _fitz.UCDN_SCRIPT_CHAKMA
+
 UCDN_SCRIPT_MEROITIC_CURSIVE = _fitz.UCDN_SCRIPT_MEROITIC_CURSIVE
+
 UCDN_SCRIPT_MEROITIC_HIEROGLYPHS = _fitz.UCDN_SCRIPT_MEROITIC_HIEROGLYPHS
+
 UCDN_SCRIPT_MIAO = _fitz.UCDN_SCRIPT_MIAO
+
 UCDN_SCRIPT_SHARADA = _fitz.UCDN_SCRIPT_SHARADA
+
 UCDN_SCRIPT_SORA_SOMPENG = _fitz.UCDN_SCRIPT_SORA_SOMPENG
+
 UCDN_SCRIPT_TAKRI = _fitz.UCDN_SCRIPT_TAKRI
+
 UCDN_SCRIPT_UNKNOWN = _fitz.UCDN_SCRIPT_UNKNOWN
+
 UCDN_SCRIPT_BASSA_VAH = _fitz.UCDN_SCRIPT_BASSA_VAH
+
 UCDN_SCRIPT_CAUCASIAN_ALBANIAN = _fitz.UCDN_SCRIPT_CAUCASIAN_ALBANIAN
+
 UCDN_SCRIPT_DUPLOYAN = _fitz.UCDN_SCRIPT_DUPLOYAN
+
 UCDN_SCRIPT_ELBASAN = _fitz.UCDN_SCRIPT_ELBASAN
+
 UCDN_SCRIPT_GRANTHA = _fitz.UCDN_SCRIPT_GRANTHA
+
 UCDN_SCRIPT_KHOJKI = _fitz.UCDN_SCRIPT_KHOJKI
+
 UCDN_SCRIPT_KHUDAWADI = _fitz.UCDN_SCRIPT_KHUDAWADI
+
 UCDN_SCRIPT_LINEAR_A = _fitz.UCDN_SCRIPT_LINEAR_A
+
 UCDN_SCRIPT_MAHAJANI = _fitz.UCDN_SCRIPT_MAHAJANI
+
 UCDN_SCRIPT_MANICHAEAN = _fitz.UCDN_SCRIPT_MANICHAEAN
+
 UCDN_SCRIPT_MENDE_KIKAKUI = _fitz.UCDN_SCRIPT_MENDE_KIKAKUI
+
 UCDN_SCRIPT_MODI = _fitz.UCDN_SCRIPT_MODI
+
 UCDN_SCRIPT_MRO = _fitz.UCDN_SCRIPT_MRO
+
 UCDN_SCRIPT_NABATAEAN = _fitz.UCDN_SCRIPT_NABATAEAN
+
 UCDN_SCRIPT_OLD_NORTH_ARABIAN = _fitz.UCDN_SCRIPT_OLD_NORTH_ARABIAN
+
 UCDN_SCRIPT_OLD_PERMIC = _fitz.UCDN_SCRIPT_OLD_PERMIC
+
 UCDN_SCRIPT_PAHAWH_HMONG = _fitz.UCDN_SCRIPT_PAHAWH_HMONG
+
 UCDN_SCRIPT_PALMYRENE = _fitz.UCDN_SCRIPT_PALMYRENE
+
 UCDN_SCRIPT_PAU_CIN_HAU = _fitz.UCDN_SCRIPT_PAU_CIN_HAU
+
 UCDN_SCRIPT_PSALTER_PAHLAVI = _fitz.UCDN_SCRIPT_PSALTER_PAHLAVI
+
 UCDN_SCRIPT_SIDDHAM = _fitz.UCDN_SCRIPT_SIDDHAM
+
 UCDN_SCRIPT_TIRHUTA = _fitz.UCDN_SCRIPT_TIRHUTA
+
 UCDN_SCRIPT_WARANG_CITI = _fitz.UCDN_SCRIPT_WARANG_CITI
+
 UCDN_SCRIPT_AHOM = _fitz.UCDN_SCRIPT_AHOM
+
 UCDN_SCRIPT_ANATOLIAN_HIEROGLYPHS = _fitz.UCDN_SCRIPT_ANATOLIAN_HIEROGLYPHS
+
 UCDN_SCRIPT_HATRAN = _fitz.UCDN_SCRIPT_HATRAN
+
 UCDN_SCRIPT_MULTANI = _fitz.UCDN_SCRIPT_MULTANI
+
 UCDN_SCRIPT_OLD_HUNGARIAN = _fitz.UCDN_SCRIPT_OLD_HUNGARIAN
+
 UCDN_SCRIPT_SIGNWRITING = _fitz.UCDN_SCRIPT_SIGNWRITING
+
 UCDN_SCRIPT_ADLAM = _fitz.UCDN_SCRIPT_ADLAM
+
 UCDN_SCRIPT_BHAIKSUKI = _fitz.UCDN_SCRIPT_BHAIKSUKI
+
 UCDN_SCRIPT_MARCHEN = _fitz.UCDN_SCRIPT_MARCHEN
+
 UCDN_SCRIPT_NEWA = _fitz.UCDN_SCRIPT_NEWA
+
 UCDN_SCRIPT_OSAGE = _fitz.UCDN_SCRIPT_OSAGE
+
 UCDN_SCRIPT_TANGUT = _fitz.UCDN_SCRIPT_TANGUT
+
 UCDN_SCRIPT_MASARAM_GONDI = _fitz.UCDN_SCRIPT_MASARAM_GONDI
+
 UCDN_SCRIPT_NUSHU = _fitz.UCDN_SCRIPT_NUSHU
+
 UCDN_SCRIPT_SOYOMBO = _fitz.UCDN_SCRIPT_SOYOMBO
+
 UCDN_SCRIPT_ZANABAZAR_SQUARE = _fitz.UCDN_SCRIPT_ZANABAZAR_SQUARE
+
 UCDN_SCRIPT_DOGRA = _fitz.UCDN_SCRIPT_DOGRA
+
 UCDN_SCRIPT_GUNJALA_GONDI = _fitz.UCDN_SCRIPT_GUNJALA_GONDI
+
 UCDN_SCRIPT_HANIFI_ROHINGYA = _fitz.UCDN_SCRIPT_HANIFI_ROHINGYA
+
 UCDN_SCRIPT_MAKASAR = _fitz.UCDN_SCRIPT_MAKASAR
+
 UCDN_SCRIPT_MEDEFAIDRIN = _fitz.UCDN_SCRIPT_MEDEFAIDRIN
+
 UCDN_SCRIPT_OLD_SOGDIAN = _fitz.UCDN_SCRIPT_OLD_SOGDIAN
+
 UCDN_SCRIPT_SOGDIAN = _fitz.UCDN_SCRIPT_SOGDIAN
+
 UCDN_SCRIPT_ELYMAIC = _fitz.UCDN_SCRIPT_ELYMAIC
+
 UCDN_SCRIPT_NANDINAGARI = _fitz.UCDN_SCRIPT_NANDINAGARI
+
 UCDN_SCRIPT_NYIAKENG_PUACHUE_HMONG = _fitz.UCDN_SCRIPT_NYIAKENG_PUACHUE_HMONG
+
 UCDN_SCRIPT_WANCHO = _fitz.UCDN_SCRIPT_WANCHO
+
 
 class Matrix(object):
     """Matrix() - all zeros\nMatrix(a, b, c, d, e, f)\nMatrix(zoom-x, zoom-y) - zoom\nMatrix(shear-x, shear-y, 1) - shear\nMatrix(degree) - rotate\nMatrix(Matrix) - new copy\nMatrix(sequence) - from 'sequence'"""
@@ -1874,7 +2293,6 @@ def getPDFstr(s):
     """ Return a PDF string depending on its coding.
 
     Notes:
-        Returns a string bracketed with either "()" or "<>" for hex values.
         If only ascii then "(original)" is returned, else if only 8 bit chars
         then "(original)" with interspersed octal strings \nnn is returned,
         else a string "<FEFF[hexstring]>" is returned, where [hexstring] is the
@@ -1889,9 +2307,9 @@ def getPDFstr(s):
         return "<" + t + ">"  # brackets indicate hex
 
 
-# The following either returns the original string with mixed-in
-# octal numbers \nnn for chars outside the ASCII range, or returns
-# the UTF-16BE BOM version of the string.
+# following either returns original string with mixed-in
+# octal numbers \nnn for chars outside ASCII range, or:
+# exits with utf-16be BOM version of the string
     r = ""
     for c in s:
         oc = ord(c)
@@ -2335,32 +2753,18 @@ def get_highlight_selection(page, start=None, stop=None, clip=None):
 
     return rectangles
 
-def annot_preprocess(page):
-    CheckParent(page)
-    if not page.parent.isPDF:
-        raise ValueError("not a PDF")
-    old_rotation = page.rotation
-    if old_rotation != 0:
-        page.setRotation(0)
-    return old_rotation, None
-
-
-def annot_postprocess(page, annot, old_rotation):
-    if old_rotation != 0:
-        page.setRotation(old_rotation)
-    if not annot:
-        return None
-    annot.thisown = True
-    annot.parent = weakref.proxy(page)
-    page._annot_refs[id(annot)] = annot
-
 
 class Document(object):
+    r"""open() - new empty PDF
+open('type', stream) - from bytes/bytearray
+open(filename, filetype='type') - from file"""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
     __swig_destroy__ = _fitz.delete_Document
 
     def __init__(self, filename=None, stream=None, filetype=None, rect=None, width=0, height=0, fontsize=11):
+        r"""__init__(self, filename=None, stream=None, filetype=None, rect=None, width=0, height=0, fontsize=11) -> Document"""
 
         if not filename or type(filename) is str:
             pass
@@ -2413,6 +2817,7 @@ class Document(object):
 
 
     def close(self):
+        r"""close(self)"""
 
         if self.isClosed:
             raise ValueError("document closed")
@@ -2436,34 +2841,33 @@ class Document(object):
         return val
 
 
-    def loadPage(self, page_id):
+    def loadPage(self, number=0):
+        r"""loadPage(self, number=0) -> Page"""
+        if self.isClosed or self.isEncrypted:
+            raise ValueError("document closed or encrypted")
 
-        if page_id is None:
-            page_id = 0
-        if page_id not in self:
-            raise ValueError("page not in document")
-        if type(page_id) is int and page_id < 0:
-            np = self.pageCount
-            while page_id < 0:
-                page_id += np
+        val = _fitz.Document_loadPage(self, number)
 
-
-        val = _fitz.Document_loadPage(self, page_id)
-
-        val.thisown = True
-        val.parent = weakref.proxy(self)
-        self._page_refs[id(val)] = val
-        val._annot_refs = weakref.WeakValueDictionary()
-        val.number = page_id
+        if val:
+            val.thisown = True
+            val.parent = weakref.proxy(self)
+            pageCount = self.pageCount
+            n = number
+            while n < 0: n += pageCount
+            val.number = n
+            self._page_refs[id(val)] = val
+            val._annot_refs = weakref.WeakValueDictionary()
 
 
         return val
 
 
     def _remove_links_to(self, first, last):
+        r"""_remove_links_to(self, first, last) -> PyObject *"""
         return _fitz.Document__remove_links_to(self, first, last)
 
     def _loadOutline(self):
+        r"""_loadOutline(self) -> Outline"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2471,9 +2875,11 @@ class Document(object):
 
 
     def _dropOutline(self, ol):
+        r"""_dropOutline(self, ol)"""
         return _fitz.Document__dropOutline(self, ol)
 
     def _embeddedFileNames(self, namelist):
+        r"""_embeddedFileNames(self, namelist) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2481,18 +2887,23 @@ class Document(object):
 
 
     def _embeddedFileDel(self, idx):
+        r"""_embeddedFileDel(self, idx) -> PyObject *"""
         return _fitz.Document__embeddedFileDel(self, idx)
 
     def _embeddedFileInfo(self, idx, infodict):
+        r"""_embeddedFileInfo(self, idx, infodict) -> PyObject *"""
         return _fitz.Document__embeddedFileInfo(self, idx, infodict)
 
     def _embeddedFileUpd(self, idx, buffer=None, filename=None, ufilename=None, desc=None):
+        r"""_embeddedFileUpd(self, idx, buffer=None, filename=None, ufilename=None, desc=None) -> PyObject *"""
         return _fitz.Document__embeddedFileUpd(self, idx, buffer, filename, ufilename, desc)
 
     def _embeddedFileGet(self, idx):
+        r"""_embeddedFileGet(self, idx) -> PyObject *"""
         return _fitz.Document__embeddedFileGet(self, idx)
 
     def _embeddedFileAdd(self, name, buffer, filename=None, ufilename=None, desc=None):
+        r"""_embeddedFileAdd(self, name, buffer, filename=None, ufilename=None, desc=None) -> PyObject *"""
         return _fitz.Document__embeddedFileAdd(self, name, buffer, filename, ufilename, desc)
 
     def embeddedFileNames(self):
@@ -2619,80 +3030,15 @@ class Document(object):
     @property
 
     def pageCount(self):
+        r"""pageCount(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
         return _fitz.Document_pageCount(self)
 
-    @property
-
-    def chapterCount(self):
-        if self.isClosed:
-            raise ValueError("document closed")
-
-        return _fitz.Document_chapterCount(self)
-
-    @property
-
-    def lastLocation(self):
-        if self.isClosed:
-            raise ValueError("document closed")
-
-        return _fitz.Document_lastLocation(self)
-
-
-    def chapterPageCount(self, chapter):
-        if self.isClosed:
-            raise ValueError("document closed")
-
-        return _fitz.Document_chapterPageCount(self, chapter)
-
-
-    def previousLocation(self, page_id):
-
-        if type(page_id) is int:
-            page_id = (0, page_id)
-        if page_id not in self:
-            raise ValueError("page id not in document")
-        if page_id  == (0, 0):
-            return ()
-
-
-        return _fitz.Document_previousLocation(self, page_id)
-
-
-    def nextLocation(self, page_id):
-
-        if type(page_id) is int:
-            page_id = (0, page_id)
-        if page_id not in self:
-            raise ValueError("page id not in document")
-        if tuple(page_id)  == self.lastLocation:
-            return ()
-
-
-        return _fitz.Document_nextLocation(self, page_id)
-
-
-    def location_from_page_number(self, pno):
-        if self.isClosed:
-            raise ValueError("document closed")
-
-        return _fitz.Document_location_from_page_number(self, pno)
-
-
-    def page_number_from_location(self, page_id):
-
-        if type(page_id) is int:
-            page_id = (0, page_id)
-        if page_id not in self:
-            raise ValueError("page id not in document")
-
-
-        return _fitz.Document_page_number_from_location(self, page_id)
-
 
     def _getMetadata(self, key):
+        r"""_getMetadata(self, key) -> char *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2701,22 +3047,12 @@ class Document(object):
     @property
 
     def needsPass(self):
+        r"""needsPass(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
         return _fitz.Document_needsPass(self)
 
-    @property
-
-    def language(self):
-        if self.isClosed:
-            raise ValueError("document closed")
-
-        return _fitz.Document_language(self)
-
-
-    def setLanguage(self, language=None):
-        return _fitz.Document_setLanguage(self, language)
 
     def resolveLink(self, uri=None):
         r"""Calculate internal link destination."""
@@ -2753,6 +3089,7 @@ class Document(object):
     @property
 
     def isReflowable(self):
+        r"""isReflowable(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2785,6 +3122,7 @@ class Document(object):
     @property
 
     def isPDF(self):
+        r"""isPDF(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2793,6 +3131,7 @@ class Document(object):
     @property
 
     def _hasXrefStream(self):
+        r"""_hasXrefStream(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2801,6 +3140,7 @@ class Document(object):
     @property
 
     def _hasXrefOldStyle(self):
+        r"""_hasXrefOldStyle(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2809,6 +3149,7 @@ class Document(object):
     @property
 
     def isDirty(self):
+        r"""isDirty(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2840,6 +3181,7 @@ class Document(object):
 
 
     def save(self, filename, garbage=0, clean=0, deflate=0, incremental=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
+        r"""save(self, filename, garbage=0, clean=0, deflate=0, incremental=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None) -> PyObject *"""
 
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
@@ -2893,6 +3235,7 @@ class Document(object):
 
 
     def _newPage(self, pno=-1, width=595, height=842):
+        r"""_newPage(self, pno=-1, width=595, height=842) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -2923,6 +3266,7 @@ class Document(object):
 
 
     def _deletePage(self, pno):
+        r"""_deletePage(self, pno) -> PyObject *"""
         return _fitz.Document__deletePage(self, pno)
     @property
 
@@ -2945,6 +3289,7 @@ class Document(object):
 
 
     def _getPageObjNumber(self, pno):
+        r"""_getPageObjNumber(self, pno) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2968,6 +3313,7 @@ class Document(object):
 
 
     def extractFont(self, xref=0, info_only=0):
+        r"""extractFont(self, xref=0, info_only=0) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -2983,6 +3329,7 @@ class Document(object):
 
 
     def _delToC(self):
+        r"""_delToC(self) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -2993,6 +3340,7 @@ class Document(object):
 
 
     def isStream(self, xref=0):
+        r"""isStream(self, xref=0) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3000,6 +3348,7 @@ class Document(object):
 
 
     def getSigFlags(self):
+        r"""getSigFlags(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3008,6 +3357,7 @@ class Document(object):
     @property
 
     def isFormPDF(self):
+        r"""isFormPDF(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3016,6 +3366,7 @@ class Document(object):
     @property
 
     def FormFonts(self):
+        r"""FormFonts(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3023,6 +3374,7 @@ class Document(object):
 
 
     def _addFormFont(self, name, font):
+        r"""_addFormFont(self, name, font) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3030,6 +3382,7 @@ class Document(object):
 
 
     def _getOLRootNumber(self):
+        r"""_getOLRootNumber(self) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3037,6 +3390,7 @@ class Document(object):
 
 
     def _getNewXref(self):
+        r"""_getNewXref(self) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3044,6 +3398,7 @@ class Document(object):
 
 
     def _getXrefLength(self):
+        r"""_getXrefLength(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3051,6 +3406,7 @@ class Document(object):
 
 
     def _getXmlMetadataXref(self):
+        r"""_getXmlMetadataXref(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3058,6 +3414,7 @@ class Document(object):
 
 
     def _delXmlMetadata(self):
+        r"""_delXmlMetadata(self) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3065,6 +3422,7 @@ class Document(object):
 
 
     def _getXrefString(self, xref, compressed=0, ascii=0):
+        r"""_getXrefString(self, xref, compressed=0, ascii=0) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3072,6 +3430,7 @@ class Document(object):
 
 
     def _getTrailerString(self, compressed=0, ascii=0):
+        r"""_getTrailerString(self, compressed=0, ascii=0) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3079,6 +3438,7 @@ class Document(object):
 
 
     def _getXrefStreamRaw(self, xref):
+        r"""_getXrefStreamRaw(self, xref) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3086,6 +3446,7 @@ class Document(object):
 
 
     def _getXrefStream(self, xref):
+        r"""_getXrefStream(self, xref) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3093,6 +3454,7 @@ class Document(object):
 
 
     def _updateObject(self, xref, text, page=None):
+        r"""_updateObject(self, xref, text, page=None) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3100,6 +3462,7 @@ class Document(object):
 
 
     def _updateStream(self, xref=0, stream=None, new=0):
+        r"""_updateStream(self, xref=0, stream=None, new=0) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3107,6 +3470,7 @@ class Document(object):
 
 
     def _setMetadata(self, text):
+        r"""_setMetadata(self, text) -> PyObject *"""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3114,6 +3478,7 @@ class Document(object):
 
 
     def _make_page_map(self):
+        r"""_make_page_map(self) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3121,6 +3486,7 @@ class Document(object):
 
 
     def fullcopyPage(self, pno, to=-1):
+        r"""fullcopyPage(self, pno, to=-1) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3132,6 +3498,7 @@ class Document(object):
 
 
     def _move_copy_page(self, pno, nb, before, copy):
+        r"""_move_copy_page(self, pno, nb, before, copy) -> PyObject *"""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3383,35 +3750,11 @@ class Document(object):
             return m + "fitz.Document('%s')" % (self.name,)
         return m + "fitz.Document('%s', <memory, doc# %i>)" % (self.name, self._graft_id)
 
-
-    def __contains__(self, loc):
-        if type(loc) is int:
-            if loc >= self.pageCount:
-                return False
-            return True
-        if type(loc) not in (tuple, list):
-            raise TypeError("bad page id")
-        if len(loc) != 2:
-            raise TypeError("bad page id")
-
-        chapter = loc[0]
-        if type(chapter) != int or chapter < 0:
-            raise TypeError("bad page id")
-
-        pno = loc[1]
-        if type(pno) != int or pno < 0:
-            raise TypeError("bad page id")
-
-        if chapter >= self.chapterCount:
-            return False
-        if pno >= self.chapterPageCount(chapter):
-            return False
-        return True
-
-
     def __getitem__(self, i=0):
-        if i not in self:
-            raise IndexError("page not in document")
+        if type(i) is not int:
+            raise ValueError("bad page number(s)")
+        if i >= self.pageCount:
+            raise IndexError("bad page number(s)")
         return self.loadPage(i)
 
     def pages(self, start=None, stop=None, step=None):
@@ -3489,6 +3832,8 @@ class Document(object):
 _fitz.Document_swigregister(Document)
 
 class Page(object):
+    r"""Page of a document."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
 
     def __init__(self, *args, **kwargs):
@@ -3497,6 +3842,7 @@ class Page(object):
     __swig_destroy__ = _fitz.delete_Page
 
     def bound(self):
+        r"""bound(self) -> PyObject *"""
         CheckParent(self)
 
         val = _fitz.Page_bound(self)
@@ -3507,38 +3853,19 @@ class Page(object):
     rect = property(bound, doc="page rectangle")
 
     def run(self, dw, m):
+        r"""run(self, dw, m) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Page_run(self, dw, m)
 
 
-    def _get_text_page(self, flags=0):
-        return _fitz.Page__get_text_page(self, flags)
-
     def getTextPage(self, flags=0):
-        CheckParent(self)
-        old_rotation = self.rotation
-        if old_rotation != 0:
-            self.setRotation(0)
-        try:
-            textpage = self._get_text_page(flags=flags)
-        finally:
-            if old_rotation != 0:
-                self.setRotation(old_rotation)
-        return textpage
-
-    @property
-
-    def language(self):
-        return _fitz.Page_language(self)
-
-    def setLanguage(self, language=None):
-        r"""Set the language default of a PDF page."""
+        r"""Create a TextPage directly from the page."""
 
         CheckParent(self)
 
 
-        return _fitz.Page_setLanguage(self, language)
+        return _fitz.Page_getTextPage(self, flags)
 
 
     def getSVGimage(self, matrix=None):
@@ -3550,245 +3877,31 @@ class Page(object):
         return _fitz.Page_getSVGimage(self, matrix)
 
 
-    def _add_caret_annot(self, point):
-        return _fitz.Page__add_caret_annot(self, point)
-
-    def _add_redact_annot(self, quad, text=None, da_str=None, align=0, fill=None, text_color=None):
-        return _fitz.Page__add_redact_annot(self, quad, text, da_str, align, fill, text_color)
-
-    def _add_line_annot(self, p1, p2):
-        return _fitz.Page__add_line_annot(self, p1, p2)
-
-    def _add_text_annot(self, point, text, icon=None):
-        return _fitz.Page__add_text_annot(self, point, text, icon)
-
-    def _add_ink_annot(self, list):
-        return _fitz.Page__add_ink_annot(self, list)
-
-    def _add_stamp_annot(self, rect, stamp=0):
-        return _fitz.Page__add_stamp_annot(self, rect, stamp)
-
-    def _add_file_annot(self, point, buffer, filename, ufilename=None, desc=None, icon=None):
-        return _fitz.Page__add_file_annot(self, point, buffer, filename, ufilename, desc, icon)
-
-    def _add_text_marker(self, quads, annot_type):
-        return _fitz.Page__add_text_marker(self, quads, annot_type)
-
-    def _add_square_or_circle(self, rect, annot_type):
-        return _fitz.Page__add_square_or_circle(self, rect, annot_type)
-
-    def _add_multiline(self, points, annot_type):
-        return _fitz.Page__add_multiline(self, points, annot_type)
-
-    def _add_freetext_annot(self, rect, text, fontsize=11, fontname=None, text_color=None, fill_color=None, align=0, rotate=0):
-        return _fitz.Page__add_freetext_annot(self, rect, text, fontsize, fontname, text_color, fill_color, align, rotate)
-
-    @property
-    def rotationMatrix(self):
-        return Matrix(TOOLS._rotate_matrix(self))
-
-    @property
-    def derotationMatrix(self):
-        return Matrix(TOOLS._derotate_matrix(self))
-
     def addCaretAnnot(self, point):
-        """Add a Caret annotation at 'point'."""
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_caret_annot(point)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
+        r"""Add a 'Caret' annot on the page."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
 
 
-    def addStrikeoutAnnot(self, quads=None, start=None, stop=None, clip=None):
-        """Add a 'StrikeOut' annotation."""
-        if quads is None:
-            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
-        elif type(quads) in (Rect, Quad):
-            quads = (quads,)
-        if not quads:
-            raise ValueError("Bad 'quads'/'start'/'stop' parameters.")
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_text_marker(quads, PDF_ANNOT_STRIKE_OUT)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
+        val = _fitz.Page_addCaretAnnot(self, point)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
 
 
-    def addUnderlineAnnot(self, quads=None, start=None, stop=None, clip=None):
-        """Add a 'Underline' annotation."""
-        if quads is None:
-            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
-        elif type(quads) in (Rect, Quad):
-            quads = (quads,)
-        if not quads:
-            raise ValueError("Bad 'quads'/'start'/'stop' parameters.")
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_text_marker(quads, PDF_ANNOT_UNDERLINE)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
+    def addRedactAnnot(self, quad, text=None, fontname=None, fontsize=11, align=0, fill=None, text_color=None):
+        r"""Add a 'Redaction' annot on the page."""
 
-
-    def addSquigglyAnnot(self, quads=None, start=None,
-                         stop=None, clip=None):
-        """Add a 'Squiggly' annotation."""
-        if quads is None:
-            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
-        elif type(quads) in (Rect, Quad):
-            quads = (quads,)
-        if not quads:
-            raise ValueError("Bad 'quads'/'start'/'stop' parameters.")
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_text_marker(quads, PDF_ANNOT_SQUIGGLY)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addHighlightAnnot(self, quads=None, start=None,
-                          stop=None, clip=None):
-        """Add a 'Highlight' annotation."""
-        if quads is None:
-            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
-        elif type(quads) in (Rect, Quad):
-            quads = (quads,)
-        if not quads:
-            raise ValueError("Bad 'quads'/'start'/'stop' parameters.")
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_text_marker(quads, PDF_ANNOT_HIGHLIGHT)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addRectAnnot(self, rect):
-        """Add a 'Square' annotation."""
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_square_or_circle(rect, PDF_ANNOT_SQUARE)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addCircleAnnot(self, rect):
-        """Add a 'Circle' annotation."""
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_square_or_circle(rect, PDF_ANNOT_CIRCLE)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addTextAnnot(self, point, text, icon="Note"):
-        """Add a 'Text' annotation."""
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_text_annot(point, text, icon=icon)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addLineAnnot(self, p1, p2):
-        """Add a 'Line' annotation."""
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_line_annot(p1, p2)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addPolylineAnnot(self, points):
-        """Add a 'PolyLine' annotation."""
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_multiline(points, PDF_ANNOT_POLY_LINE)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addPolygonAnnot(self, points):
-        """Add a 'Polygon' annotation."""
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_multiline(points, PDF_ANNOT_POLYGON)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addStampAnnot(self, rect, stamp=0):
-        """Add a 'rubber stamp' in a rectangle."""
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_stamp_annot(rect, stamp)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addInkAnnot(self, handwriting):
-        """Add a 'Ink' ('handwriting') annotation.
-        The argument must be a list (or list of lists) of point_likes.
-        """
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_ink_annot(handwriting)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addFileAnnot(self, point,
-        buffer,
-        filename,
-        ufilename=None,
-        desc=None,
-        icon=None):
-        """Add a 'FileAttachment' at position 'point'."""
-
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_file_annot(point,
-                        buffer,
-                        filename,
-                        ufilename=ufilename,
-                        desc=desc,
-                        icon=icon)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addFreetextAnnot(self, rect, text, fontsize=12,
-                         fontname=None, text_color=None,
-                         fill_color=None, align=0, rotate=0):
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_freetext_annot(rect, text, fontsize=fontsize,
-                    fontname=fontname, text_color=text_color,
-                    fill_color=fill_color, align=align, rotate=rotate)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
-        return annot
-
-
-    def addRedactAnnot(self, quad, text=None, fontname=None,
-                       fontsize=11, align=0, fill=None, text_color=None):
-        da_str = None
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
         if text:
-            CheckColor(fill)
-            CheckColor(text_color)
             if not fontname:
                 fontname = "Helv"
             if not fontsize:
@@ -3797,29 +3910,32 @@ class Page(object):
                 text_color = (0, 0, 0)
             if hasattr(text_color, "__float__"):
                 text_color = (text_color, text_color, text_color)
+            if not hasattr(text_color, "__getitem__"):
+                raise ValueError("text color must be a number or a sequence")
             if len(text_color) > 3:
                 text_color = text_color[:3]
             fmt = "{:g} {:g} {:g} rg /{f:s} {s:g} Tf"
-            da_str = fmt.format(*text_color, f=fontname, s=fontsize)
+            fontname = fmt.format(*text_color, f=fontname, s=fontsize)
             if fill is None:
                 fill = (1, 1, 1)
             if fill:
                 if hasattr(fill, "__float__"):
                     fill = (fill, fill, fill)
+                if not hasattr(fill, "__getitem__"):
+                    raise ValueError("fill color must be a number or a sequence")
                 if len(fill) > 3:
                     fill = fill[:3]
 
-        old_rotation, annot = annot_preprocess(self)
-        try:
-            annot = self._add_redact_annot(quad, text=text, da_str=da_str,
-                       align=align, fill=fill)
-        finally:
-            annot_postprocess(self, annot, old_rotation)
 
-    #------------------------------------------------------------------
-    # change the generated appearance to show a crossed-out rectangle
-    #------------------------------------------------------------------
-        ap_tab = annot._getAP().splitlines()[1:5]  # get the 4 commands only
+        val = _fitz.Page_addRedactAnnot(self, quad, text, fontname, fontsize, align, fill, text_color)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+        # change the generated appearance to show a crossed-out rectangle
+        val._cleanContents()  # standardize the contents
+        ap_tab = val._getAP().splitlines()[1:5]  # get the 4 commands only
         LL, LR, UR, UL = ap_tab
         ap_tab.append(LR)
         ap_tab.append(LL)
@@ -3830,11 +3946,245 @@ class Page(object):
         ap_tab.append(b"0.5 w")
         ap_tab.append(b"S")
         ap = b"\n".join(ap_tab)
-        annot._setAP(ap, 0)
-        return annot
+        val._setAP(ap, 0)
+        val._cleanContents()
+
+
+        return val
+
+
+    def addLineAnnot(self, p1, p2):
+        r"""Add a 'Line' annot for points p1 and p2."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+
+
+        val = _fitz.Page_addLineAnnot(self, p1, p2)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
+
+
+    def addTextAnnot(self, point, text, icon=None):
+        r"""Add a 'sticky note' at position 'point'."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+
+
+        val = _fitz.Page_addTextAnnot(self, point, text, icon)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
+
+
+    def addInkAnnot(self, list):
+        r"""Add a 'handwriting' as a list of list of point-likes. Each sublist forms an independent stroke."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+
+
+        val = _fitz.Page_addInkAnnot(self, list)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
+
+
+    def addStampAnnot(self, rect, stamp=0):
+        r"""Add a 'rubber stamp' in a rectangle."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+
+
+        val = _fitz.Page_addStampAnnot(self, rect, stamp)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
+
+
+    def addFileAnnot(self, point, buffer, filename, ufilename=None, desc=None, icon=None):
+        r"""Add a 'FileAttachment' annotation at location 'point'."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+
+
+        val = _fitz.Page_addFileAnnot(self, point, buffer, filename, ufilename, desc, icon)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
+
+
+    def _add_text_marker(self, quads, annot_type):
+        r"""Add a text marker annotation."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+        if not hasattr(quads, "__getitem__"):
+            raise ValueError("'quads' must be a sequence")
+        if len(quads) == 4:
+            if hasattr(quads[0], "__float__"):
+                quads = [quads]
+            elif hasattr(quads[0], "__getitem__") and len(quads[0]) == 2:
+                quads = [quads]
+        if type(quads) not in (list, tuple):
+            raise ValueError("bad argument 'quads'")
+        for a in quads:
+            if not hasattr(a, "__getitem__") or len(a) != 4:
+                raise ValueError("bad items in 'quads'")
+
+
+        val = _fitz.Page__add_text_marker(self, quads, annot_type)
+
+        if not val:
+            return None
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
+
+
+    def addStrikeoutAnnot(self, quads=None, start=None, stop=None, clip=None):
+        """Add a 'StrikeOut' annotation."""
+        if quads is None:
+            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
+        if quads:
+            return self._add_text_marker(quads, PDF_ANNOT_STRIKEOUT)
+        else:
+            return None
+
+    def addUnderlineAnnot(self, quads=None, start=None, stop=None, clip=None):
+        """Add a 'Underline' annotation."""
+        if quads is None:
+            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
+        if quads:
+            return self._add_text_marker(quads, PDF_ANNOT_UNDERLINE)
+        else:
+            return None
+
+    def addSquigglyAnnot(self, quads=None, start=None, stop=None, clip=None):
+        """Add a 'Squiggly' annotation."""
+        if quads is None:
+            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
+        if quads:
+            return self._add_text_marker(quads, PDF_ANNOT_SQUIGGLY)
+        else:
+            return None
+
+    def addHighlightAnnot(self, quads=None, start=None, stop=None, clip=None):
+        """Add a 'Highlight' annotation."""
+        if quads is None:
+            quads = get_highlight_selection(self, start=start, stop=stop, clip=clip)
+        if quads:
+            return self._add_text_marker(quads, PDF_ANNOT_HIGHLIGHT)
+        else:
+            return None
+
+
+    def _add_square_or_circle(self, rect, annot_type):
+        r"""Add a 'Square' or 'Circle' annotation."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+
+
+        val = _fitz.Page__add_square_or_circle(self, rect, annot_type)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
+
+
+    def addRectAnnot(self, rect):
+        """Add a 'Square' annotation."""
+        return self._add_square_or_circle(rect, PDF_ANNOT_SQUARE)
+
+    def addCircleAnnot(self, rect):
+        """Add a 'Circle' annotation."""
+        return self._add_square_or_circle(rect, PDF_ANNOT_CIRCLE)
+
+
+    def _add_multiline(self, points, annot_type):
+        r"""Add a multiline annotation."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+
+
+        val = _fitz.Page__add_multiline(self, points, annot_type)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
+
+
+    def addPolylineAnnot(self, points):
+        """Add a 'PolyLine' annotation."""
+        return self._add_multiline(points, PDF_ANNOT_POLYLINE)
+
+    def addPolygonAnnot(self, points):
+        """Add a 'Polygon' annotation."""
+        return self._add_multiline(points, PDF_ANNOT_POLYGON)
+
+
+    def addFreetextAnnot(self, rect, text, fontsize=12, fontname=None, text_color=None, fill_color=None, rotate=0):
+        r"""Add a 'FreeText' annotation in rectangle 'rect'."""
+
+        CheckParent(self)
+        if not self.parent.isPDF:
+            raise ValueError("not a PDF")
+
+
+        val = _fitz.Page_addFreetextAnnot(self, rect, text, fontsize, fontname, text_color, fill_color, rotate)
+
+        if not val: return
+        val.thisown = True
+        val.parent = weakref.proxy(self)
+        self._annot_refs[id(val)] = val
+
+        return val
 
 
     def load_annot(self, name):
+        r"""load_annot(self, name) -> Annot"""
 
         CheckParent(self)
         if not self.parent.isPDF:
@@ -3856,6 +4206,7 @@ class Page(object):
 
 
     def annot_names(self):
+        r"""annot_names(self) -> PyObject *"""
         return _fitz.Page_annot_names(self)
 
                 #---------------------------------------------------------------------
@@ -3882,9 +4233,11 @@ class Page(object):
 
 
     def _addWidget(self, Widget):
+        r"""_addWidget(self, Widget) -> Annot"""
         return _fitz.Page__addWidget(self, Widget)
 
     def getDisplayList(self, annots=1):
+        r"""getDisplayList(self, annots=1) -> DisplayList"""
 
         CheckParent(self)
 
@@ -3893,24 +4246,29 @@ class Page(object):
 
 
     def _apply_redactions(self):
+        r"""_apply_redactions(self) -> PyObject *"""
         return _fitz.Page__apply_redactions(self)
 
     def _makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None):
+        r"""_makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None) -> Pixmap"""
         return _fitz.Page__makePixmap(self, doc, ctm, cs, alpha, annots, clip)
 
     def setMediaBox(self, rect):
+        r"""setMediaBox(self, rect) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Page_setMediaBox(self, rect)
 
 
     def setCropBox(self, rect):
+        r"""setCropBox(self, rect) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Page_setCropBox(self, rect)
 
 
     def loadLinks(self):
+        r"""loadLinks(self) -> Link"""
         CheckParent(self)
 
         val = _fitz.Page_loadLinks(self)
@@ -3946,6 +4304,7 @@ class Page(object):
     @property
 
     def firstWidget(self):
+        r"""firstWidget(self) -> Annot"""
         CheckParent(self)
 
         val = _fitz.Page_firstWidget(self)
@@ -4047,24 +4406,29 @@ class Page(object):
 
 
     def _addAnnot_FromString(self, linklist):
+        r"""_addAnnot_FromString(self, linklist) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Page__addAnnot_FromString(self, linklist)
 
 
     def _getLinkXrefs(self):
+        r"""_getLinkXrefs(self) -> PyObject *"""
         return _fitz.Page__getLinkXrefs(self)
 
     def _cleanContents(self):
+        r"""_cleanContents(self) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Page__cleanContents(self)
 
 
     def _showPDFpage(self, fz_srcpage, overlay=1, matrix=None, xref=0, clip=None, graftmap=None, _imgname=None):
+        r"""_showPDFpage(self, fz_srcpage, overlay=1, matrix=None, xref=0, clip=None, graftmap=None, _imgname=None) -> PyObject *"""
         return _fitz.Page__showPDFpage(self, fz_srcpage, overlay, matrix, xref, clip, graftmap, _imgname)
 
     def _insertImage(self, filename=None, pixmap=None, stream=None, overlay=1, matrix=None, _imgname=None, _imgpointer=None):
+        r"""_insertImage(self, filename=None, pixmap=None, stream=None, overlay=1, matrix=None, _imgname=None, _imgpointer=None) -> PyObject *"""
         return _fitz.Page__insertImage(self, filename, pixmap, stream, overlay, matrix, _imgname, _imgpointer)
 
     def refresh(self):
@@ -4133,13 +4497,14 @@ class Page(object):
 
 
     def _insertFont(self, fontname, bfname, fontfile, fontbuffer, set_simple, idx, wmode, serif, encoding, ordering):
+        r"""_insertFont(self, fontname, bfname, fontfile, fontbuffer, set_simple, idx, wmode, serif, encoding, ordering) -> PyObject *"""
         return _fitz.Page__insertFont(self, fontname, bfname, fontfile, fontbuffer, set_simple, idx, wmode, serif, encoding, ordering)
-    @property
 
-    def transformationMatrix(self):
+    def _getTransformation(self):
+        r"""Return page transformation matrix."""
         CheckParent(self)
 
-        val = _fitz.Page_transformationMatrix(self)
+        val = _fitz.Page__getTransformation(self)
 
         if self.rotation % 360 == 0:
             val = Matrix(val)
@@ -4168,10 +4533,25 @@ class Page(object):
     def _isWrapped(self):
         """Check if /Contents is wrapped in string pair "q" / "Q".
         """
-        cont = self.readContents().split()
-        if len(cont) < 1 or cont[0] != b"q" or cont[-1] != "Q":
-            return False
-        return True
+        xrefs = self._getContents()
+        doc = self.parent
+        if len(xrefs) == 0:
+            return True
+        if len(xrefs) == 1:
+            cont = doc._getXrefStream(xrefs[0]).split()
+            if len(cont) < 1:
+                return True
+            if cont[0] != b"q" or cont[-1] != b"Q":
+                return False
+            return True
+        else:
+            cont = doc._getXrefStream(xrefs[0]).split()
+            if len(cont) < 1 or cont[0] != b"q":
+                return False
+            cont = doc._getXrefStream(xrefs[-1]).split()
+            if len(cont) < 1 or cont[-1] != b"Q":
+                return False
+            return True
 
     def _wrapContents(self):
         TOOLS._insert_contents(self, b"q\n", False)
@@ -4265,36 +4645,62 @@ class Page(object):
         return self.parent.getPageImageList(self.number, full=full)
 
 
-    def readContents(self):
-        return TOOLS._get_all_contents(self)
-
-
     @property
     def MediaBoxSize(self):
         return Point(self.MediaBox.width, self.MediaBox.height)
 
     cleanContents = _cleanContents
     getContents = _getContents
+    getTransformation = _getTransformation
+
 
 
 # Register Page in _fitz:
 _fitz.Page_swigregister(Page)
 
 class Pixmap(object):
+    r"""Pixmap(Colorspace, width, height, samples, alpha)
+Pixmap(Colorspace, Irect, alpha)
+Pixmap(Colorspace, Pixmap) - converted copy
+Pixmap(filename)
+Pixmap(Pixmap, alpha) - copy & add / drop alpha
+Pixmap(bytearray)
+Pixmap(Document, xref) - from a PDF image"""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
+    x = property(_fitz.Pixmap_x_get, _fitz.Pixmap_x_set, doc=r"""x""")
+    y = property(_fitz.Pixmap_y_get, _fitz.Pixmap_y_set, doc=r"""y""")
+    w = property(_fitz.Pixmap_w_get, _fitz.Pixmap_w_set, doc=r"""w""")
+    h = property(_fitz.Pixmap_h_get, _fitz.Pixmap_h_set, doc=r"""h""")
+    n = property(_fitz.Pixmap_n_get, _fitz.Pixmap_n_set, doc=r"""n""")
+    xres = property(_fitz.Pixmap_xres_get, _fitz.Pixmap_xres_set, doc=r"""xres""")
+    yres = property(_fitz.Pixmap_yres_get, _fitz.Pixmap_yres_set, doc=r"""yres""")
     __swig_destroy__ = _fitz.delete_Pixmap
 
     def __init__(self, *args):
+        r"""
+        __init__(self, cs, bbox, alpha=0) -> Pixmap
+        __init__(self, cs, spix) -> Pixmap
+        __init__(self, spix, w, h, clip=None) -> Pixmap
+        __init__(self, spix, alpha=1) -> Pixmap
+        __init__(self, cs, w, h, samples, alpha=0) -> Pixmap
+        __init__(self, filename) -> Pixmap
+        __init__(self, imagedata) -> Pixmap
+        __init__(self, doc, xref) -> Pixmap
+        """
         _fitz.Pixmap_swiginit(self, _fitz.new_Pixmap(*args))
 
     def shrink(self, factor):
+        r"""shrink(self, factor)"""
         return _fitz.Pixmap_shrink(self, factor)
 
     def gammaWith(self, gamma):
+        r"""gammaWith(self, gamma)"""
         return _fitz.Pixmap_gammaWith(self, gamma)
 
     def tintWith(self, black, white):
+        r"""tintWith(self, black, white)"""
 
         if not self.colorspace or self.colorspace.n > 3:
             print("warning: colorspace invalid for function")
@@ -4304,15 +4710,23 @@ class Pixmap(object):
 
 
     def clearWith(self, *args):
+        r"""
+        clearWith(self)
+        clearWith(self, value)
+        clearWith(self, value, bbox)
+        """
         return _fitz.Pixmap_clearWith(self, *args)
 
     def copyPixmap(self, src, bbox):
+        r"""copyPixmap(self, src, bbox) -> PyObject *"""
         return _fitz.Pixmap_copyPixmap(self, src, bbox)
 
     def setAlpha(self, alphavalues=None):
+        r"""setAlpha(self, alphavalues=None) -> PyObject *"""
         return _fitz.Pixmap_setAlpha(self, alphavalues)
 
     def _getImageData(self, format):
+        r"""_getImageData(self, format) -> PyObject *"""
         return _fitz.Pixmap__getImageData(self, format)
 
     def getImageData(self, output="png"):
@@ -4337,6 +4751,7 @@ class Pixmap(object):
 
 
     def _writeIMG(self, filename, format):
+        r"""_writeIMG(self, filename, format) -> PyObject *"""
         return _fitz.Pixmap__writeIMG(self, filename, format)
 
     def writeImage(self, filename, output=None):
@@ -4362,6 +4777,7 @@ class Pixmap(object):
 
 
     def invertIRect(self, irect=None):
+        r"""invertIRect(self, irect=None) -> PyObject *"""
         return _fitz.Pixmap_invertIRect(self, irect)
 
     def pixel(self, x, y):
@@ -4382,46 +4798,22 @@ class Pixmap(object):
     @property
 
     def stride(self):
+        r"""stride(self) -> int"""
         return _fitz.Pixmap_stride(self)
     @property
 
-    def xres(self):
-        return _fitz.Pixmap_xres(self)
-    @property
-
-    def yres(self):
-        return _fitz.Pixmap_yres(self)
-    @property
-
-    def w(self):
-        return _fitz.Pixmap_w(self)
-    @property
-
-    def h(self):
-        return _fitz.Pixmap_h(self)
-    @property
-
-    def x(self):
-        return _fitz.Pixmap_x(self)
-    @property
-
-    def y(self):
-        return _fitz.Pixmap_y(self)
-    @property
-
-    def n(self):
-        return _fitz.Pixmap_n(self)
-    @property
-
     def alpha(self):
+        r"""alpha(self) -> int"""
         return _fitz.Pixmap_alpha(self)
     @property
 
     def colorspace(self):
+        r"""colorspace(self) -> Colorspace"""
         return _fitz.Pixmap_colorspace(self)
     @property
 
     def irect(self):
+        r"""irect(self) -> PyObject *"""
         val = _fitz.Pixmap_irect(self)
         val = IRect(val)
 
@@ -4430,10 +4822,12 @@ class Pixmap(object):
     @property
 
     def size(self):
+        r"""size(self) -> int"""
         return _fitz.Pixmap_size(self)
     @property
 
     def samples(self):
+        r"""samples(self) -> PyObject *"""
         return _fitz.Pixmap_samples(self)
 
     width  = w
@@ -4458,18 +4852,23 @@ class Pixmap(object):
 _fitz.Pixmap_swigregister(Pixmap)
 
 class Colorspace(object):
+    r"""Proxy of C fz_colorspace_s struct."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
     __swig_destroy__ = _fitz.delete_Colorspace
 
     def __init__(self, type):
+        r"""__init__(self, type) -> Colorspace"""
         _fitz.Colorspace_swiginit(self, _fitz.new_Colorspace(type))
     @property
 
     def n(self):
+        r"""n(self) -> PyObject *"""
         return _fitz.Colorspace_n(self)
 
     def _name(self):
+        r"""_name(self) -> PyObject *"""
         return _fitz.Colorspace__name(self)
 
     @property
@@ -4491,10 +4890,17 @@ class Colorspace(object):
 _fitz.Colorspace_swigregister(Colorspace)
 
 class Device(object):
+    r"""Proxy of C DeviceWrapper struct."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
 
     def __init__(self, *args):
+        r"""
+        __init__(self, pm, clip) -> Device
+        __init__(self, dl) -> Device
+        __init__(self, tp, flags=0) -> Device
+        """
         _fitz.Device_swiginit(self, _fitz.new_Device(*args))
     __swig_destroy__ = _fitz.delete_Device
 
@@ -4502,47 +4908,28 @@ class Device(object):
 _fitz.Device_swigregister(Device)
 
 class Outline(object):
+    r"""Proxy of C fz_outline_s struct."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
 
     def __init__(self, *args, **kwargs):
         raise AttributeError("No constructor defined")
     __repr__ = _swig_repr
+    title = property(_fitz.Outline_title_get, doc=r"""title""")
+    page = property(_fitz.Outline_page_get, doc=r"""page""")
+    next = property(_fitz.Outline_next_get, doc=r"""next""")
+    down = property(_fitz.Outline_down_get, doc=r"""down""")
+    is_open = property(_fitz.Outline_is_open_get, doc=r"""is_open""")
     @property
 
     def uri(self):
+        r"""uri(self) -> PyObject *"""
         return _fitz.Outline_uri(self)
     @property
 
-    def next(self):
-        return _fitz.Outline_next(self)
-    @property
-
-    def down(self):
-        return _fitz.Outline_down(self)
-    @property
-
     def isExternal(self):
+        r"""isExternal(self) -> PyObject *"""
         return _fitz.Outline_isExternal(self)
-    @property
-
-    def page(self):
-        return _fitz.Outline_page(self)
-    @property
-
-    def x(self):
-        return _fitz.Outline_x(self)
-    @property
-
-    def y(self):
-        return _fitz.Outline_y(self)
-    @property
-
-    def title(self):
-        return _fitz.Outline_title(self)
-    @property
-
-    def is_open(self):
-        return _fitz.Outline_is_open(self)
     isOpen = is_open
 
     @property
@@ -4556,6 +4943,8 @@ class Outline(object):
 _fitz.Outline_swigregister(Outline)
 
 class Annot(object):
+    r"""Proxy of C pdf_annot_s struct."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
 
     def __init__(self, *args, **kwargs):
@@ -4569,21 +4958,15 @@ class Annot(object):
         CheckParent(self)
 
         val = _fitz.Annot_rect(self)
-
         val = Rect(val)
-        val = val * self.parent.derotationMatrix
-
 
         return val
 
     @property
 
     def xref(self):
-        r"""Xref number of annotation"""
-        CheckParent(self)
-
+        r"""xref(self) -> PyObject *"""
         return _fitz.Annot_xref(self)
-
 
     def blendMode(self):
         r"""Show the annotation's blend mode."""
@@ -4598,17 +4981,6 @@ class Annot(object):
 
         return _fitz.Annot_setBlendMode(self, blend_mode)
 
-    @property
-
-    def language(self):
-        return _fitz.Annot_language(self)
-
-    def setLaguage(self, language=None):
-        r"""Set the annotation's language."""
-        CheckParent(self)
-
-        return _fitz.Annot_setLaguage(self, language)
-
 
     def _getAP(self):
         r"""Get contents source of a PDF annot"""
@@ -4619,6 +4991,7 @@ class Annot(object):
         return _fitz.Annot__setAP(self, ap, rect)
 
     def _get_redact_values(self):
+        r"""Get values of a redaction annot."""
         val = _fitz.Annot__get_redact_values(self)
 
         if not val:
@@ -4667,6 +5040,7 @@ class Annot(object):
 
 
     def _update_appearance(self, opacity=-1, blend_mode=None, fill_color=None, rotate=-1):
+        r"""_update_appearance(self, opacity=-1, blend_mode=None, fill_color=None, rotate=-1) -> PyObject *"""
         return _fitz.Annot__update_appearance(self, opacity, blend_mode, fill_color, rotate)
 
     def update(self,
@@ -4684,15 +5058,15 @@ class Annot(object):
         The following code fixes shortcomings of MuPDF's "pdf_update_annot"
         function. Currently these are:
         1. Opacity (all annots). MuPDF ignores this proprty. This requires
-           to add an ExtGState (extended graphics state) object in the
-           C code as well.
+        to add an ExtGState (extended graphics state) object in the
+        C code as well.
         2. Dashing (all annots). MuPDF ignores this proprty.
         3. Colors and font size for FreeText annotations.
         4. Line end icons also for POLYGON and POLY_LINE annotations.
-           MuPDF only honors them for LINE annotations.
-        5. Always wrap the stream with 'q' / 'Q' strings. MuPDF does not
-           do that, which may cause Adobe and other viewers to not display
-           the annot.
+        MuPDF only honors them for LINE annotations.
+        5. Always perform a "clean" for the annot, because MuPDF does not
+        enclose the contents syntax in a string pair "q ... Q", which may
+        cause Adobe and other readers not to display the annot.
         """
         CheckParent(self)
         def color_string(cs, code):
@@ -4738,7 +5112,7 @@ class Annot(object):
             opacity = self.opacity
 
         if 0 <= opacity < 1 or blend_mode is not None:
-            opa_code = "/H gs\n"  # then we must reference this 'gs'
+            opa_code = "/H gs\n"
         else:
             opa_code = ""
 
@@ -4754,13 +5128,14 @@ class Annot(object):
         if not val:  # something went wrong, skip the rest
             return val
 
+        rect = None  # used if we change the rect here
         bfill = color_string(fill, "f")
 
-        p_ctm = self.parent.transformationMatrix
+        p_ctm = self.parent._getTransformation()  # page transformation matrix
         imat = ~p_ctm  # inverse page transf. matrix
 
         if dt:
-            dashes = "[" + " ".join(map(str, dt)) + "] 0 d\n"
+            dashes = "[" + " ".join(map(str, dt)) + "] d\n"
             dashes = dashes.encode("utf-8")
         else:
             dashes = None
@@ -4770,9 +5145,9 @@ class Annot(object):
         else:
             line_end_le, line_end_ri = 0, 0  # init line end codes
 
-    # read contents as created by MuPDF
-        ap = self._getAP()
-        ap_tab = ap.splitlines()  # split in single lines
+        ap = self._getAP()  # get the annot operator source
+        ap_tab = ap.splitlines()[1:-1]  # temporary remove of 'q ...Q'
+        ap = b"\n".join(ap_tab)
         ap_updated = False  # assume we did nothing
 
         if type == PDF_ANNOT_REDACT:
@@ -4793,10 +5168,13 @@ class Annot(object):
         if type == PDF_ANNOT_FREE_TEXT:
             CheckColor(border_color)
             CheckColor(text_color)
-            tcol, fname, fsize = TOOLS._parse_da(self)
 
     # read and update default appearance as necessary
             update_default_appearance = False
+            tcol, fname, fsize = TOOLS._parse_da(self)
+            if fname.lower() not in ("helv", "cour", "tiro", "zadb", "symb"):
+                fname = "Helv"
+                update_default_appearance = True
             if fsize <= 0:
                 fsize = 12
                 update_default_appearance = True
@@ -4820,16 +5198,13 @@ class Annot(object):
             da_str = fmt.format(*tcol, f=fname, s=fsize)
             TOOLS._update_da(self, da_str)
 
-            for i, item in enumerate(ap_tab):
-                if (item.endswith(b" w")
-                    and bwidth > 0
-                    and border_color is not None
-                   ):  # update border color
-                    ap_tab[i + 1] = color_string(border_color, "s")
-                    continue
-                if item == b"BT":  # update text color
-                    ap_tab[i + 1] = color_string(tcol, "f")
-                    continue
+            if border_color is not None:
+                for i, item in enumerate(ap_tab):
+                    if not item.endswith(b" w"):
+                        continue
+                    idx = i + 2  # step into wrong border color spec
+                    ap_tab[i + 2] = color_string(border_color, "s")
+                    break
 
             if dashes is not None:  # handle dashes
                 ap_tab.insert(0, dashes)
@@ -4838,35 +5213,35 @@ class Annot(object):
             ap = b"\n".join(ap_tab)         # updated AP stream
             ap_updated = True
 
-        if type in (PDF_ANNOT_POLYGON, PDF_ANNOT_POLY_LINE):
-            ap = b"\n".join(ap_tab[:-1]) + b"\n"
-            ap_updated = True
-            if bfill != b"":
-                if type == PDF_ANNOT_POLYGON:
-                    ap = ap + bfill + b"b"  # close, fill, and stroke
-                elif type == PDF_ANNOT_POLY_LINE:
-                    ap = ap + bfill + b"B"  # fill and stroke
-            else:
-                if type == PDF_ANNOT_POLYGON:
-                    ap = ap + b"s"  # close and stroke
-                elif type == PDF_ANNOT_POLY_LINE:
-                    ap = ap + b"S"  # stroke
+        if bfill != b"":
+            if type == PDF_ANNOT_POLYGON:
+                ap = ap[:-1] + bfill + b"b"  # close, fill, and stroke
+                ap_updated = True
+            elif type == PDF_ANNOT_POLYLINE:
+                ap = ap[:-1] + bfill + b"B"  # fill and stroke
+                ap_updated = True
+        else:
+            if type == PDF_ANNOT_POLYGON:
+                ap = ap[:-1] + b"s"  # close and stroke
+                ap_updated = True
+            elif type == PDF_ANNOT_POLYLINE:
+                ap = ap[:-1] + b"S"  # stroke
+                ap_updated = True
 
         if dashes is not None:  # handle dashes
             ap = dashes + ap
     # reset dashing - only applies for LINE annots with line ends given
-            ap = ap.replace(b"\nS\n", b"\nS\n[] 0 d\n", 1)
+            ap = ap.replace(b"\nS\n", b"\nS\n[] d\n", 1)
             ap_updated = True
 
         if opa_code:
             ap = opa_code.encode("utf-8") + ap
             ap_updated = True
 
-        ap = b"q\n" + ap + b"\nQ\n"
     #----------------------------------------------------------------------
     # the following handles line end symbols for 'Polygon' and 'Polyline'
     #----------------------------------------------------------------------
-        if line_end_le + line_end_ri > 0 and type in (PDF_ANNOT_POLYGON, PDF_ANNOT_POLY_LINE):
+        if line_end_le + line_end_ri > 0 and type in (PDF_ANNOT_POLYGON, PDF_ANNOT_POLYLINE):
 
             le_funcs = (None, TOOLS._le_square, TOOLS._le_circle,
                         TOOLS._le_diamond, TOOLS._le_openarrow,
@@ -4874,10 +5249,11 @@ class Annot(object):
                         TOOLS._le_ropenarrow, TOOLS._le_rclosedarrow,
                         TOOLS._le_slash)
             le_funcs_range = range(1, len(le_funcs))
-            d = 2 * max(1, self.border["width"])
+            d = 4 * max(1, self.border["width"])
             rect = self.rect + (-d, -d, d, d)
             ap_updated = True
             points = self.vertices
+            ap = b"q\n" + ap + b"\nQ\n"
             if line_end_le in le_funcs_range:
                 p1 = Point(points[0]) * imat
                 p2 = Point(points[1]) * imat
@@ -4896,6 +5272,9 @@ class Annot(object):
             else:
                 self._setAP(ap, rect=0)
 
+    # always perform a clean to wrap stream by "q" / "Q"
+        self._cleanContents()
+
 
     def setColors(self, colors=None, fill=None, stroke=None):
         r"""
@@ -4913,12 +5292,14 @@ class Annot(object):
     @property
 
     def lineEnds(self):
+        r"""lineEnds(self) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Annot_lineEnds(self)
 
 
     def setLineEnds(self, start, end):
+        r"""setLineEnds(self, start, end)"""
         CheckParent(self)
 
         return _fitz.Annot_setLineEnds(self, start, end)
@@ -4926,6 +5307,7 @@ class Annot(object):
     @property
 
     def type(self):
+        r"""type(self) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Annot_type(self)
@@ -4933,12 +5315,14 @@ class Annot(object):
     @property
 
     def opacity(self):
+        r"""opacity(self) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Annot_opacity(self)
 
 
     def setOpacity(self, opacity):
+        r"""setOpacity(self, opacity)"""
         CheckParent(self)
 
         return _fitz.Annot_setOpacity(self, opacity)
@@ -4993,12 +5377,14 @@ class Annot(object):
     @property
 
     def border(self):
+        r"""border(self) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Annot_border(self)
 
 
     def setBorder(self, border=None, width=0, style=None, dashes=None):
+        r"""setBorder(self, border=None, width=0, style=None, dashes=None) -> PyObject *"""
 
         CheckParent(self)
         if type(border) is not dict:
@@ -5010,18 +5396,21 @@ class Annot(object):
     @property
 
     def flags(self):
+        r"""flags(self) -> int"""
         CheckParent(self)
 
         return _fitz.Annot_flags(self)
 
 
     def _cleanContents(self):
+        r"""_cleanContents(self) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Annot__cleanContents(self)
 
 
     def setFlags(self, flags):
+        r"""setFlags(self, flags)"""
         CheckParent(self)
 
         return _fitz.Annot_setFlags(self, flags)
@@ -5036,6 +5425,7 @@ class Annot(object):
     @property
 
     def next(self):
+        r"""next(self) -> Annot"""
         CheckParent(self)
 
         val = _fitz.Annot_next(self)
@@ -5097,6 +5487,8 @@ class Annot(object):
 _fitz.Annot_swigregister(Annot)
 
 class Link(object):
+    r"""Proxy of C fz_link_s struct."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
 
     def __init__(self, *args, **kwargs):
@@ -5105,15 +5497,19 @@ class Link(object):
     __swig_destroy__ = _fitz.delete_Link
 
     def _border(self, doc, xref):
+        r"""_border(self, doc, xref) -> PyObject *"""
         return _fitz.Link__border(self, doc, xref)
 
     def _setBorder(self, border, doc, xref):
+        r"""_setBorder(self, border, doc, xref) -> PyObject *"""
         return _fitz.Link__setBorder(self, border, doc, xref)
 
     def _colors(self, doc, xref):
+        r"""_colors(self, doc, xref) -> PyObject *"""
         return _fitz.Link__colors(self, doc, xref)
 
     def _setColors(self, colors, doc, xref):
+        r"""_setColors(self, colors, doc, xref) -> PyObject *"""
         return _fitz.Link__setColors(self, colors, doc, xref)
 
     @property
@@ -5137,6 +5533,7 @@ class Link(object):
     @property
 
     def uri(self):
+        r"""uri(self) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Link_uri(self)
@@ -5144,6 +5541,7 @@ class Link(object):
     @property
 
     def isExternal(self):
+        r"""isExternal(self) -> PyObject *"""
         CheckParent(self)
 
         return _fitz.Link_isExternal(self)
@@ -5169,6 +5567,7 @@ class Link(object):
     @property
 
     def rect(self):
+        r"""rect(self) -> PyObject *"""
         CheckParent(self)
 
         val = _fitz.Link_rect(self)
@@ -5179,6 +5578,7 @@ class Link(object):
     @property
 
     def next(self):
+        r"""next(self) -> Link"""
         CheckParent(self)
 
         val = _fitz.Link_next(self)
@@ -5223,18 +5623,23 @@ class Link(object):
 _fitz.Link_swigregister(Link)
 
 class DisplayList(object):
+    r"""Proxy of C fz_display_list_s struct."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
     __swig_destroy__ = _fitz.delete_DisplayList
 
     def __init__(self, mediabox):
+        r"""__init__(self, mediabox) -> DisplayList"""
         _fitz.DisplayList_swiginit(self, _fitz.new_DisplayList(mediabox))
 
     def run(self, dw, m, area):
+        r"""run(self, dw, m, area) -> PyObject *"""
         return _fitz.DisplayList_run(self, dw, m, area)
     @property
 
     def rect(self):
+        r"""rect(self) -> PyObject *"""
         val = _fitz.DisplayList_rect(self)
         val = Rect(val)
 
@@ -5242,9 +5647,11 @@ class DisplayList(object):
 
 
     def getPixmap(self, matrix=None, colorspace=None, alpha=1, clip=None):
+        r"""getPixmap(self, matrix=None, colorspace=None, alpha=1, clip=None) -> Pixmap"""
         return _fitz.DisplayList_getPixmap(self, matrix, colorspace, alpha, clip)
 
     def getTextPage(self, flags=3):
+        r"""getTextPage(self, flags=3) -> TextPage"""
         return _fitz.DisplayList_getTextPage(self, flags)
 
     def __del__(self):
@@ -5256,32 +5663,37 @@ class DisplayList(object):
 _fitz.DisplayList_swigregister(DisplayList)
 
 class TextPage(object):
+    r"""Proxy of C fz_stext_page_s struct."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
 
     def __init__(self, mediabox):
+        r"""__init__(self, mediabox) -> TextPage"""
         _fitz.TextPage_swiginit(self, _fitz.new_TextPage(mediabox))
     __swig_destroy__ = _fitz.delete_TextPage
 
-    def search(self, needle, hit_max=16, quads=1):
+    def search(self, needle, hit_max=16, quads=0):
+        r"""search(self, needle, hit_max=16, quads=0) -> PyObject *"""
         val = _fitz.TextPage_search(self, needle, hit_max, quads)
 
-        if val == []:
+        if len(val) == 0:
             return val
-        newval = []
+        nval = []
         for v in val:
             q = Quad(v)
-            if quads:
-                newval.append(q)
+            if not quads:
+                nval.append(q.rect)
             else:
-                newval.append(q.rect)
-        val = newval
+                nval.append(q)
+        val = nval
 
 
         return val
 
 
     def _getNewBlockList(self, page_dict, raw):
+        r"""_getNewBlockList(self, page_dict, raw) -> PyObject *"""
         return _fitz.TextPage__getNewBlockList(self, page_dict, raw)
 
     def _textpage_dict(self, raw = False):
@@ -5300,6 +5712,7 @@ class TextPage(object):
     @property
 
     def rect(self):
+        r"""rect(self) -> PyObject *"""
         val = _fitz.TextPage_rect(self)
 
         val = Rect(val)
@@ -5308,6 +5721,7 @@ class TextPage(object):
 
 
     def _extractText(self, format):
+        r"""_extractText(self, format) -> PyObject *"""
         return _fitz.TextPage__extractText(self, format)
 
     def extractText(self):
@@ -5357,11 +5771,14 @@ class TextPage(object):
 _fitz.TextPage_swigregister(TextPage)
 
 class Graftmap(object):
+    r"""Proxy of C pdf_graft_map_s struct."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
     __swig_destroy__ = _fitz.delete_Graftmap
 
     def __init__(self, doc):
+        r"""__init__(self, doc) -> Graftmap"""
         _fitz.Graftmap_swiginit(self, _fitz.new_Graftmap(doc))
 
     def __del__(self):
@@ -5372,11 +5789,14 @@ class Graftmap(object):
 _fitz.Graftmap_swigregister(Graftmap)
 
 class TextWriter(object):
+    r"""New TextWriter with opacity and color."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
     __swig_destroy__ = _fitz.delete_TextWriter
 
     def __init__(self, page_rect, opacity=1, color=None):
+        r"""__init__(self, page_rect, opacity=1, color=None) -> TextWriter"""
         _fitz.TextWriter_swiginit(self, _fitz.new_TextWriter(page_rect, opacity, color))
 
         self.opacity = opacity
@@ -5409,6 +5829,7 @@ class TextWriter(object):
     @property
 
     def bbox(self):
+        r"""bbox(self) -> PyObject *"""
         val = _fitz.TextWriter_bbox(self)
         val = Rect(val)
 
@@ -5458,11 +5879,14 @@ class TextWriter(object):
 _fitz.TextWriter_swigregister(TextWriter)
 
 class Font(object):
+    r"""Define a font choosing from a number of options."""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
     __swig_destroy__ = _fitz.delete_Font
 
     def __init__(self, fontname=None, fontfile=None, fontbuffer=None, script=0, language=None, ordering=-1, is_bold=0, is_italic=0, is_serif=0):
+        r"""__init__(self, fontname=None, fontfile=None, fontbuffer=None, script=0, language=None, ordering=-1, is_bold=0, is_italic=0, is_serif=0) -> Font"""
 
         if fontname:
             if "/" in fontname or "\\" in fontname:
@@ -5495,18 +5919,22 @@ class Font(object):
     @property
 
     def flags(self):
+        r"""flags(self) -> PyObject *"""
         return _fitz.Font_flags(self)
     @property
 
     def name(self):
+        r"""name(self) -> PyObject *"""
         return _fitz.Font_name(self)
     @property
 
     def glyph_count(self):
+        r"""glyph_count(self) -> int"""
         return _fitz.Font_glyph_count(self)
     @property
 
     def bbox(self):
+        r"""bbox(self) -> PyObject *"""
         val = _fitz.Font_bbox(self)
         val = Rect(val)
 
@@ -5525,6 +5953,8 @@ class Font(object):
 _fitz.Font_swigregister(Font)
 
 class Tools(object):
+    r"""A collection of tools and utilities"""
+
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
 
@@ -5539,16 +5969,6 @@ class Tools(object):
     def store_shrink(self, percent):
         r"""Free 'percent' of current store size."""
         return _fitz.Tools_store_shrink(self, percent)
-    @property
-
-    def store_size(self):
-        r"""Current store size."""
-        return _fitz.Tools_store_size(self)
-    @property
-
-    def store_maxsize(self):
-        r"""Maximum store size."""
-        return _fitz.Tools_store_maxsize(self)
 
     def show_aa_level(self):
         r"""Show anti-aliasing values."""
@@ -5573,11 +5993,31 @@ class Tools(object):
         r"""Determine dimension and other image data."""
         return _fitz.Tools_image_profile(self, stream, keep_image)
 
-    def _rotate_matrix(self, page):
-        return _fitz.Tools__rotate_matrix(self, page)
+    def _derotate_point(self, page, point):
+        r"""_derotate_point(self, page, point) -> PyObject *"""
+        return _fitz.Tools__derotate_point(self, page, point)
 
-    def _derotate_matrix(self, page):
-        return _fitz.Tools__derotate_matrix(self, page)
+    def _derotate_rect(self, page, rect):
+        r"""_derotate_rect(self, page, rect) -> PyObject *"""
+        return _fitz.Tools__derotate_rect(self, page, rect)
+
+    def _rotate_point(self, page, point):
+        r"""_rotate_point(self, page, point) -> PyObject *"""
+        return _fitz.Tools__rotate_point(self, page, point)
+
+    def _rotate_rect(self, page, rect):
+        r"""_rotate_rect(self, page, rect) -> PyObject *"""
+        return _fitz.Tools__rotate_rect(self, page, rect)
+    @property
+
+    def store_size(self):
+        r"""Current store size."""
+        return _fitz.Tools_store_size(self)
+    @property
+
+    def store_maxsize(self):
+        r"""Maximum store size."""
+        return _fitz.Tools_store_maxsize(self)
     @property
 
     def fitz_config(self):
@@ -5589,6 +6029,7 @@ class Tools(object):
         return _fitz.Tools_glyph_cache_empty(self)
 
     def _fill_widget(self, annot, widget):
+        r"""_fill_widget(self, annot, widget) -> PyObject *"""
         val = _fitz.Tools__fill_widget(self, annot, widget)
 
         widget.rect = Rect(annot.rect)
@@ -5611,12 +6052,15 @@ class Tools(object):
 
 
     def _save_widget(self, annot, widget):
+        r"""_save_widget(self, annot, widget) -> PyObject *"""
         return _fitz.Tools__save_widget(self, annot, widget)
 
     def _reset_widget(self, annot):
+        r"""_reset_widget(self, annot) -> PyObject *"""
         return _fitz.Tools__reset_widget(self, annot)
 
     def _parse_da(self, annot):
+        r"""_parse_da(self, annot) -> PyObject *"""
         val = _fitz.Tools__parse_da(self, annot)
 
         if not val:
@@ -5651,6 +6095,7 @@ class Tools(object):
 
 
     def _update_da(self, annot, da_str):
+        r"""_update_da(self, annot, da_str) -> PyObject *"""
         return _fitz.Tools__update_da(self, annot, da_str)
 
     def _get_all_contents(self, fzpage):
@@ -5768,7 +6213,7 @@ class Tools(object):
         if not fc:
             fc = (1,1,1)  # white if missing
         fcol = " ".join(map(str, fc)) + " rg\n"
-    # nr = annot.rect
+        nr = annot.rect
         np1 = p1                   # point coord relative to annot rect
         np2 = p2                   # point coord relative to annot rect
         m = self._hor_matrix(np1, np2)  # matrix makes the line horizontal
@@ -5972,6 +6417,7 @@ class Tools(object):
 
 
     def __init__(self):
+        r"""__init__(self) -> Tools"""
         _fitz.Tools_swiginit(self, _fitz.new_Tools())
     __swig_destroy__ = _fitz.delete_Tools
 

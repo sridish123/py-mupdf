@@ -1,16 +1,15 @@
 language: python
 python: 3.7
 dist: xenial
-sudo: true
 
 cache:
   directories:
   - "$HOME/Library/Caches/Homebrew"
 env:
   global:
-  - MUPDF='https://mupdf.com/downloads/archive/mupdf-1.17.0-source.tar.gz'
+  - MUPDF='https://mupdf.com/downloads/archive/mupdf-1.16.1-source.tar.gz'
   - COPYFILE_DISABLE=1
-matrix:
+jobs:
   include:
   - os: linux
     sudo: required
@@ -24,8 +23,6 @@ matrix:
     - export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
   - os: osx
     language: shell
-    #services:
-    #- docker
     env: PIP=pip3
     before_install:
     - brew update
@@ -41,17 +38,16 @@ install:
 - cp fitz/_config.h mupdf/include/mupdf/fitz/config.h
 
 script:
-- export CIBW_SKIP="pp27-* pp35-* pp36-* pp37-* pp38-* cp33-* cp27-* *i686"
+- export CIBW_SKIP="pp27-* pp35-* pp36-* pp37-* pp38-* cp33-* *i686"
 - export CIBW_TEST_COMMAND="python -c 'import fitz;print(fitz.__doc__)'"
 - cibuildwheel --output-dir wheelhouse
 
 deploy:
   provider: pages
-  github_token: $GITHUB_TOKEN
-  keep-history: false
-  skip_cleanup: true
-  local-dir: wheelhouse
+  token: $GITHUB_TOKEN
+  keep_history: false
+  local_dir: wheelhouse
   repo: pymupdf/PyMuPDF-wheels
-  target-branch: $TRAVIS_OS_NAME
+  target_branch: $TRAVIS_OS_NAME
   on:
     repo: JorjMcKie/py-mupdf
