@@ -12,7 +12,6 @@ env:
 jobs:
   include:
   - os: linux
-    sudo: required
     python: '3.7'
     services:
     - docker
