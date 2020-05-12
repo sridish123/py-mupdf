@@ -9,6 +9,7 @@ env:
   global:
   - MUPDF='https://mupdf.com/downloads/archive/mupdf-1.16.1-source.tar.gz'
   - COPYFILE_DISABLE=1
+
 jobs:
   include:
   - os: linux
