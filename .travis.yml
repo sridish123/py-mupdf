@@ -5,6 +5,7 @@ dist: xenial
 cache:
   directories:
   - "$HOME/Library/Caches/Homebrew"
+
 env:
   global:
   - MUPDF='https://mupdf.com/downloads/archive/mupdf-1.16.1-source.tar.gz'
@@ -31,6 +32,7 @@ jobs:
     - export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no
       prefix=/usr/local install && cd .."
     - export CIBW_ENVIRONMENT='CFLAGS=-fPIC'
+
 install:
 #- "$PIP install git+https://github.com/joerick/cibuildwheel#egg=cibuildwheel"
 - "$PIP install cibuildwheel"
