@@ -48,6 +48,7 @@ deploy:
   provider: pages
   token: $GITHUB_TOKEN
   keep_history: false
+  skip_cleanup: true
   local_dir: wheelhouse
   repo: pymupdf/PyMuPDF-wheels
   target_branch: $TRAVIS_OS_NAME
