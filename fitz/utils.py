@@ -9,7 +9,7 @@ from fitz import *
 
 
 """
-The following is a collection of functions to extend PyMupdf.
+This is a collection of functions to extend PyMupdf.
 """
 
 
@@ -141,12 +141,12 @@ def showPDFpage(
     if len(src_page._getContents()) == 0:
         raise ValueError("nothing to show - source page empty")
 
-    tar_rect = rect * ~page._getTransformation()  # target rect in PDF coordinates
+    tar_rect = rect * ~page.transformationMatrix  # target rect in PDF coordinates
 
     src_rect = src_page.rect if not clip else src_page.rect & clip  # source rect
     if src_rect.isEmpty or src_rect.isInfinite:
         raise ValueError("clip must be finite and not empty")
-    src_rect = src_rect * ~src_page._getTransformation()  # ... in PDF coord
+    src_rect = src_rect * ~src_page.transformationMatrix  # ... in PDF coord
 
     matrix = calc_matrix(src_rect, tar_rect, keep=keep_proportion, rotate=rotate)
 
@@ -338,7 +338,7 @@ def insertImage(
     else:
         fw = fh = 1.0
 
-    clip = r * ~page._getTransformation()  # target rect in PDF coordinates
+    clip = r * ~page.transformationMatrix  # target rect in PDF coordinates
 
     matrix = calc_matrix(fw, fh, clip, rotate=rotate)  # calculate matrix
 
@@ -362,89 +362,6 @@ def insertImage(
     )
 
 
-def getImageBbox(page, item):
-    """Calculate the rectangle (bbox) of a PDF image.
-
-    Args:
-        :page: the PyMuPDF page object
-        :item: item from doc.getPageImageList(page.number, full=True)
-
-    Returns:
-        The bbox (fitz.Rect) of the image.
-
-    Notes:
-        This function can be used to find a connection between images returned
-        by page.getText("dict") and the images referenced in the list
-        page.getImageList().
-    """
-
-    def calc_matrix(cont, imgname):
-        imgnm = ("/" + imgname).encode()
-        cont = cont.replace(b"/", b" /")  # prepend slashes with a space
-        # split this, ignoring white spaces
-        cont = cont.split()
-        if imgnm not in cont:
-            return Matrix()
-        idx = cont.index(imgnm)  # the image name
-        mat_list = []
-        while idx >= 0:  # start position is "/Image Do" location
-            if cont[idx] == b"q":  # finished at leading stacking command
-                break
-            if cont[idx] == b"cm":  # encountered a matrix command
-                mat = cont[idx - 6 : idx]  # list of the 6 matrix values
-                l = list(map(float, mat))  # make them floats
-                mat_list.append(Matrix(l))  # append fitz matrix
-                idx -= 6  # step backwards 6 entries
-            else:
-                idx -= 1  # step backwards
-
-        l = len(mat_list)
-        if l == 0:  # safeguard against unusual situations
-            return Matrix()  # the zero matrix
-
-        mat = Matrix(1, 1)  # concatenate encountered matrices to this one
-        for m in reversed(mat_list):
-            mat *= m
-
-        return mat
-
-    def lookup_matrix(page, item):
-        """Return the transformation matrix for an image name.
-
-        Args:
-            :page: the PyMuPDF page object
-            :item: an item of the list doc.getPageImageList(page.number, full=True).
-
-        Returns:
-            concatenated matrices preceeding the image invocation.
-
-        Notes:
-            We are looking up "/imgname Do" in the concatenated /contents of the
-            page first. If not found, also look it up in the streams of any
-            Form XObjects of the page. If still not found, return the zero matrix.
-        """
-        doc = page.parent  # get the PDF document
-        imgname = item[7]  # the image reference name
-        stream_xref = item[-1]  # the contents object to inspect
-
-        if stream_xref == 0:  # only look in the page's /Contents
-            cont = TOOLS._get_all_contents(page)  # concatenated contents
-            return calc_matrix(cont, imgname)
-
-        cont = doc._getXrefStream(stream_xref)  # the contents object
-        return calc_matrix(cont, imgname)
-
-    mat = lookup_matrix(page, item)
-    if not bool(mat):
-        return Rect(1, 1, -1, -1)  # return infinite rect if not found
-
-    ctm = page._getTransformation()  # page transformation matrix
-    mat.preScale(1, -1)  # fiddle the matrix
-    mat.preTranslate(0, -1)  # fiddle the matrix
-    r = Rect(0, 0, 1, 1) * mat  # the bbox in PDF coordinates
-    return r * ctm  # the bbox in MuPDF coordinates
-
-
 def searchFor(page, text, hit_max=16, quads=False, flags=None):
     """ Search for a string on a page.
 
@@ -459,7 +376,6 @@ def searchFor(page, text, hit_max=16, quads=False, flags=None):
     if flags is None:
         flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
     tp = page.getTextPage(flags)  # create TextPage
-    # return list of hitting reactangles
     rlist = tp.search(text, hit_max=hit_max, quads=quads)
     tp = None
     return rlist
@@ -681,7 +597,7 @@ def getLinks(page):
         #    if type(nl["to"]) is Point and nl["page"] >= 0:
         #        doc = page.parent
         #        target_page = doc[nl["page"]]
-        #        ctm = target_page._getTransformation()
+        #        ctm = target_page.transformationMatrix
         #        point = nl["to"] * ctm
         #        nl["to"] = point
         links.append(nl)
@@ -711,7 +627,11 @@ def getToC(doc, simple=True):
 
             if not olItem.isExternal:
                 if olItem.uri:
-                    page = olItem.page + 1
+                    if olItem.page == -1:
+                        resolve = doc.resolveLink(olItem.uri)
+                        page = resolve[0] + 1
+                    else:
+                        page = olItem.page + 1
                 else:
                     page = -1
             else:
@@ -921,7 +841,7 @@ def setToC(doc, toc, collapse=1):
         title = getPDFstr(o[1])  # title
         pno = min(doc.pageCount - 1, max(0, o[2] - 1))  # page number
         page = doc[pno]  # load the page
-        ictm = ~page._getTransformation()  # get inverse transformation matrix
+        ictm = ~page.transformationMatrix  # get inverse transformation matrix
         top = Point(72, 36) * ictm  # default top location
         dest_dict = {"to": top, "kind": LINK_GOTO}  # fall back target
         if o[2] < 0:
@@ -1112,7 +1032,7 @@ def do_links(doc1, doc2, from_page=-1, to_page=-1, start_at=-1):
         if len(links) == 0:  # no links there
             page_src = None
             continue
-        ctm = ~page_src._getTransformation()  # calc page transformation matrix
+        ctm = ~page_src.transformationMatrix  # calc page transformation matrix
         page_dst = doc1[pno_dst[i]]  # load destination page
         link_tab = []  # store all link definitions here
         for l in links:
@@ -1134,7 +1054,7 @@ def getLinkText(page, lnk):
     # --------------------------------------------------------------------------
     # define skeletons for /Annots object texts
     # --------------------------------------------------------------------------
-    ctm = page._getTransformation()
+    ctm = page.transformationMatrix
     ictm = ~ctm
     r = lnk["from"]
     height = page.rect.height
@@ -2461,7 +2381,7 @@ class Shape(object):
         self.x = page.CropBoxPosition.x
         self.y = page.CropBoxPosition.y
 
-        self.pctm = page._getTransformation()  # page transf. matrix
+        self.pctm = page.transformationMatrix  # page transf. matrix
         self.ipctm = ~self.pctm  # inverted transf. matrix
 
         self.draw_cont = ""
@@ -3256,10 +3176,11 @@ class Shape(object):
         if not fitz_py2:  # need bytes if Python > 2
             self.totalcont = bytes(self.totalcont, "utf-8")
 
-        # make /Contents object with dummy stream
-        xref = TOOLS._insert_contents(self.page, b" ", overlay)
-        # update it with potential compression
-        self.doc._updateStream(xref, self.totalcont)
+        if self.totalcont != b"":
+            # make /Contents object with dummy stream
+            xref = TOOLS._insert_contents(self.page, b" ", overlay)
+            # update it with potential compression
+            self.doc.updateStream(xref, self.totalcont)
 
         self.lastPoint = None  # clean up ...
         self.rect = None  #
@@ -3318,55 +3239,15 @@ def apply_redactions(page):
     if redact_annots == []:  # any redactions on this page?
         return False  # no redactions
 
-    candidate_names = []  # list of image / xobject names covered by redactions
-    ctm = page._getTransformation()  # the page transformation matrix
-
-    image_list = doc.getPageImageList(page.number, full=True)  # list of images
-
-    for item in image_list:  # loop through images
-        if item[-1] != 0:  # only consider if in page contents
-            continue
-        try:
-            bbox = page.getImageBbox(item)
-        except ValueError:  # image may not indeed be referenced by the page
-            continue
-        for redact in redact_annots:  # check if covered by a redaction
-            if bbox in redact["rect"]:
-                candidate_names.append(item[-3])  # save the name
-                break
-
-    for item in doc._getPageInfo(page.number, 3):  # loop through /XObjects
-        if item[-2] != 0:  # only consider if in page's own contents
-            continue
-        bbox = Rect(item[-1]) * ctm  # need transformation matrix here
-        for redact in redact_annots:  # check if covered by a redaction
-            if bbox in redact["rect"]:
-                candidate_names.append(item[1])
-                break
-
     rc = page._apply_redactions()  # call MuPDF redaction process step
     if not rc:  # should not happen really
         raise ValueError("Error applying redactions.")
-
-    xref = page._getContents()[0]  # read page's /Contents
-    # note: this is just one object because cleaning has been executed under
-    # the hood already by page.getImageBbox().
-    cont = doc.xrefStream(xref)
-
-    # cont is formatted such that each command is contained in its own line
-    # loop through image & xobject names and remove their invocations
-    for name in candidate_names:
-        bytes_name = b"/" + name.encode("utf8") + b" Do"
-        cont = cont.replace(bytes_name, b"")
-
-    doc.updateStream(xref, cont)  # rewrite the modified contents stream
 
     # now write replacement text in old redact rectangles
     shape = page.newShape()
     for redact in redact_annots:
         annot_rect = redact["rect"]
         fill = redact["fill"]
-        annot_rect = DerotateRect(page.CropBox, annot_rect, page.rotation)
         if fill:
             shape.drawRect(annot_rect)  # colorize the rect background
             shape.finish(fill=fill, color=fill)
