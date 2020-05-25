@@ -35,13 +35,14 @@ jobs:
 
 install:
 #- "$PIP install git+https://github.com/joerick/cibuildwheel#egg=cibuildwheel"
+- "$PIP install -U pip"
 - "$PIP install cibuildwheel"
 - mkdir mupdf && wget -q $MUPDF -O - | tar zx -C mupdf --strip-components=1
 - cp fitz/_config.h mupdf/include/mupdf/fitz/config.h
 
 script:
 - export CIBW_SKIP="pp27-* pp35-* pp36-* pp37-* pp38-* cp33-* *i686"
-#- export CIBW_TEST_COMMAND="python -c 'import fitz;print(fitz.__doc__)'"
+- export CIBW_TEST_COMMAND="python -c 'import fitz;print(fitz.__doc__)'"
 - cibuildwheel --output-dir wheelhouse
 
 deploy:
