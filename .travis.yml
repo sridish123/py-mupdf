@@ -19,8 +19,8 @@ jobs:
     - docker
     env: PIP=pip
     before_script:
-    - export CIBW_BEFORE_BUILD="yum install -y zlib-devel && cd mupdf && make HAVE_X11=no
-      HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .."
+    - export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no
+      HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip"
     - export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
   - os: osx
     language: shell
@@ -35,7 +35,6 @@ jobs:
 
 install:
 #- "$PIP install git+https://github.com/joerick/cibuildwheel#egg=cibuildwheel"
-- "$PIP install -U pip"
 - "$PIP install cibuildwheel"
 - mkdir mupdf && wget -q $MUPDF -O - | tar zx -C mupdf --strip-components=1
 - cp fitz/_config.h mupdf/include/mupdf/fitz/config.h
