@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.17.0"
-VersionBind = "1.17.0"
-VersionDate = "2020-05-13 20:05:13"
-version = (VersionBind, VersionFitz, "20200513200513")
+VersionBind = "1.17.1"
+VersionDate = "2020-06-13 07:54:31"
+version = (VersionBind, VersionFitz, "20200613075431")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -380,11 +380,11 @@ class Matrix(object):
             self.e = float(args[4])
             self.f = float(args[5])
             return None
-        if len(args) == 1:                       # either an angle or a sequ
+        if len(args) == 1:  # either an angle or a sequ
             if hasattr(args[0], "__float__"):
                 theta = math.radians(args[0])
-                c = math.cos(theta)
-                s = math.sin(theta)
+                c = round(math.cos(theta), 8)
+                s = round(math.sin(theta), 8)
                 self.a = self.d = c
                 self.b = s
                 self.c = -s
@@ -522,6 +522,7 @@ class Matrix(object):
         return "Matrix" + str(tuple(self))
 
     def __invert__(self):
+        """Calculate inverted matrix."""
         m1 = Matrix()
         m1.invert(self)
         return m1
@@ -575,10 +576,10 @@ class Matrix(object):
     def __nonzero__(self):
         return not (max(self) == min(self) == 0)
 
-    def __eq__(self, m):
-        if not hasattr(m, "__len__"):
+    def __eq__(self, mat):
+        if not hasattr(mat, "__len__"):
             return False
-        return len(m) == 6 and bool(self - m) is False
+        return len(mat) == 6 and bool(self - mat) is False
 
     def __abs__(self):
         return math.sqrt(sum([c*c for c in self]))
@@ -587,6 +588,7 @@ class Matrix(object):
 
     @property
     def isRectilinear(self):
+        """True if rectangles are mapped to rectangles."""
         return (abs(self.b) < EPSILON and abs(self.c) < EPSILON) or \
             (abs(self.a) < EPSILON and abs(self.d) < EPSILON);
 
@@ -656,7 +658,7 @@ class Point(object):
 
     @property
     def unit(self):
-        """Return unit vector of a point."""
+        """Unit vector of the point."""
         s = self.x * self.x + self.y * self.y
         if s < EPSILON:
             return Point(0,0)
@@ -665,7 +667,7 @@ class Point(object):
 
     @property
     def abs_unit(self):
-        """Return unit vector of a point with positive coordinates."""
+        """Unit vector with positive coordinates."""
         s = self.x * self.x + self.y * self.y
         if s < EPSILON:
             return Point(0,0)
@@ -673,7 +675,7 @@ class Point(object):
         return Point(abs(self.x) / s, abs(self.y) / s)
 
     def distance_to(self, *args):
-        """Return the distance to a rectangle or another point."""
+        """Return distance to rectangle or another point."""
         if not len(args) > 0:
             raise ValueError("at least one parameter must be given")
 
@@ -854,28 +856,32 @@ class Rect(object):
 
     @property
     def isEmpty(self):
-        """Check if rectangle area is empty."""
+        """True if rectangle area is empty."""
         return self.x0 == self.x1 or self.y0 == self.y1
 
     @property
     def isInfinite(self):
-        """Check if rectangle is infinite."""
+        """True if rectangle is infinite."""
         return self.x0 > self.x1 or self.y0 > self.y1
 
     @property
     def top_left(self):
+        """Top-left corner."""
         return Point(self.x0, self.y0)
 
     @property
     def top_right(self):
+        """Top-right corner."""
         return Point(self.x1, self.y0)
 
     @property
     def bottom_left(self):
+        """Bottom-left corner."""
         return Point(self.x0, self.y1)
 
     @property
     def bottom_right(self):
+        """Bottom-right corner."""
         return Point(self.x1, self.y1)
 
     tl = top_left
@@ -885,12 +891,17 @@ class Rect(object):
 
     @property
     def quad(self):
+        """Return Quad version of rectangle."""
         return Quad(self.tl, self.tr, self.bl, self.br)
 
     def morph(self, p, m):
+        """Morph with matrix-like m and point-like p.
+
+        Returns a new quad."""
         return self.quad.morph(p, m)
 
     def round(self):
+        """Return the IRect."""
         return IRect(min(self.x0, self.x1), min(self.y0, self.y1),
                      max(self.x0, self.x1), max(self.y0, self.y1))
 
@@ -900,32 +911,32 @@ class Rect(object):
     height = property(lambda self: abs(self.y1 - self.y0))
 
     def includePoint(self, p):
-        """Extend rectangle to include point p."""
+        """Extend to include point-like p."""
         if not len(p) == 2:
             raise ValueError("bad sequ. length")
         self.x0, self.y0, self.x1, self.y1 = TOOLS._include_point_in_rect(self, p)
         return self
 
     def includeRect(self, r):
-        """Extend rectangle to include rectangle r."""
+        """Extend to include rect-like r."""
         if not len(r) == 4:
             raise ValueError("bad sequ. length")
         self.x0, self.y0, self.x1, self.y1 = TOOLS._union_rect(self, r)
         return self
 
     def intersect(self, r):
-        """Restrict self to common area with rectangle r."""
+        """Restrict to common rect with rect-like r."""
         if not len(r) == 4:
             raise ValueError("bad sequ. length")
         self.x0, self.y0, self.x1, self.y1 = TOOLS._intersect_rect(self, r)
         return self
 
     def contains(self, x):
-        """Check if containing a point-like or rect-like x."""
+        """Check if containing point-like or rect-like x."""
         return self.__contains__(x)
 
     def transform(self, m):
-        """Replace rectangle with its transformation by matrix-like m."""
+        """Replace with the transformation by matrix-like m."""
         if not len(m) == 6:
             raise ValueError("bad sequ. length")
         self.x0, self.y0, self.x1, self.y1 = TOOLS._transform_rect(self, m)
@@ -962,10 +973,10 @@ class Rect(object):
     def __nonzero__(self):
         return not (max(self) == min(self) == 0)
 
-    def __eq__(self, p):
-        if not hasattr(p, "__len__"):
+    def __eq__(self, rect):
+        if not hasattr(rect, "__len__"):
             return False
-        return len(p) == 4 and bool(self - p) is False
+        return len(rect) == 4 and bool(self - rect) is False
 
     def __abs__(self):
         if self.isEmpty or self.isInfinite:
@@ -1168,18 +1179,21 @@ class Quad(object):
 
         Notes:
             Some rotation matrix can thus transform it into a rectangle.
+            This is equivalent to three corners enclose 90 degrees.
+        Returns:
+            True or False.
         """
 
-        a = TOOLS._angle_between(self.ul, self.ur, self.lr)
-        if abs(a.y - 1) > EPSILON:
+        sine = TOOLS._sine_between(self.ul, self.ur, self.lr)
+        if abs(sine - 1) > EPSILON:  # the sine of the angle
             return False
 
-        a = TOOLS._angle_between(self.ur, self.lr, self.ll)
-        if abs(a.y - 1) > EPSILON:
+        sine = TOOLS._sine_between(self.ur, self.lr, self.ll)
+        if abs(sine - 1) > EPSILON:
             return False
 
-        a = TOOLS._angle_between(self.lr, self.ll, self.ul)
-        if abs(a.y - 1) > EPSILON:
+        sine = TOOLS._sine_between(self.lr, self.ll, self.ul)
+        if abs(sine - 1) > EPSILON:
             return False
 
         return True
@@ -1187,48 +1201,67 @@ class Quad(object):
 
     @property
     def isConvex(self):
-        """Check if quad is convex.
+        """Check if quad is convex and not degenerate.
 
         Notes:
-            Every line connecting any two points of the quad will be inside
-            the quad. This is equivalent to that two sides meeting in a corner
-            always enclose an angle of no more than 180 degrees.
-            Equivalently, the sine of this angle cannot be negative.
+            For convexity, every line connecting two points of the quad must be
+            inside the quad. This is equivalent to that every corner encloses
+            an angle with 0 < angle < 180 degrees.
+            We exclude the "degenerate" case, where all points are on the
+            same line.
+            So it suffices to check that the sines of three angles are > 0.
         Returns:
             True or False.
         """
-
-        a = TOOLS._angle_between(self.ul, self.ur, self.lr)
-        if a.y < 0:
+        count = 0
+        sine = TOOLS._sine_between(self.ul, self.ur, self.lr)
+        if sine > 0:
+            count += 1
+        elif sine < 0:
             return False
 
-        a = TOOLS._angle_between(self.ur, self.lr, self.ll)
-        if a.y < 0:
+        sine = TOOLS._sine_between(self.ur, self.lr, self.ll)
+        if sine > 0:
+            count += 1
+        elif sine < 0:
             return False
 
-        a = TOOLS._angle_between(self.lr, self.ll, self.ul)
-        if a.y < 0:
+        sine = TOOLS._sine_between(self.lr, self.ll, self.ul)
+        if sine > 0:
+            count += 1
+        elif sine < 0:
             return False
 
-        return True
+        sine = TOOLS._sine_between(self.ll, self.ul, self.ur)
+        if sine > 0:
+            count += 1
+        elif sine < 0:
+            return False
+
+        if count >= 2:
+            return True
+
+        return False
 
 
     @property
     def isEmpty(self):
-        """Check if quad is empty retangle. If rectangular, we are done (not empty).
-        But all 4 points may still be on one line. This is checked out here.
-        In that case all 3 lines connecting the other corners with UL will have
-        the same angle with the x-axis.
+        """Check whether all quad corners are on the same line.
+
+        The is the case exactly if more than one corner angle is zero.
         """
-        if self.isRectangular:
+        count = 0
+        if abs(TOOLS._sine_between(self.ul, self.ur, self.lr)) < EPSILON:
+            count += 1
+        if abs(TOOLS._sine_between(self.ur, self.lr, self.ll)) < EPSILON:
+            count += 1
+        if abs(TOOLS._sine_between(self.lr, self.ll, self.ul)) < EPSILON:
+            count += 1
+        if abs(TOOLS._sine_between(self.ll, self.ul, self.ur)) < EPSILON:
+            count += 1
+        if count <= 2:
             return False
-        ul = Point()
-        ur = (self.ur - self.ul).abs_unit
-        lr = (self.lr - self.ul).abs_unit
-        ll = (self.ll - self.ul).abs_unit
-        if max(ur.y, lr.y, ll.y) - min(ur.y, lr.y, ll.y) < EPSILON:
-            return True
-        return False
+        return True
 
     width  = property(lambda self: max(abs(self.ul - self.ur), abs(self.ll - self.lr)))
     height = property(lambda self: max(abs(self.ul - self.ll), abs(self.ur - self.lr)))
@@ -1272,11 +1305,15 @@ class Quad(object):
     def __nonzero__(self):
         return not self.isEmpty
 
-    def __eq__(self, p):
-        if not hasattr(p, "__len__"):
+    def __eq__(self, quad):
+        if not hasattr(quad, "__len__"):
             return False
-        return len(p) == 4 and self.ul == p[0] and self.ur == p[1] and \
-               self.ll == p[3] and self.lr == p[3]
+        return len(quad) == 4 and (
+            self.ul == quad[0] and
+            self.ur == quad[1] and
+            self.ll == quad[3] and
+            self.lr == quad[3]
+        )
 
     def __abs__(self):
         if self.isEmpty:
@@ -1285,7 +1322,7 @@ class Quad(object):
 
 
     def morph(self, p, m):
-        """Morph the quad with some matrix 'm' around some pivotal point 'p'.
+        """Morph the quad with matrix-like 'm' and point-like 'p'.
 
         Return a new quad."""
 
@@ -1354,7 +1391,6 @@ class Widget(object):
         self.text_fontsize = 0
         self.text_maxlen = 0  # text fields only
         self.text_format = 0  # text fields only
-        self._text_da = ""  # /DA = default apparance
         self._text_da = ""  # /DA = default apparance
 
         self.script = None  # JavaScript (/A)
@@ -1486,8 +1522,8 @@ class Widget(object):
     def update(self):
         """Reflect Python object in the PDF.
         """
-        self._validate()
         doc = self.parent.parent
+        self._validate()
 
         self._adjust_font()  # ensure valid text_font name
 
@@ -1684,7 +1720,7 @@ def getTextlength(text, fontname="helv", fontsize=11, encoding=0):
         return w * fontsize
 
     if fontname in Base14_fontdict.keys():
-        return TOOLS.measure_string(text, Base14_fontdict[fontname], fontsize, encoding)
+        return TOOLS._measure_string(text, Base14_fontdict[fontname], fontsize, encoding)
 
     if fontname in ("china-t", "china-s",
                     "china-ts", "china-ss",
@@ -2093,7 +2129,7 @@ def JM_TUPLE(o):
 
 
 def CheckRect(r):
-    """Check whether an object is rect-like.
+    """Check whether an object is non-degenerate rect-like.
 
     It must be a sequence of 4 numbers.
     """
@@ -2104,13 +2140,15 @@ def CheckRect(r):
             a = float(r[i])
     except:
         return False
-    return True
+
+    r = Rect(r)
+    return not (r.isEmpty or r.isInfinite)
 
 
 def CheckQuad(q):
-    """Check whether an object is quad-like.
+    """Check whether an object is convex, not empty  quad-like.
 
-    It must be a sequence of 4 pairs of numbers.
+    It must be a sequence of 4 number pairs.
     """
     try:
         if q.__len__() != 4:
@@ -2122,7 +2160,8 @@ def CheckQuad(q):
             a = float(q[i][1])
     except:
         return False
-    return True
+
+    return Quad(q).isConvex
 
 
 def CheckMarkerArg(quads):
@@ -2194,7 +2233,7 @@ def planishLine(p1, p2):
     """ 
     p1 = Point(p1)
     p2 = Point(p2)
-    return TOOLS._hor_matrix(p1, p2)
+    return Matrix(TOOLS._hor_matrix(p1, p2))
 
 
 def ImageProperties(img):
@@ -2416,6 +2455,21 @@ class Document(object):
 
     def __init__(self, filename=None, stream=None, filetype=None, rect=None, width=0, height=0, fontsize=11):
 
+        """Creates a document. Use 'open' as a synonym.
+
+        Notes:
+            Basic usages:
+            open() - creates new empty PDF document
+            open(filename) - string or pathlib.Path, must have supported
+                    file extension.
+            open(type, buffer) - type: valid extension, buffer: bytes object.
+            open(stream=buffer, filetype=type) - keyword version of previous.
+            open(filename, fileype=type) - filename with unrecognized extension.
+
+            rect, width, height, fontsize may be used to re-layout reflowable documents
+            on open (e.g. EPUB). Ignored if not applicable.
+        """
+
         if not filename or type(filename) is str:
             pass
         else:
@@ -2467,22 +2521,7 @@ class Document(object):
 
 
     def close(self):
-
-        if self.isClosed:
-            raise ValueError("document closed")
-        if hasattr(self, "_outline") and self._outline:
-            self._dropOutline(self._outline)
-            self._outline = None
-        self._reset_page_refs()
-        self.metadata    = None
-        self.stream      = None
-        self.isClosed    = True
-        self.FontInfos   = []
-        for gmap in self.Graftmaps:
-            self.Graftmaps[gmap] = None
-        self.Graftmaps = {}
-        self.ShownPages = {}
-
+        """Close document."""
 
         val = _fitz.Document_close(self)
         self.thisown = False
@@ -2492,6 +2531,14 @@ class Document(object):
 
     def loadPage(self, page_id):
 
+        """Load a page.
+
+        'page_id' is either a 0-based page number or a tuple (chapter, pno),
+        with chapter number and page number within that chapter.
+        """
+
+        if self.isClosed or self.isEncrypted:
+            raise ValueError("document closed or encrypted")
         if page_id is None:
             page_id = 0
         if page_id not in self:
@@ -2518,6 +2565,7 @@ class Document(object):
         return _fitz.Document__remove_links_to(self, first, last)
 
     def _loadOutline(self):
+        """Load first outline."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2528,6 +2576,7 @@ class Document(object):
         return _fitz.Document__dropOutline(self, ol)
 
     def _embeddedFileNames(self, namelist):
+        """Get list of embedded file names."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2550,8 +2599,7 @@ class Document(object):
         return _fitz.Document__embeddedFileAdd(self, name, buffer, filename, ufilename, desc)
 
     def embeddedFileNames(self):
-        """ Return a list of names of EmbeddedFiles.
-        """
+        """ Get a list of names of EmbeddedFiles."""
         filenames = []
         self._embeddedFileNames(filenames)
         return filenames
@@ -2568,8 +2616,7 @@ class Document(object):
         return idx
 
     def embeddedFileCount(self):
-        """ Return the number of EmbeddedFiles.
-        """
+        """ Get the number of EmbeddedFiles."""
         return len(self.embeddedFileNames())
 
     def embeddedFileDel(self, item):
@@ -2577,10 +2624,10 @@ class Document(object):
 
         Notes:
             The argument must be name or index of an EmbeddedFiles item.
-            Physical deletion of associated data will happen on save to a
-            new file with appropriate garbage option.
+            Physical deletion of data will happen on save to a new
+            file with appropriate garbage option.
         Args:
-            item: (str/int) the name or index of the entry.
+            item: (str/int) name or number of the entry.
         Returns:
             None
         """
@@ -2591,9 +2638,9 @@ class Document(object):
         """ Return information of an item in the EmbeddedFiles array.
 
         Args:
-            item: the number or the name of the item.
+            item: number or name of item.
         Returns:
-            A dictionary of respective information.
+            Information dictionary.
         """
         idx = self._embeddedFileIndex(item)
         infodict = {"name": self.embeddedFileNames()[idx]}
@@ -2604,7 +2651,7 @@ class Document(object):
         """ Return the content of an item in the EmbeddedFiles array.
 
         Args:
-            item: the number or the name of the item.
+            item: number or name of item.
         Returns:
             (bytes) The file content.
         """
@@ -2615,11 +2662,11 @@ class Document(object):
                               filename=None,
                               ufilename=None,
                               desc=None):
-        """ Make changes to an item in the EmbeddedFiles array.
+        """ Make changes to an item of the EmbeddedFiles array.
 
         Notes:
             All parameter are optional. If all arguments are omitted, the
-            method results in a no-op.
+            method is a no-op.
         Args:
             item: the number or the name of the item.
             buffer: (binary data) the new file content.
@@ -2664,7 +2711,7 @@ class Document(object):
 
 
     def convertToPDF(self, from_page=0, to_page=-1, rotate=0):
-        r"""Convert document to PDF selecting page range and optional rotation. Output bytes object."""
+        """Convert document to a PDF, selecting page range and optional rotation. Output bytes object."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -2673,6 +2720,7 @@ class Document(object):
     @property
 
     def pageCount(self):
+        """Page count of document."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2681,6 +2729,7 @@ class Document(object):
     @property
 
     def chapterCount(self):
+        """Number of chapters."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2689,6 +2738,7 @@ class Document(object):
     @property
 
     def lastLocation(self):
+        """Id (chapter, page) of last page."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2696,6 +2746,7 @@ class Document(object):
 
 
     def chapterPageCount(self, chapter):
+        """Page count of chapter."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2704,6 +2755,9 @@ class Document(object):
 
     def previousLocation(self, page_id):
 
+        """Get (chapter, page) of previous page."""
+        if self.isClosed or self.isEncrypted:
+            raise ValueError("document closed or encrypted")
         if type(page_id) is int:
             page_id = (0, page_id)
         if page_id not in self:
@@ -2717,6 +2771,9 @@ class Document(object):
 
     def nextLocation(self, page_id):
 
+        """Get (chapter, page) of next page."""
+        if self.isClosed or self.isEncrypted:
+            raise ValueError("document closed or encrypted")
         if type(page_id) is int:
             page_id = (0, page_id)
         if page_id not in self:
@@ -2729,6 +2786,7 @@ class Document(object):
 
 
     def location_from_page_number(self, pno):
+        """Convert pno to (chapter, page)."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2737,7 +2795,11 @@ class Document(object):
 
     def page_number_from_location(self, page_id):
 
+        """Convert (chapter, pno) to page number."""
         if type(page_id) is int:
+            np = self.pageCount
+            while page_id < 0:
+                page_id += np
             page_id = (0, page_id)
         if page_id not in self:
             raise ValueError("page id not in document")
@@ -2747,6 +2809,7 @@ class Document(object):
 
 
     def _getMetadata(self, key):
+        """Get metadata."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2755,6 +2818,7 @@ class Document(object):
     @property
 
     def needsPass(self):
+        """Indicate password required."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2763,6 +2827,7 @@ class Document(object):
     @property
 
     def language(self):
+        """Document language."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2773,11 +2838,23 @@ class Document(object):
         return _fitz.Document_setLanguage(self, language)
 
     def resolveLink(self, uri=None, chapters=0):
-        r"""Calculate internal link destination."""
+
+        """Calculate internal link destination.
+
+        Args:
+            uri: (str) some Link.uri
+            chapters: (bool) whether to use chapter & page format
+        Returns:
+            (page_id, x, y) where x, y are point coordinates on the page.
+            page_id is either page number (if chapters=0), or (chapter, pno).
+        """
+
+
         return _fitz.Document_resolveLink(self, uri, chapters)
 
+
     def layout(self, rect=None, width=0, height=0, fontsize=11):
-        r"""Re-layout a reflowable document."""
+        """Re-layout a reflowable document."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -2790,7 +2867,7 @@ class Document(object):
 
 
     def makeBookmark(self, pno=0):
-        r"""Make page bookmark in a reflowable document."""
+        """Make page bookmark in a reflowable document."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -2798,7 +2875,7 @@ class Document(object):
 
 
     def findBookmark(self, bookmark):
-        r"""Find page number after layouting a document."""
+        """Find page number after layouting a document."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -2807,6 +2884,7 @@ class Document(object):
     @property
 
     def isReflowable(self):
+        """Check if document is layoutable."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2814,7 +2892,7 @@ class Document(object):
 
 
     def _deleteObject(self, xref):
-        r"""Delete an object given its xref."""
+        """Delete object."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2822,7 +2900,7 @@ class Document(object):
 
 
     def _getPDFroot(self):
-        r"""Get XREF number of PDF catalog."""
+        """Get xref of PDF catalog."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2830,7 +2908,7 @@ class Document(object):
 
 
     def _getPDFfileid(self):
-        r"""Return PDF file /ID strings (hexadecimal)."""
+        """Get PDF file id."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2839,6 +2917,7 @@ class Document(object):
     @property
 
     def isPDF(self):
+        """Check if a PDF document."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2847,6 +2926,7 @@ class Document(object):
     @property
 
     def _hasXrefStream(self):
+        """Check if xref table is a stream."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2855,6 +2935,7 @@ class Document(object):
     @property
 
     def _hasXrefOldStyle(self):
+        """Check if xref table is old style."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2863,6 +2944,7 @@ class Document(object):
     @property
 
     def isDirty(self):
+        """Check if PDF has unsaved changes."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2870,7 +2952,7 @@ class Document(object):
 
 
     def can_save_incrementally(self):
-        r"""Check if can be saved incrementally."""
+        """Check whether incremental saves are possible."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2878,13 +2960,13 @@ class Document(object):
 
 
     def authenticate(self, password):
-        r"""Decrypt document with a password."""
+        """Decrypt document."""
         if self.isClosed:
             raise ValueError("document closed")
 
         val = _fitz.Document_authenticate(self, password)
 
-        if val: # the doc is decrypted successfully and we init the outline
+        if val:  # the doc is decrypted successfully and we init the outline
             self.isEncrypted = False
             self.initData()
             self.thisown = True
@@ -2895,6 +2977,7 @@ class Document(object):
 
     def save(self, filename, garbage=0, clean=0, deflate=0, incremental=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
 
+        """Save PDF to filename."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
         if type(filename) == str:
@@ -2916,37 +2999,42 @@ class Document(object):
 
 
     def write(self, garbage=0, clean=0, deflate=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
-        r"""Write document to a bytes object."""
 
+        """Write the PDF to a bytes object."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
         if self.pageCount < 1:
             raise ValueError("cannot write with zero pages")
 
-
         return _fitz.Document_write(self, garbage, clean, deflate, ascii, expand, linear, pretty, encryption, permissions, owner_pw, user_pw)
 
 
     def insertPDF(self, docsrc, from_page=-1, to_page=-1, start_at=-1, rotate=-1, links=1, annots=1):
-        r"""Copy page range ['from', 'to'] of source PDF, starting as page number 'start_at'."""
+
+        """Insert page range ['from', 'to'] of source PDF, including both.
+
+        Page 'from' will become page number 'start_at'."""
+
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
         if id(self) == id(docsrc):
-            raise ValueError("source must not equal target PDF")
+            raise ValueError("source and target PDF are the same object")
         sa = start_at
         if sa < 0:
             sa = self.pageCount
 
         val = _fitz.Document_insertPDF(self, docsrc, from_page, to_page, start_at, rotate, links, annots)
+
         self._reset_page_refs()
         if links:
             self._do_links(docsrc, from_page = from_page, to_page = to_page,
-                           start_at = sa)
+                        start_at = sa)
 
         return val
 
 
     def _newPage(self, pno=-1, width=595, height=842):
+        """Make a new PDF page."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -2957,8 +3045,7 @@ class Document(object):
 
 
     def select(self, pyliste):
-        r"""Build sub-pdf with page numbers in 'list'."""
-
+        """Build sub-pdf with page numbers in the list."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
         if not self.isPDF:
@@ -2966,8 +3053,7 @@ class Document(object):
         if not hasattr(pyliste, "__getitem__"):
             raise ValueError("sequence required")
         if len(pyliste) == 0 or min(pyliste) not in range(len(self)) or max(pyliste) not in range(len(self)):
-            raise ValueError("sequence items out of range")
-
+            raise ValueError("bad page number(s)")
 
         val = _fitz.Document_select(self, pyliste)
 
@@ -2981,7 +3067,8 @@ class Document(object):
     @property
 
     def permissions(self):
-        r"""Get document permissions."""
+
+        """Document permissions."""
 
         if self.isEncrypted:
             return 0
@@ -2991,7 +3078,7 @@ class Document(object):
 
 
     def _getCharWidths(self, xref, bfname, ext, ordering, limit, idx=0):
-        r"""Return list of glyphs and glyph widths of a font."""
+        """Return list of glyphs and glyph widths of a font."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -2999,6 +3086,7 @@ class Document(object):
 
 
     def _getPageObjNumber(self, pno):
+        """Get (xref, generation) of page number."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3006,7 +3094,7 @@ class Document(object):
 
 
     def _getPageInfo(self, pno, what):
-        r"""Show fonts or images used on a page."""
+        """Show fonts or images used on a page."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3022,6 +3110,7 @@ class Document(object):
 
 
     def extractFont(self, xref=0, info_only=0):
+        """Get a font by xref."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3029,7 +3118,7 @@ class Document(object):
 
 
     def extractImage(self, xref):
-        r"""Extract image pointed to by 'xref'."""
+        """Get image by xref."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3037,6 +3126,7 @@ class Document(object):
 
 
     def _delToC(self):
+        """Delete the TOC."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3047,6 +3137,7 @@ class Document(object):
 
 
     def isStream(self, xref=0):
+        """Check if xref is a stream object."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3054,6 +3145,7 @@ class Document(object):
 
 
     def getSigFlags(self):
+        """Get /SigFlags value."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3062,6 +3154,7 @@ class Document(object):
     @property
 
     def isFormPDF(self):
+        """Check if PDF Form document."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3070,6 +3163,7 @@ class Document(object):
     @property
 
     def FormFonts(self):
+        """Get list of field font resource names."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3077,6 +3171,7 @@ class Document(object):
 
 
     def _addFormFont(self, name, font):
+        """Add new form font."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3084,6 +3179,7 @@ class Document(object):
 
 
     def _getOLRootNumber(self):
+        """Get xref of Outline Root, create it if missing."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3091,6 +3187,7 @@ class Document(object):
 
 
     def _getNewXref(self):
+        """Make new xref."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3098,6 +3195,7 @@ class Document(object):
 
 
     def _getXrefLength(self):
+        """Get length of xref table."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3105,6 +3203,7 @@ class Document(object):
 
 
     def _getXmlMetadataXref(self):
+        """Get xref of document XML metadata."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3112,6 +3211,7 @@ class Document(object):
 
 
     def _delXmlMetadata(self):
+        """Delete XML metadata."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3119,6 +3219,7 @@ class Document(object):
 
 
     def _getXrefString(self, xref, compressed=0, ascii=0):
+        """Get xref object source as a string."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3126,6 +3227,7 @@ class Document(object):
 
 
     def _getTrailerString(self, compressed=0, ascii=0):
+        """Get PDF trailer as a string."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3133,6 +3235,7 @@ class Document(object):
 
 
     def _getXrefStreamRaw(self, xref):
+        """Get xref stream without decompression."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3140,6 +3243,7 @@ class Document(object):
 
 
     def _getXrefStream(self, xref):
+        """Get decompressed xref stream."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3147,6 +3251,7 @@ class Document(object):
 
 
     def _updateObject(self, xref, text, page=None):
+        """Replace object definition source."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3154,6 +3259,7 @@ class Document(object):
 
 
     def _updateStream(self, xref=0, stream=None, new=0):
+        """Replace xref stream part."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3161,6 +3267,7 @@ class Document(object):
 
 
     def _setMetadata(self, text):
+        """Set old style metadata."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
@@ -3168,6 +3275,7 @@ class Document(object):
 
 
     def _make_page_map(self):
+        """Make an array page number -> page object."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3175,6 +3283,7 @@ class Document(object):
 
 
     def fullcopyPage(self, pno, to=-1):
+        """Make full page duplicate."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3186,6 +3295,7 @@ class Document(object):
 
 
     def _move_copy_page(self, pno, nb, before, copy):
+        """Move or copy a PDF page reference."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3402,14 +3512,13 @@ class Document(object):
 
 
     def metadataXML(self):
-        """Return the xref of the document XML metadata.
-        """
+        """Get xref of document XML metadata."""
         return self._getXmlMetadataXref()
 
 
     def reload_page(self, page):
         """Make a fresh copy of a page."""
-        old_annots = {}  # copy annotation kid references to here
+        old_annots = {}  # copy annot references to here
         pno = page.number  # save the page number
         for k, v in page._annot_refs.items():  # save the annot dictionary
             old_annots[k] = v
@@ -3417,7 +3526,7 @@ class Document(object):
         page = None
         page = self.loadPage(pno)  # reload the page
 
-    # copy previous annotation kids over to the new dictionary
+    # copy annot refs over to the new dictionary
         page_proxy = weakref.proxy(page)
         for k, v in old_annots.items():
             annot = old_annots[k]
@@ -3551,6 +3660,7 @@ class Page(object):
     __swig_destroy__ = _fitz.delete_Page
 
     def bound(self):
+        """Get page rectangle."""
         CheckParent(self)
 
         val = _fitz.Page_bound(self)
@@ -3562,6 +3672,9 @@ class Page(object):
 
     def getImageBbox(self, name):
 
+        """Get rectangle occupied by image 'name'.
+
+        'name' is either a full entry of the image list, or the identifying string."""
         CheckParent(self)
         doc = self.parent
         if doc.isClosed or doc.isEncrypted:
@@ -3571,12 +3684,14 @@ class Page(object):
             if not type(name[-1]) is int:
                 raise ValueError("need a full page image list item")
             item = name
+            if item[-1] != 0:
+                raise ValueError("unsupported image item")
         else:
             imglist = [i for i in doc.getPageImageList(self.number, True) if i[-1] == 0 and name == i[-3]]
             if len(imglist) == 1:
                 item = imglist[0]
             else:
-                return inf_rect
+                raise ValueError("no valid image found")
 
         val = _fitz.Page_getImageBbox(self, name)
 
@@ -3593,6 +3708,7 @@ class Page(object):
 
 
     def run(self, dw, m):
+        """Run page through a device."""
         CheckParent(self)
 
         return _fitz.Page_run(self, dw, m)
@@ -3619,19 +3735,15 @@ class Page(object):
         return _fitz.Page_language(self)
 
     def setLanguage(self, language=None):
-        r"""Set the language default of a PDF page."""
-
+        """Set the language default of a PDF page."""
         CheckParent(self)
-
 
         return _fitz.Page_setLanguage(self, language)
 
 
     def getSVGimage(self, matrix=None):
-        r"""Create an SVG image from the page."""
-
+        """Make SVG image from page."""
         CheckParent(self)
-
 
         return _fitz.Page_getSVGimage(self, matrix)
 
@@ -3684,14 +3796,16 @@ class Page(object):
 
     @property
     def rotationMatrix(self):
+        """Reflects page rotation."""
         return Matrix(TOOLS._rotate_matrix(self))
 
     @property
     def derotationMatrix(self):
+        """Reflects page de-rotation."""
         return Matrix(TOOLS._derotate_matrix(self))
 
     def addCaretAnnot(self, point):
-        """Add a Caret annotation at 'point'."""
+        """Add a 'Caret' annotation."""
         old_rotation = annot_preprocess(self)
         try:
             annot = self._add_caret_annot(point)
@@ -3741,7 +3855,7 @@ class Page(object):
 
 
     def addRectAnnot(self, rect):
-        """Add a 'Square' annotation."""
+        """Add a 'Square' (rectangle) annotation."""
         old_rotation = annot_preprocess(self)
         try:
             annot = self._add_square_or_circle(rect, PDF_ANNOT_SQUARE)
@@ -3753,7 +3867,7 @@ class Page(object):
 
 
     def addCircleAnnot(self, rect):
-        """Add a 'Circle' annotation."""
+        """Add a 'Circle' (ellipse, oval) annotation."""
         old_rotation = annot_preprocess(self)
         try:
             annot = self._add_square_or_circle(rect, PDF_ANNOT_CIRCLE)
@@ -3765,7 +3879,7 @@ class Page(object):
 
 
     def addTextAnnot(self, point, text, icon="Note"):
-        """Add a 'Text' annotation."""
+        """Add a 'Text' (sticky note) annotation."""
         old_rotation = annot_preprocess(self)
         try:
             annot = self._add_text_annot(point, text, icon=icon)
@@ -3813,7 +3927,7 @@ class Page(object):
 
 
     def addStampAnnot(self, rect, stamp=0):
-        """Add a 'rubber stamp' in a rectangle."""
+        """Add a ('rubber') 'Stamp' annotation."""
         old_rotation = annot_preprocess(self)
         try:
             annot = self._add_stamp_annot(rect, stamp)
@@ -3826,7 +3940,8 @@ class Page(object):
 
     def addInkAnnot(self, handwriting):
         """Add a 'Ink' ('handwriting') annotation.
-        The argument must be a list (or list of lists) of point_likes.
+
+        The argument must be a list of lists of point_likes.
         """
         old_rotation = annot_preprocess(self)
         try:
@@ -3844,7 +3959,7 @@ class Page(object):
         ufilename=None,
         desc=None,
         icon=None):
-        """Add a 'FileAttachment' at position 'point'."""
+        """Add a 'FileAttachment' annotation."""
 
         old_rotation = annot_preprocess(self)
         try:
@@ -3864,6 +3979,8 @@ class Page(object):
     def addFreetextAnnot(self, rect, text, fontsize=12,
                          fontname=None, text_color=None,
                          fill_color=None, align=0, rotate=0):
+        """Add a 'FreeText' annotation."""
+
         old_rotation = annot_preprocess(self)
         try:
             annot = self._add_freetext_annot(rect, text, fontsize=fontsize,
@@ -3878,6 +3995,7 @@ class Page(object):
 
     def addRedactAnnot(self, quad, text=None, fontname=None,
                        fontsize=11, align=0, fill=None, text_color=None):
+        """Add a 'Redact' annotation."""
         da_str = None
         if text:
             CheckColor(fill)
@@ -3913,72 +4031,93 @@ class Page(object):
     #------------------------------------------------------------------
     # change the generated appearance to show a crossed-out rectangle
     #------------------------------------------------------------------
-        ap_tab = annot._getAP().splitlines()[1:5]  # get the 4 commands only
-        LL, LR, UR, UL = ap_tab
+        ap_tab = annot._getAP().splitlines()[:-1]  # get the 4 commands only
+        _, LL, LR, UR, UL = ap_tab
         ap_tab.append(LR)
         ap_tab.append(LL)
         ap_tab.append(UR)
         ap_tab.append(LL)
         ap_tab.append(UL)
-        ap_tab.append(b"1 0 0 RG")
-        ap_tab.append(b"0.5 w")
         ap_tab.append(b"S")
         ap = b"\n".join(ap_tab)
         annot._setAP(ap, 0)
         return annot
 
 
-    def load_annot(self, name):
+    def _load_annot(self, name, xref):
+        return _fitz.Page__load_annot(self, name, xref)
+
+    def annot_names(self):
+        """List of names of annotations, fields and links."""
+        CheckParent(self)
+
+        return _fitz.Page_annot_names(self)
+
+
+    def annot_xrefs(self):
+        """List of xref numbers of annotations, fields and links."""
+        CheckParent(self)
+
+        return _fitz.Page_annot_xrefs(self)
+
+
+    def loadAnnot(self, ident):
+        """Load an annot by name (/NM key) or xref.
+
+        Args:
+            ident: identifier, either name (str) or xref (int).
+        """
 
         CheckParent(self)
-        if not self.parent.isPDF:
-            raise ValueError("not a PDF")
-        if name not in self.annot_names():
-            return None
-
-
-        val = _fitz.Page_load_annot(self, name)
-
+        if type(ident) is str:
+            xref = 0
+            name = ident
+        elif type(ident) is int:
+            xref = ident
+            name = None
+        else:
+            raise ValueError("identifier must be string or integer")
+        val = self._load_annot(name, xref)
         if not val:
             return val
         val.thisown = True
         val.parent = weakref.proxy(self)
         self._annot_refs[id(val)] = val
-
-
         return val
 
+    load_annot = loadAnnot
 
-    def annot_names(self):
-        return _fitz.Page_annot_names(self)
 
-                #---------------------------------------------------------------------
-                # page addWidget
-                #---------------------------------------------------------------------
+    #---------------------------------------------------------------------
+    # page addWidget
+    #---------------------------------------------------------------------
     def addWidget(self, widget):
-        """Add a form field.
-        """
+        """Add a 'Widget' (form field)."""
         CheckParent(self)
         doc = self.parent
         if not doc.isPDF:
             raise ValueError("not a PDF")
         widget._validate()
-        annot = self._addWidget(widget)
+        annot = self._addWidget(widget.field_type, widget.field_name)
         if not annot:
             return None
         annot.thisown = True
         annot.parent = weakref.proxy(self) # owning page object
         self._annot_refs[id(annot)] = annot
-        widget.parent = self
+        widget.parent = annot.parent
         widget._annot = annot
         widget.update()
         return annot
 
 
-    def _addWidget(self, Widget):
-        return _fitz.Page__addWidget(self, Widget)
+    def _addWidget(self, field_type, field_name):
+        return _fitz.Page__addWidget(self, field_type, field_name)
 
     def getDisplayList(self, annots=1):
+
+        """Make a DisplayList from the page for Pixmap generation.
+
+        Include (default) or exclude annotations."""
 
         CheckParent(self)
 
@@ -3993,18 +4132,21 @@ class Page(object):
         return _fitz.Page__makePixmap(self, doc, ctm, cs, alpha, annots, clip)
 
     def setMediaBox(self, rect):
+        """Set the MediaBox."""
         CheckParent(self)
 
         return _fitz.Page_setMediaBox(self, rect)
 
 
     def setCropBox(self, rect):
+        """Set the CropBox."""
         CheckParent(self)
 
         return _fitz.Page_setCropBox(self, rect)
 
 
     def loadLinks(self):
+        """Get first Link."""
         CheckParent(self)
 
         val = _fitz.Page_loadLinks(self)
@@ -4025,10 +4167,11 @@ class Page(object):
     @property
 
     def firstAnnot(self):
-        r"""Points to first annotation on page"""
+        """First annotation."""
         CheckParent(self)
 
         val = _fitz.Page_firstAnnot(self)
+
         if val:
             val.thisown = True
             val.parent = weakref.proxy(self) # owning page object
@@ -4040,26 +4183,25 @@ class Page(object):
     @property
 
     def firstWidget(self):
+        """First widget/field."""
         CheckParent(self)
 
         val = _fitz.Page_firstWidget(self)
 
-        if not val:
-            return None
-        val.thisown = True
-        val.parent = weakref.proxy(self) # owning page object
-        self._annot_refs[id(val)] = val
-
-        widget = Widget()
-        TOOLS._fill_widget(val, widget)
-        val = widget
+        if val:
+            val.thisown = True
+            val.parent = weakref.proxy(self) # owning page object
+            self._annot_refs[id(val)] = val
+            widget = Widget()
+            TOOLS._fill_widget(val, widget)
+            val = widget
 
 
         return val
 
 
     def deleteLink(self, linkdict):
-        r"""Delete link if PDF"""
+        """Delete a Link."""
         CheckParent(self)
 
         val = _fitz.Page_deleteLink(self, linkdict)
@@ -4076,11 +4218,10 @@ class Page(object):
 
 
     def deleteAnnot(self, annot):
-        r"""Delete annot and return next one."""
 
+        """Delete annot and return next one."""
         CheckParent(self)
         CheckParent(annot)
-
 
         val = _fitz.Page_deleteAnnot(self, annot)
 
@@ -4096,26 +4237,22 @@ class Page(object):
     @property
 
     def MediaBox(self):
-        r"""Retrieve the /MediaBox."""
+        """The MediaBox."""
         CheckParent(self)
 
         val = _fitz.Page_MediaBox(self)
-
         val = Rect(val)
-
 
         return val
 
     @property
 
     def CropBox(self):
-        r"""Retrieve the /CropBox."""
+        """The CropBox."""
         CheckParent(self)
 
         val = _fitz.Page_CropBox(self)
-
         val = Rect(val)
-
 
         return val
 
@@ -4127,20 +4264,21 @@ class Page(object):
     @property
 
     def rotation(self):
-        r"""Retrieve page rotation."""
+        """Page rotation."""
         CheckParent(self)
 
         return _fitz.Page_rotation(self)
 
 
     def setRotation(self, rot):
-        r"""Set page rotation to 'rot' degrees."""
+        """Set page rotation."""
         CheckParent(self)
 
         return _fitz.Page_setRotation(self, rot)
 
 
     def _addAnnot_FromString(self, linklist):
+        """Add Link/Annot from object source."""
         CheckParent(self)
 
         return _fitz.Page__addAnnot_FromString(self, linklist)
@@ -4150,6 +4288,7 @@ class Page(object):
         return _fitz.Page__getLinkXrefs(self)
 
     def _cleanContents(self):
+        """Clean page /Contents object(s)."""
         CheckParent(self)
 
         return _fitz.Page__cleanContents(self)
@@ -4162,8 +4301,11 @@ class Page(object):
         return _fitz.Page__insertImage(self, filename, pixmap, stream, overlay, matrix, _imgname, _imgpointer)
 
     def refresh(self):
-        r"""Refresh page after link/annot/widget updates."""
+        """Refresh page after link/annot/widget updates."""
+        CheckParent(self)
+
         return _fitz.Page_refresh(self)
+
 
     def insertFont(self, fontname="helv", fontfile=None, fontbuffer=None,
                    set_simple=False, wmode=0, encoding=0):
@@ -4231,6 +4373,7 @@ class Page(object):
     @property
 
     def transformationMatrix(self):
+        """Page transformation matrix."""
         CheckParent(self)
 
         val = _fitz.Page_transformationMatrix(self)
@@ -4245,14 +4388,14 @@ class Page(object):
 
 
     def _getContents(self):
-        r"""Return list of /Contents objects as xref integers."""
+        """Get xref list of /Contents objects."""
         CheckParent(self)
 
         return _fitz.Page__getContents(self)
 
 
     def _setContents(self, xref=0):
-        r"""Set the /Contents object in page definition"""
+        """Set bytes as the (only) /Contents object."""
         CheckParent(self)
 
         return _fitz.Page__setContents(self, xref)
@@ -4273,7 +4416,13 @@ class Page(object):
 
 
     def links(self, kinds=None):
-        """ Generator over the links of a page."""
+        """ Generator over the links of a page.
+
+        Args:
+            kinds: (tuple) link kinds to subselect from. If none,
+                    all links are returned. E.g. kinds=(LINK_URI,)
+                    will only yield URI links.
+        """
         all_links = self.getLinks()
         for link in all_links:
             if kinds is None or link["kind"] in kinds:
@@ -4281,7 +4430,13 @@ class Page(object):
 
 
     def annots(self, types=None):
-        """ Generator over the annotations of a page."""
+        """ Generator over the annotations of a page.
+
+        Args:
+            types: (tuple) annotation types to subselect from. If none,
+                    all annotations are returned. E.g. types=(PDF_ANNOT_LINE,)
+                    will only yield line annotations.
+        """
         annot = self.firstAnnot
         while annot:
             if types is None or annot.type[0] in types:
@@ -4290,7 +4445,13 @@ class Page(object):
 
 
     def widgets(self, types=None):
-        """ Generator over the widgets of a page."""
+        """ Generator over the widgets of a page.
+
+        Args:
+            types: (tuple) field types to subselect from. If none,
+                    all fields are returned. E.g. types=(PDF_WIDGET_TYPE_TEXT,)
+                    will only yield text fields.
+        """
         widget = self.firstWidget
         while widget:
             if types is None or widget.field_type in types:
@@ -4331,7 +4492,7 @@ class Page(object):
 
     @property
     def xref(self):
-        """Return PDF XREF number of page."""
+        """PDF xref number of page."""
         CheckParent(self)
         return self.parent._getPageXref(self.number)[0]
 
@@ -4351,15 +4512,18 @@ class Page(object):
         self._erase()
 
     def getFontList(self, full=False):
+        """List of fonts defined in the page object."""
         CheckParent(self)
         return self.parent.getPageFontList(self.number, full=full)
 
     def getImageList(self, full=False):
+        """List of images defined in the page object."""
         CheckParent(self)
         return self.parent.getPageImageList(self.number, full=full)
 
 
     def readContents(self):
+        """All /Contents streams concatenated in one bytes object."""
         return TOOLS._get_all_contents(self)
 
 
@@ -4383,33 +4547,46 @@ class Pixmap(object):
         _fitz.Pixmap_swiginit(self, _fitz.new_Pixmap(*args))
 
     def shrink(self, factor):
+        """Shrink by 2**factor. So after shrink(1) the pixmap will be 25% of original size."""
+
         return _fitz.Pixmap_shrink(self, factor)
 
-    def gammaWith(self, gamma):
-        return _fitz.Pixmap_gammaWith(self, gamma)
 
     def tintWith(self, black, white):
-
-        if not self.colorspace or self.colorspace.n > 3:
-            print("warning: colorspace invalid for function")
-            return
-
         return _fitz.Pixmap_tintWith(self, black, white)
 
-
     def clearWith(self, *args):
+        """Fill all color components with same integer value."""
+
         return _fitz.Pixmap_clearWith(self, *args)
 
+
     def copyPixmap(self, src, bbox):
+        """Copy bbox from another Pixmap."""
+
         return _fitz.Pixmap_copyPixmap(self, src, bbox)
 
+
     def setAlpha(self, alphavalues=None):
+        """Set all alphas to values contained in integer array 'alphavalues'."""
+
         return _fitz.Pixmap_setAlpha(self, alphavalues)
+
 
     def _getImageData(self, format):
         return _fitz.Pixmap__getImageData(self, format)
 
     def getImageData(self, output="png"):
+        """Convert to binary image stream of desired type.
+
+        Can be used as input to GUI packages like tkinter.
+
+        Args:
+            output: (str) image type, default is PNG. Others are PNM, PGM, PPM,
+                    PBM, PAM, PSD, PS.
+        Returns:
+            Bytes object.
+        """
         valid_formats = {"png": 1, "pnm": 2, "pgm": 2, "ppm": 2, "pbm": 2,
                          "pam": 3, "tga": 4, "tpic": 4,
                          "psd": 5, "ps": 6}
@@ -4422,10 +4599,12 @@ class Pixmap(object):
         return barray
 
     def getPNGdata(self):
+        """Wrapper for Pixmap.getImageData("png")."""
         barray = self._getImageData(1)
         return barray
 
     def getPNGData(self):
+        """Wrapper for Pixmap.getImageData("png")."""
         barray = self._getImageData(1)
         return barray
 
@@ -4434,6 +4613,14 @@ class Pixmap(object):
         return _fitz.Pixmap__writeIMG(self, filename, format)
 
     def writeImage(self, filename, output=None):
+        """Output as image in format determined by filename extension.
+
+        Args:
+            output: (str) only use to override filename extension. Default is PNG.
+                    Others are PNM, PGM, PPM, PBM, PAM, PSD, PS.
+        Returns:
+            Bytes object.
+        """
         valid_formats = {"png": 1, "pnm": 2, "pgm": 2, "ppm": 2, "pbm": 2,
                          "pam": 3, "tga": 4, "tpic": 4,
                          "psd": 5, "ps": 6}
@@ -4450,72 +4637,116 @@ class Pixmap(object):
 
         return self._writeIMG(filename, idx)
 
-    def writePNG(self, filename, savealpha = -1):
+    def writePNG(self, filename):
+        """Wrapper for Pixmap.writeImage(filename, "png")."""
         return self._writeIMG(filename, 1)
 
 
 
-    def invertIRect(self, irect=None):
-        return _fitz.Pixmap_invertIRect(self, irect)
+    def invertIRect(self, bbox=None):
+        """Invert colors inside bbox."""
+
+        return _fitz.Pixmap_invertIRect(self, bbox)
+
 
     def pixel(self, x, y):
-        r"""Return the pixel at (x,y) as a list. Last item is the alpha if Pixmap.alpha is true."""
+        """Get color of pixel (x, y) as a list. Last item is the alpha if Pixmap.alpha is true."""
+
         return _fitz.Pixmap_pixel(self, x, y)
 
+
     def setPixel(self, x, y, color):
-        r"""Set the pixel at (x,y) to the integers in sequence 'color'."""
+        """Set color of pixel (x,y)."""
+
         return _fitz.Pixmap_setPixel(self, x, y, color)
 
+
     def setResolution(self, xres, yres):
-        r"""Set the resolution."""
+        """Set resolution in both dimensions."""
+
         return _fitz.Pixmap_setResolution(self, xres, yres)
 
-    def setRect(self, irect, color):
-        r"""Set a rectangle to the integers in sequence 'color'."""
-        return _fitz.Pixmap_setRect(self, irect, color)
+
+    def setRect(self, bbox, color):
+        """Set color of all pixels in bbox."""
+
+        return _fitz.Pixmap_setRect(self, bbox, color)
+
     @property
 
     def stride(self):
+        """Size of one image  (width * n)."""
+
         return _fitz.Pixmap_stride(self)
+
     @property
 
     def xres(self):
+        """Resolution in x direction."""
+
         return _fitz.Pixmap_xres(self)
+
     @property
 
     def yres(self):
+        """Resolution in y direction."""
+
         return _fitz.Pixmap_yres(self)
+
     @property
 
     def w(self):
+        """The width."""
+
         return _fitz.Pixmap_w(self)
+
     @property
 
     def h(self):
+        """The height."""
+
         return _fitz.Pixmap_h(self)
+
     @property
 
     def x(self):
+        """x component of Pixmap origin."""
+
         return _fitz.Pixmap_x(self)
+
     @property
 
     def y(self):
+        """y component of Pixmap origin."""
+
         return _fitz.Pixmap_y(self)
+
     @property
 
     def n(self):
+        """The size of one pixel."""
+
         return _fitz.Pixmap_n(self)
+
     @property
 
     def alpha(self):
+        """Indicates presence of alpha channel."""
+
         return _fitz.Pixmap_alpha(self)
+
     @property
 
     def colorspace(self):
+        """Pixmap Colorspace."""
+
         return _fitz.Pixmap_colorspace(self)
+
     @property
 
     def irect(self):
+        """Pixmap bbox - an IRect object."""
+
         val = _fitz.Pixmap_irect(self)
         val = IRect(val)
 
@@ -4524,11 +4755,17 @@ class Pixmap(object):
     @property
 
     def size(self):
+        """Pixmap size."""
+
         return _fitz.Pixmap_size(self)
+
     @property
 
     def samples(self):
+        """The area of all pixels."""
+
         return _fitz.Pixmap_samples(self)
+
 
     width  = w
     height = h
@@ -4557,17 +4794,24 @@ class Colorspace(object):
     __swig_destroy__ = _fitz.delete_Colorspace
 
     def __init__(self, type):
+        """Supported are GRAY, RGB and CMYK."""
+
         _fitz.Colorspace_swiginit(self, _fitz.new_Colorspace(type))
     @property
 
     def n(self):
+        """Size of one pixel."""
+
         return _fitz.Colorspace_n(self)
+
 
     def _name(self):
         return _fitz.Colorspace__name(self)
 
     @property
     def name(self):
+        """Name of the Colorspace."""
+
         if self.n == 1:
             return csGRAY._name()
         elif self.n == 3:
@@ -4659,13 +4903,13 @@ class Annot(object):
     @property
 
     def rect(self):
-        r"""Rectangle containing the annot"""
+        """Annotation rectangle."""
         CheckParent(self)
 
         val = _fitz.Annot_rect(self)
 
         val = Rect(val)
-        val = val * self.parent.derotationMatrix
+        val *= self.parent.derotationMatrix
 
 
         return val
@@ -4673,21 +4917,66 @@ class Annot(object):
     @property
 
     def xref(self):
-        r"""Xref number of annotation"""
+        """Annotation xref."""
         CheckParent(self)
 
         return _fitz.Annot_xref(self)
 
+    @property
+
+    def APNMatrix(self):
+        """Annotation appearance matrix."""
+        CheckParent(self)
+
+        val = _fitz.Annot_APNMatrix(self)
+        val = Matrix(val)
+
+        return val
+
+    @property
+
+    def APNBBox(self):
+        """Annotation appearance bbox."""
+        CheckParent(self)
+
+        val = _fitz.Annot_APNBBox(self)
+
+        val = Rect(val) * self.parent.transformationMatrix
+        val *= self.parent.derotationMatrix
+
+        return val
+
+
+    def setAPNMatrix(self, matrix):
+        """Set annotation appearance matrix."""
+        CheckParent(self)
+
+        return _fitz.Annot_setAPNMatrix(self, matrix)
+
+
+    def setAPNBBox(self, bbox):
+
+        """Set annotation appearance bbox."""
+
+        CheckParent(self)
+        page = self.parent
+        rot = page.rotationMatrix
+        mat = page.transformationMatrix
+        bbox *= rot * ~mat
+
+
+        return _fitz.Annot_setAPNBBox(self, bbox)
+
 
     def blendMode(self):
-        r"""Show the annotation's blend mode."""
+        """Annotation BlendMode."""
         CheckParent(self)
 
         return _fitz.Annot_blendMode(self)
 
 
     def setBlendMode(self, blend_mode):
-        r"""Set the annotation's blend mode."""
+        """Set annotation BlendMode."""
         CheckParent(self)
 
         return _fitz.Annot_setBlendMode(self, blend_mode)
@@ -4695,21 +4984,22 @@ class Annot(object):
     @property
 
     def language(self):
+        """Annotation language."""
+
         return _fitz.Annot_language(self)
 
+
     def setLaguage(self, language=None):
-        r"""Set the annotation's language."""
+        """Set annotation language."""
         CheckParent(self)
 
         return _fitz.Annot_setLaguage(self, language)
 
 
     def _getAP(self):
-        r"""Get contents source of a PDF annot"""
         return _fitz.Annot__getAP(self)
 
     def _setAP(self, ap, rect=0):
-        r"""Update contents source of a PDF annot"""
         return _fitz.Annot__setAP(self, ap, rect)
 
     def _get_redact_values(self):
@@ -4731,22 +5021,37 @@ class Annot(object):
 
 
     def setName(self, name):
-        r"""Set the (icon) name"""
+        """Set /Name (icon) of annotation."""
         CheckParent(self)
 
         return _fitz.Annot_setName(self, name)
 
 
     def setRect(self, rect):
-        r"""Set the rectangle"""
+        """Set annotation rectangle."""
         CheckParent(self)
 
         return _fitz.Annot_setRect(self, rect)
 
+
+    def setRotation(self, rotate=0):
+        """Set annotation rotation."""
+        CheckParent(self)
+
+        return _fitz.Annot_setRotation(self, rotate)
+
+    @property
+
+    def rotation(self):
+        """Annotation rotation."""
+        CheckParent(self)
+
+        return _fitz.Annot_rotation(self)
+
     @property
 
     def vertices(self):
-        r"""Point coordinates for various annot types"""
+        """Vertex points."""
         CheckParent(self)
 
         return _fitz.Annot_vertices(self)
@@ -4754,7 +5059,7 @@ class Annot(object):
     @property
 
     def colors(self):
-        r"""dictionary of the annot's colors"""
+        """Color definitions."""
         CheckParent(self)
 
         return _fitz.Annot_colors(self)
@@ -4774,19 +5079,21 @@ class Annot(object):
                rotate=-1,
                ):
 
-        """
-        The following code fixes shortcomings of MuPDF's "pdf_update_annot"
-        function. Currently these are:
-        1. Opacity (all annots). MuPDF ignores this proprty. This requires
-           to add an ExtGState (extended graphics state) object in the
-           C code as well.
-        2. Dashing (all annots). MuPDF ignores this proprty.
-        3. Colors and font size for FreeText annotations.
-        4. Line end icons also for POLYGON and POLY_LINE annotations.
-           MuPDF only honors them for LINE annotations.
-        5. Always wrap the stream with 'q' / 'Q' strings. MuPDF does not
-           do that, which may cause Adobe and other viewers to not display
-           the annot.
+        """Update annot appearance.
+
+        Notes:
+            Depending on the annot type, some parameters make no sense,
+            while others are only available in this method to achieve the
+            desired result - especially for 'FreeText' annots.
+        Args:
+            blend_mode: set the blend mode, all annotations.
+            opacity: set the opacity, all annotations.
+            fontsize: set fontsize, 'FreeText' only.
+            fontname: set the font, 'FreeText' only.
+            border_color: set border color, 'FreeText' only.
+            text_color: set text color, 'FreeText' only.
+            fill_color: set fill color, all annotations.
+            rotate: set rotation, 'FreeText' and some others.
         """
         CheckParent(self)
         def color_string(cs, code):
@@ -4822,6 +5129,14 @@ class Annot(object):
                 fill = None
 
         rect = None  # self.rect  # prevent MuPDF fiddling with it
+        apnmat = self.APNMatrix  # prevent MuPDF fiddling with it
+        if rotate != -1:  # sanitize rotation value
+            while rotate < 0:
+                rotate += 360
+            while rotate >= 360:
+                rotate -= 360
+            if type == PDF_ANNOT_FREE_TEXT and rotate % 90 != 0:
+                rotate = 0
 
     #------------------------------------------------------------------
     # handle opacity and blend mode
@@ -4871,15 +5186,13 @@ class Annot(object):
 
         if type == PDF_ANNOT_REDACT:
     # recreate the original PyMuPDF appearance (crossed-out rect)
-            ap_tab = ap_tab[:4]
-            LL, LR, UR, UL = ap_tab
+            ap_tab = ap_tab[:-1]
+            _, LL, LR, UR, UL = ap_tab
             ap_tab.append(LR)
             ap_tab.append(LL)
             ap_tab.append(UR)
             ap_tab.append(LL)
             ap_tab.append(UL)
-            ap_tab.append(b"1 0 0 RG")
-            ap_tab.append(b"0.5 w")
             ap_tab.append(b"S")
             ap = b"\n".join(ap_tab)
             ap_updated = True
@@ -4990,13 +5303,49 @@ class Annot(object):
             else:
                 self._setAP(ap, rect=0)
 
+    #-------------------------------
+    # handle annotation rotations
+    #-------------------------------
+        if type not in (  # only these types are supported
+            PDF_ANNOT_CARET,
+            PDF_ANNOT_CIRCLE,
+            PDF_ANNOT_FILE_ATTACHMENT,
+            PDF_ANNOT_INK,
+            PDF_ANNOT_LINE,
+            PDF_ANNOT_POLY_LINE,
+            PDF_ANNOT_POLYGON,
+            PDF_ANNOT_SQUARE,
+            PDF_ANNOT_STAMP,
+            PDF_ANNOT_TEXT,
+            ):
+            return
+
+        rot = self.rotation  # get value from annot object
+        if rot == -1:  # nothing to change
+            return
+
+        M = (self.rect.tl + self.rect.br) / 2  # center of annot rect
+
+        if rot == 0:  # undo rotations
+            if abs(apnmat - Matrix(1, 1)) < 1e-5:
+                return  # matrix already is a no-op
+            quad = self.rect.morph(M, ~apnmat)  # derotate rect
+            self.setRect(quad.rect)
+            self.setAPNMatrix(Matrix(1, 1))  # appearance matrix = no-op
+            return
+
+        mat = Matrix(rot)
+        quad = self.rect.morph(M, mat)
+        self.setRect(quad.rect)
+        self.setAPNMatrix(apnmat * mat)
+
+
 
     def setColors(self, colors=None, fill=None, stroke=None):
 
-        """Change the 'stroke' and 'fill' colors of an annotation.
+        """Set 'stroke' and 'fill' colors.
 
-        Either provide a dict with appropriate key-value pairs, or directly the
-        color tuples.
+        Use either a dict with key-value pairs, or the color tuples.
         """
         CheckParent(self)
         if type(colors) is not dict:
@@ -5008,12 +5357,14 @@ class Annot(object):
     @property
 
     def lineEnds(self):
+        """Line end codes."""
         CheckParent(self)
 
         return _fitz.Annot_lineEnds(self)
 
 
     def setLineEnds(self, start, end):
+        """Set line end codes."""
         CheckParent(self)
 
         return _fitz.Annot_setLineEnds(self, start, end)
@@ -5021,6 +5372,7 @@ class Annot(object):
     @property
 
     def type(self):
+        """Annotation type."""
         CheckParent(self)
 
         return _fitz.Annot_type(self)
@@ -5028,33 +5380,36 @@ class Annot(object):
     @property
 
     def opacity(self):
+        """Opacity."""
         CheckParent(self)
 
         return _fitz.Annot_opacity(self)
 
 
     def setOpacity(self, opacity):
+        """Set opacity."""
         CheckParent(self)
 
         return _fitz.Annot_setOpacity(self, opacity)
 
 
     def fileInfo(self):
-        r"""Retrieve attached file information."""
+        """Attached file information."""
         CheckParent(self)
 
         return _fitz.Annot_fileInfo(self)
 
 
     def fileGet(self):
-        r"""Retrieve annotation attached file content."""
+        """Attached file content."""
         CheckParent(self)
 
         return _fitz.Annot_fileGet(self)
 
 
     def fileUpd(self, buffer=None, filename=None, ufilename=None, desc=None):
-        r"""Update annotation attached file."""
+
+        """Update attached file."""
         CheckParent(self)
 
         return _fitz.Annot_fileUpd(self, buffer, filename, ufilename, desc)
@@ -5062,15 +5417,15 @@ class Annot(object):
     @property
 
     def info(self):
-        r"""Return various annotation properties."""
+        """Various information details."""
         CheckParent(self)
 
         return _fitz.Annot_info(self)
 
 
     def setInfo(self, info=None, content=None, title=None, creationDate=None, modDate=None, subject=None):
-        r"""Set various annotation properties."""
 
+        """Set various properties."""
         CheckParent(self)
         if type(info) is dict:  # build the args from the dictionary
             content = info.get("content", None)
@@ -5086,6 +5441,7 @@ class Annot(object):
     @property
 
     def border(self):
+        """Border information."""
         CheckParent(self)
 
         return _fitz.Annot_border(self)
@@ -5093,6 +5449,9 @@ class Annot(object):
 
     def setBorder(self, border=None, width=0, style=None, dashes=None):
 
+        """Set border properties.
+
+        Either a dict, or direct arguments width, style and dashes."""
         CheckParent(self)
         if type(border) is not dict:
             border = {"width": width, "style": style, "dashes": dashes}
@@ -5103,25 +5462,28 @@ class Annot(object):
     @property
 
     def flags(self):
+        """Flags field."""
         CheckParent(self)
 
         return _fitz.Annot_flags(self)
 
 
     def _cleanContents(self):
+        """Clean appearance contents object."""
         CheckParent(self)
 
         return _fitz.Annot__cleanContents(self)
 
 
     def setFlags(self, flags):
+        """Set annotation flags."""
         CheckParent(self)
 
         return _fitz.Annot_setFlags(self, flags)
 
 
     def delete_responses(self):
-        r"""Delete PopUp and responses to this annotation."""
+        """Delete annotations responding to this one."""
         CheckParent(self)
 
         return _fitz.Annot_delete_responses(self)
@@ -5129,6 +5491,7 @@ class Annot(object):
     @property
 
     def next(self):
+        """Next annotation."""
         CheckParent(self)
 
         val = _fitz.Annot_next(self)
@@ -5139,12 +5502,10 @@ class Annot(object):
         val.parent = self.parent  # copy owning page object from previous annot
         val.parent._annot_refs[id(val)] = val
 
-        if val.type[0] != PDF_ANNOT_WIDGET:
-            return val
-
-        widget = Widget()
-        TOOLS._fill_widget(val, widget)
-        val = widget
+        if val.type[0] == PDF_ANNOT_WIDGET:
+            widget = Widget()
+            TOOLS._fill_widget(val, widget)
+            val = widget
 
 
         return val
@@ -5169,11 +5530,11 @@ class Annot(object):
         try:
             self.parent._forget_annot(self)
         except:
-            pass
+            return
+        if getattr(self, "thisown", False):
+            self.__swig_destroy__(self)
+            self.thisown = False
         self.parent = None
-    #if getattr(self, "thisown", False):
-        self.__swig_destroy__(self)
-        self.thisown = False
 
     def __str__(self):
         CheckParent(self)
@@ -5184,6 +5545,8 @@ class Annot(object):
         return "'%s' annotation on %s" % (self.type[1], str(self.parent))
 
     def __del__(self):
+        if self.parent is None:
+            retturn
         self._erase()
 
 # Register Annot in _fitz:
@@ -5230,6 +5593,7 @@ class Link(object):
     @property
 
     def uri(self):
+        """Uri string."""
         CheckParent(self)
 
         return _fitz.Link_uri(self)
@@ -5237,6 +5601,7 @@ class Link(object):
     @property
 
     def isExternal(self):
+        """External indicator."""
         CheckParent(self)
 
         return _fitz.Link_isExternal(self)
@@ -5262,6 +5627,7 @@ class Link(object):
     @property
 
     def rect(self):
+        """Rectangle ('hot area')."""
         CheckParent(self)
 
         val = _fitz.Link_rect(self)
@@ -5272,6 +5638,7 @@ class Link(object):
     @property
 
     def next(self):
+        """Next link."""
         CheckParent(self)
 
         val = _fitz.Link_next(self)
@@ -5357,6 +5724,8 @@ class TextPage(object):
     __swig_destroy__ = _fitz.delete_TextPage
 
     def search(self, needle, hit_max=16, quads=1):
+        """Locate up to 'hit_max' 'needle' occurrences returning rects or quads."""
+
         val = _fitz.TextPage_search(self, needle, hit_max, quads)
 
         if not val:
@@ -5384,15 +5753,21 @@ class TextPage(object):
 
 
     def extractBLOCKS(self, lines):
-        r"""Fill a given list with text block information."""
+        """Fill a given list with text block information."""
+
         return _fitz.TextPage_extractBLOCKS(self, lines)
 
+
     def extractWORDS(self, lines):
-        r"""Fill a given list with text word information."""
+        """Fill a list with text word information."""
+
         return _fitz.TextPage_extractWORDS(self, lines)
+
     @property
 
     def rect(self):
+        """Page rectangle."""
+
         val = _fitz.TextPage_rect(self)
         val = Rect(val)
 
@@ -5403,12 +5778,15 @@ class TextPage(object):
         return _fitz.TextPage__extractText(self, format)
 
     def extractText(self):
+        """Return simple, bare text on the page."""
         return self._extractText(0)
 
     def extractHTML(self):
+        """Return page content as a HTML string."""
         return self._extractText(1)
 
     def extractJSON(self):
+        """Return 'extractDICT' converted to JSON format."""
         import base64, json
         val = self._textpage_dict(raw=False)
 
@@ -5427,22 +5805,20 @@ class TextPage(object):
         return val
 
     def extractXML(self):
+        """Return page content as a XML string."""
         return self._extractText(3)
 
     def extractXHTML(self):
+        """Return page content as a XHTML string."""
         return self._extractText(4)
 
     def extractDICT(self):
+        """Return page content as a Python dict of images and text spans."""
         return self._textpage_dict(raw=False)
 
     def extractRAWDICT(self):
+        """Return page content as a Python dict of images and text characters."""
         return self._textpage_dict(raw=True)
-
-
-    def __del__(self):
-        if self.this:
-            self.__swig_destroy__(self)
-            self.this = None
 
 
 # Register TextPage in _fitz:
@@ -5456,10 +5832,6 @@ class Graftmap(object):
     def __init__(self, doc):
         _fitz.Graftmap_swiginit(self, _fitz.new_Graftmap(doc))
 
-    def __del__(self):
-        self.__swig_destroy__(self)
-
-
 # Register Graftmap in _fitz:
 _fitz.Graftmap_swigregister(Graftmap)
 
@@ -5469,6 +5841,8 @@ class TextWriter(object):
     __swig_destroy__ = _fitz.delete_TextWriter
 
     def __init__(self, page_rect, opacity=1, color=None):
+        """Stores text spans for later output on compatible PDF pages."""
+
         _fitz.TextWriter_swiginit(self, _fitz.new_TextWriter(page_rect, opacity, color))
 
         self.opacity = opacity
@@ -5477,13 +5851,16 @@ class TextWriter(object):
         self.ctm = Matrix(1, 0, 0, -1, 0, self.rect.height)
         self.ictm = ~self.ctm
         self.lastPoint = Point()
-        self.textRect = Rect()
+        self.lastPoint.__doc__ = "Position following last text insertion."
+        self.textRect = Rect(0, 0, -1, -1)
+        self.textRect.__doc__ = "Accumulated area of text spans."
 
 
 
 
     def append(self, pos, text, font=None, fontsize=11, language=None, wmode=0, bidi_level=0):
-        r"""Store 'text' for position 'pos' using 'font' and 'fontsize'."""
+
+        """Store 'text' at point 'pos' using 'font' and 'fontsize'."""
 
         pos = Point(pos) * self.ictm
         if font is None:
@@ -5492,7 +5869,7 @@ class TextWriter(object):
         val = _fitz.TextWriter_append(self, pos, text, font, fontsize, language, wmode, bidi_level)
 
         self.lastPoint = Point(val[-2:]) * self.ctm
-        self.textRect = self.bbox * self.ctm
+        self.textRect = self._bbox * self.ctm
         val = self.textRect, self.lastPoint
 
 
@@ -5500,15 +5877,24 @@ class TextWriter(object):
 
     @property
 
-    def bbox(self):
-        val = _fitz.TextWriter_bbox(self)
+    def _bbox(self):
+        val = _fitz.TextWriter__bbox(self)
         val = Rect(val)
 
         return val
 
 
     def writeText(self, page, color=None, opacity=-1, overlay=1, morph=None):
-        r"""Write the text to the page. Color or opacity specified here will override TextWriter attributes temporarily."""
+
+        """Write the text to a PDF page with the TextWriter's page size.
+
+        Args:
+            page: a PDF page having same size.
+            color: override text color.
+            opacity: override transparency.
+            overlay: put in foreground or background.
+            morph: tuple(Point, Matrix), apply Matrix with fixpoint Point.
+        """
 
         CheckParent(page)
         if abs(self.rect - page.rect) > 1e-3:
@@ -5516,7 +5902,8 @@ class TextWriter(object):
         if morph != None:
             if (type(morph) not in (tuple, list)
                 or type(morph[0]) is not Point
-                or type(morph[1]) is not Matrix):
+                or type(morph[1]) is not Matrix
+                ):
                 raise ValueError("morph must be (Point, Matrix) or None")
         if getattr(opacity, "__float__", None) is None:
             opacity = self.opacity
@@ -5583,20 +5970,28 @@ class Font(object):
         _fitz.Font_swiginit(self, _fitz.new_Font(fontname, fontfile, fontbuffer, script, language, ordering, is_bold, is_italic, is_serif))
 
     def unicode_to_glyph_name(self, c, language=None, script=0):
-        r"""Return the glyph name of a uncode."""
+        """Return the glyph name of a unicode."""
+
         return _fitz.Font_unicode_to_glyph_name(self, c, language, script)
 
+
     def glyph_name_to_unicode(self, name):
-        r"""Return the unicode for a glyph name."""
+        """Return the unicode for a glyph name."""
+
         return _fitz.Font_glyph_name_to_unicode(self, name)
 
+
     def glyph_advance(self, chr, language=None, script=0, wmode=0):
-        r"""Return the glyph advance of a character."""
+        """Return the glyph width of a unicode."""
+
         return _fitz.Font_glyph_advance(self, chr, language, script, wmode)
 
+
     def has_glyph(self, chr, language=None, script=0):
-        r"""Returns whether the font has a glyph for this character."""
+        """Return whether font has a glyph for this unicode."""
+
         return _fitz.Font_has_glyph(self, chr, language, script)
+
     @property
 
     def flags(self):
@@ -5634,47 +6029,65 @@ class Tools(object):
     __repr__ = _swig_repr
 
     def gen_id(self):
-        r"""Return a unique positive integer."""
+        """Return a unique positive integer."""
+
         return _fitz.Tools_gen_id(self)
 
+
     def set_icc(self, on=0):
-        r"""Set ICC color handling on or off."""
+        """Set ICC color handling on or off."""
+
         return _fitz.Tools_set_icc(self, on)
 
+
     def store_shrink(self, percent):
-        r"""Free 'percent' of current store size."""
+        """Free 'percent' of current store size."""
+
         return _fitz.Tools_store_shrink(self, percent)
+
     @property
 
     def store_size(self):
+        """MuPDF current store size."""
+
         return _fitz.Tools_store_size(self)
+
     @property
 
     def store_maxsize(self):
+        """MuPDF store size limit."""
+
         return _fitz.Tools_store_maxsize(self)
 
+
     def show_aa_level(self):
-        r"""Show anti-aliasing values."""
+        """Show anti-aliasing values."""
+
         val = _fitz.Tools_show_aa_level(self)
 
-        d = {"graphics": val[0], "text": val[1], "graphics_min_line_width": val[2]}
-        val = d
-
+        temp = {"graphics": val[0], "text": val[1], "graphics_min_line_width": val[2]}
+        val = temp
 
         return val
 
 
     def set_aa_level(self, level):
-        r"""Set anti-aliasing level."""
+        """Set anti-aliasing level."""
+
         return _fitz.Tools_set_aa_level(self, level)
 
+
     def set_graphics_min_line_width(self, min_line_width):
-        r"""Set graphics min. line width."""
+        """Set the graphics minimum line width."""
+
         return _fitz.Tools_set_graphics_min_line_width(self, min_line_width)
 
+
     def image_profile(self, stream, keep_image=0):
-        r"""Determine dimension and other image data."""
+        """Metadata of an image binary stream."""
+
         return _fitz.Tools_image_profile(self, stream, keep_image)
+
 
     def _rotate_matrix(self, page):
         return _fitz.Tools__rotate_matrix(self, page)
@@ -5684,12 +6097,16 @@ class Tools(object):
     @property
 
     def fitz_config(self):
-        r"""Show configuration data."""
+        """PyMuPDF configuration parameters."""
+
         return _fitz.Tools_fitz_config(self)
 
+
     def glyph_cache_empty(self):
-        r"""Empty the glyph cache."""
+        """Empty the glyph cache."""
+
         return _fitz.Tools_glyph_cache_empty(self)
+
 
     def _fill_widget(self, annot, widget):
         val = _fitz.Tools__fill_widget(self, annot, widget)
@@ -5757,107 +6174,91 @@ class Tools(object):
         return _fitz.Tools__update_da(self, annot, da_str)
 
     def _get_all_contents(self, fzpage):
-        r"""Concatenate all /Contents objects of a page into a bytes object."""
+        """Concatenate all /Contents objects of a page into a bytes object."""
+
         return _fitz.Tools__get_all_contents(self, fzpage)
 
+
     def _insert_contents(self, page, newcont, overlay=1):
-        r"""Make a new /Contents object for a page from bytes, and return its xref."""
+        """Add bytes as a new /Contents object for a page, and return its xref."""
+
         return _fitz.Tools__insert_contents(self, page, newcont, overlay)
 
+
     def mupdf_version(self):
-        r"""Return compiled MuPDF version."""
+        """Get version of MuPDF binary build."""
+
         return _fitz.Tools_mupdf_version(self)
 
+
     def mupdf_warnings(self, reset=1):
-        r"""Return the MuPDF warnings store."""
+        """Get the MuPDF warnings/errors with optional reset (default)."""
+
         val = _fitz.Tools_mupdf_warnings(self, reset)
 
         val = "\n".join(val)
         if reset:
             self.reset_mupdf_warnings()
 
-
         return val
 
 
     def _int_from_language(self, language):
-        r"""Return integer language code."""
         return _fitz.Tools__int_from_language(self, language)
 
     def reset_mupdf_warnings(self):
-        r"""Reset MuPDF warnings."""
+        """Empty the MuPDF warnings/errors store."""
+
         return _fitz.Tools_reset_mupdf_warnings(self)
 
+
     def mupdf_display_errors(self, value=None):
-        r"""Set MuPDF error display to True or False."""
+        """Set MuPDF error display to True or False."""
+
         return _fitz.Tools_mupdf_display_errors(self, value)
 
+
     def _transform_rect(self, rect, matrix):
-        r"""Transform rectangle with matrix."""
         return _fitz.Tools__transform_rect(self, rect, matrix)
 
     def _intersect_rect(self, r1, r2):
-        r"""Intersect two rectangles."""
         return _fitz.Tools__intersect_rect(self, r1, r2)
 
     def _include_point_in_rect(self, r, p):
-        r"""Include point in a rect."""
         return _fitz.Tools__include_point_in_rect(self, r, p)
 
     def _transform_point(self, point, matrix):
-        r"""Transform point with matrix."""
         return _fitz.Tools__transform_point(self, point, matrix)
 
     def _union_rect(self, r1, r2):
-        r"""Replace r1 with smallest rect containing both."""
         return _fitz.Tools__union_rect(self, r1, r2)
 
     def _concat_matrix(self, m1, m2):
-        r"""Concatenate matrices m1, m2."""
         return _fitz.Tools__concat_matrix(self, m1, m2)
 
     def _invert_matrix(self, matrix):
-        r"""Invert a matrix."""
         return _fitz.Tools__invert_matrix(self, matrix)
 
-    def measure_string(self, text, fontname, fontsize, encoding=0):
-        r"""Measure length of a string for a Base14 font."""
-        return _fitz.Tools_measure_string(self, text, fontname, fontsize, encoding)
+    def _measure_string(self, text, fontname, fontsize, encoding=0):
+        return _fitz.Tools__measure_string(self, text, fontname, fontsize, encoding)
 
+    def _sine_between(self, C, P, Q):
+        return _fitz.Tools__sine_between(self, C, P, Q)
 
     def _hor_matrix(self, C, P):
-        """Make a line horizontal.
-
-        Args:
-            C, P: points defining a line.
-        Notes:
-            Given two points C, P calculate matrix that rotates and translates the
-            vector C -> P such that C is mapped to Point(0, 0), and P to some point
-            on the x axis maintaining the distance between the points.
-            If C == P, the null matrix will result.
-        Returns:
-            Matrix m such that C * m = (0, 0) and (P * m).y = 0.
-        """
-
-        S = (P - C).unit  # unit vector C -> P
-        return Matrix(1, 0, 0, 1, -C.x, -C.y) * Matrix(S.x, -S.y, S.y, S.x, 0, 0)
-
-    def _angle_between(self, C, P, Q):
-        """Compute the angle between two lines.
-
-        Args:
-            C, P, Q: points defining two lines which cross in P.
-        Notes:
-            Compute sine and cosine of the angle between two lines crossing in
-            point P.
-        Returns:
-            (cos(alfa), sin(alfa)) of the angle alfa between the lines.
-        """
-        m = self._hor_matrix(P, Q)
-        return (C * m).unit
+        return _fitz.Tools__hor_matrix(self, C, P)
 
     def _le_annot_parms(self, annot, p1, p2, fill_color):
         """Get common parameters for making line end symbols.
+
+        Returns:
+            m: matrix that maps p1, p2 to points L, P on the x-axis
+            im: its inverse
+            L, P: transformed p1, p2
+            w: line width
+            scol: stroke color string
+            fcol: fill color store_shrink
+            opacity: opacity string (gs command)
         """
         w = annot.border["width"]  # line width
         sc = annot.colors["stroke"]  # stroke color
@@ -5874,7 +6275,7 @@ class Tools(object):
     # nr = annot.rect
         np1 = p1                   # point coord relative to annot rect
         np2 = p2                   # point coord relative to annot rect
-        m = self._hor_matrix(np1, np2)  # matrix makes the line horizontal
+        m = Matrix(self._hor_matrix(np1, np2))  # matrix makes the line horizontal
         im = ~m                            # inverted matrix
         L = np1 * m                        # converted start (left) point
         R = np2 * m                        # converted end (right) point
