@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.17.0"
-VersionBind = "1.17.1"
-VersionDate = "2020-06-13 07:54:31"
-version = (VersionBind, VersionFitz, "20200613075431")
+VersionBind = "1.17.2"
+VersionDate = "2020-06-20 07:00:22"
+version = (VersionBind, VersionFitz, "20200620070022")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -365,20 +365,21 @@ UCDN_SCRIPT_NYIAKENG_PUACHUE_HMONG = _fitz.UCDN_SCRIPT_NYIAKENG_PUACHUE_HMONG
 UCDN_SCRIPT_WANCHO = _fitz.UCDN_SCRIPT_WANCHO
 
 class Matrix(object):
-    """Matrix() - all zeros\nMatrix(a, b, c, d, e, f)\nMatrix(zoom-x, zoom-y) - zoom\nMatrix(shear-x, shear-y, 1) - shear\nMatrix(degree) - rotate\nMatrix(Matrix) - new copy\nMatrix(sequence) - from 'sequence'"""
+    """Matrix() - all zeros
+    Matrix(a, b, c, d, e, f)
+    Matrix(zoom-x, zoom-y) - zoom
+    Matrix(shear-x, shear-y, 1) - shear
+    Matrix(degree) - rotate
+    Matrix(Matrix) - new copy
+    Matrix(sequence) - from 'sequence'"""
     def __init__(self, *args):
         if not args:
             self.a = self.b = self.c = self.d = self.e = self.f = 0.0
             return None
         if len(args) > 6:
             raise ValueError("bad sequ. length")
-        if len(args) == 6:                       # 6 numbers
-            self.a = float(args[0])
-            self.b = float(args[1])
-            self.c = float(args[2])
-            self.d = float(args[3])
-            self.e = float(args[4])
-            self.f = float(args[5])
+        if len(args) == 6:  # 6 numbers
+            self.a, self.b, self.c, self.d, self.e, self.f = map(float, args)
             return None
         if len(args) == 1:  # either an angle or a sequ
             if hasattr(args[0], "__float__"):
@@ -391,12 +392,7 @@ class Matrix(object):
                 self.e = self.f = 0.0
                 return None
             else:
-                self.a = float(args[0][0])
-                self.b = float(args[0][1])
-                self.c = float(args[0][2])
-                self.d = float(args[0][3])
-                self.e = float(args[0][4])
-                self.f = float(args[0][5])
+                self.a, self.b, self.c, self.d, self.e, self.f = map(float, args[0])
                 return None
         if len(args) == 2 or len(args) == 3 and args[2] == 0:
             self.a, self.b, self.c, self.d, self.e, self.f = float(args[0]), \
@@ -807,10 +803,7 @@ class Rect(object):
         if len(args) > 4:
             raise ValueError("bad sequ. length")
         if len(args) == 4:
-            self.x0 = float(args[0])
-            self.y0 = float(args[1])
-            self.x1 = float(args[2])
-            self.y1 = float(args[3])
+            self.x0, self.y0, self.x1, self.y1 = map(float, args)
             return None
         if len(args) == 1:
             l = args[0]
@@ -818,10 +811,7 @@ class Rect(object):
                 raise ValueError("bad Rect constructor")
             if len(l) != 4:
                 raise ValueError("bad sequ. length")
-            self.x0 = float(l[0])
-            self.y0 = float(l[1])
-            self.x1 = float(l[2])
-            self.y1 = float(l[3])
+            self.x0, self.y0, self.x1, self.y1 = map(float, l)
             return None
         if len(args) == 2:                  # 2 Points provided
             self.x0 = float(args[0][0])
@@ -1155,10 +1145,7 @@ class Quad(object):
         if len(args) > 4:
             raise ValueError("bad sequ. length")
         if len(args) == 4:
-            self.ul = Point(args[0])
-            self.ur = Point(args[1])
-            self.ll = Point(args[2])
-            self.lr = Point(args[3])
+            self.ul, self.ur, self.ll, self.lr = map(Point, args)
             return None
         if len(args) == 1:
             l = args[0]
@@ -1166,10 +1153,7 @@ class Quad(object):
                 raise ValueError("bad Quad constructor")
             if len(l) != 4:
                 raise ValueError("bad sequ. length")
-            self.ul = Point(l[0])
-            self.ur = Point(l[1])
-            self.ll = Point(l[2])
-            self.lr = Point(l[3])
+            self.ul, self.ur, self.ll, self.lr = map(Point, l)
             return None
         raise ValueError("bad Quad constructor")
 
@@ -1207,9 +1191,8 @@ class Quad(object):
             For convexity, every line connecting two points of the quad must be
             inside the quad. This is equivalent to that every corner encloses
             an angle with 0 < angle < 180 degrees.
-            We exclude the "degenerate" case, where all points are on the
-            same line.
-            So it suffices to check that the sines of three angles are > 0.
+            Excluding the "degenerate" case (all points on the same line),
+            it suffices to check that the sines of three angles are > 0.
         Returns:
             True or False.
         """
@@ -1311,7 +1294,7 @@ class Quad(object):
         return len(quad) == 4 and (
             self.ul == quad[0] and
             self.ur == quad[1] and
-            self.ll == quad[3] and
+            self.ll == quad[2] and
             self.lr == quad[3]
         )
 
@@ -2521,7 +2504,23 @@ class Document(object):
 
 
     def close(self):
+
         """Close document."""
+        if self.isClosed:
+            raise ValueError("document closed")
+        if hasattr(self, "_outline") and self._outline:
+            self._dropOutline(self._outline)
+            self._outline = None
+        self._reset_page_refs()
+        self.metadata    = None
+        self.stream      = None
+        self.isClosed    = True
+        self.FontInfos   = []
+        for gmap in self.Graftmaps:
+            self.Graftmaps[gmap] = None
+        self.Graftmaps = {}
+        self.ShownPages = {}
+
 
         val = _fitz.Document_close(self)
         self.thisown = False
@@ -2599,7 +2598,7 @@ class Document(object):
         return _fitz.Document__embeddedFileAdd(self, name, buffer, filename, ufilename, desc)
 
     def embeddedFileNames(self):
-        """ Get a list of names of EmbeddedFiles."""
+        """Get list of names of EmbeddedFiles."""
         filenames = []
         self._embeddedFileNames(filenames)
         return filenames
@@ -2616,11 +2615,11 @@ class Document(object):
         return idx
 
     def embeddedFileCount(self):
-        """ Get the number of EmbeddedFiles."""
+        """Get number of EmbeddedFiles."""
         return len(self.embeddedFileNames())
 
     def embeddedFileDel(self, item):
-        """ Delete an entry from EmbeddedFiles.
+        """Delete an entry from EmbeddedFiles.
 
         Notes:
             The argument must be name or index of an EmbeddedFiles item.
@@ -2635,7 +2634,7 @@ class Document(object):
         return self._embeddedFileDel(idx)
 
     def embeddedFileInfo(self, item):
-        """ Return information of an item in the EmbeddedFiles array.
+        """Get information of an item in the EmbeddedFiles array.
 
         Args:
             item: number or name of item.
@@ -2648,7 +2647,7 @@ class Document(object):
         return infodict
 
     def embeddedFileGet(self, item):
-        """ Return the content of an item in the EmbeddedFiles array.
+        """Get the content of an item in the EmbeddedFiles array.
 
         Args:
             item: number or name of item.
@@ -2662,7 +2661,7 @@ class Document(object):
                               filename=None,
                               ufilename=None,
                               desc=None):
-        """ Make changes to an item of the EmbeddedFiles array.
+        """Change an item of the EmbeddedFiles array.
 
         Notes:
             All parameter are optional. If all arguments are omitted, the
@@ -2684,7 +2683,7 @@ class Document(object):
                               filename=None,
                               ufilename=None,
                               desc=None):
-        """ Add an item to the EmbeddedFiles array.
+        """Add an item to the EmbeddedFiles array.
 
         Args:
             name: the name of the new item.
@@ -2720,7 +2719,7 @@ class Document(object):
     @property
 
     def pageCount(self):
-        """Page count of document."""
+        """Number of pages."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -2843,7 +2842,7 @@ class Document(object):
 
         Args:
             uri: (str) some Link.uri
-            chapters: (bool) whether to use chapter & page format
+            chapters: (bool) whether to use (chapter, page) format
         Returns:
             (page_id, x, y) where x, y are point coordinates on the page.
             page_id is either page number (if chapters=0), or (chapter, pno).
@@ -2944,7 +2943,7 @@ class Document(object):
     @property
 
     def isDirty(self):
-        """Check if PDF has unsaved changes."""
+        """True if PDF has unsaved changes."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -3011,9 +3010,15 @@ class Document(object):
 
     def insertPDF(self, docsrc, from_page=-1, to_page=-1, start_at=-1, rotate=-1, links=1, annots=1):
 
-        """Insert page range ['from', 'to'] of source PDF, including both.
+        """Insert a page range from another PDF.
 
-        Page 'from' will become page number 'start_at'."""
+        Args:
+            docsrc: PDF to copy from. Must be different object, but may be same file.
+            from_page: (int) first page of source PDF to copy.
+            to_page: (int) last page of source PDF to copy.
+            start_at: (int) from_page will become this page number in target.
+
+        Copy sequence will reversed if from_page > to_page."""
 
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
@@ -3056,7 +3061,6 @@ class Document(object):
             raise ValueError("bad page number(s)")
 
         val = _fitz.Document_select(self, pyliste)
-
         self._reset_page_refs()
 
         return val
@@ -3094,19 +3098,11 @@ class Document(object):
 
 
     def _getPageInfo(self, pno, what):
-        """Show fonts or images used on a page."""
+        """List fonts, images, XObjects used on a page."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        val = _fitz.Document__getPageInfo(self, pno, what)
-
-                #x = []
-                #for v in val:
-                #    if v not in x:
-                #        x.append(v)
-                #val = x
-
-        return val
+        return _fitz.Document__getPageInfo(self, pno, what)
 
 
     def extractFont(self, xref=0, info_only=0):
@@ -3288,7 +3284,6 @@ class Document(object):
             raise ValueError("document closed")
 
         val = _fitz.Document_fullcopyPage(self, pno, to)
-
         self._reset_page_refs()
 
         return val
@@ -3300,7 +3295,6 @@ class Document(object):
             raise ValueError("document closed")
 
         val = _fitz.Document__move_copy_page(self, pno, nb, before, copy)
-
         self._reset_page_refs()
 
         return val
@@ -3552,18 +3546,16 @@ class Document(object):
             if loc >= self.pageCount:
                 return False
             return True
-        if type(loc) not in (tuple, list):
-            raise TypeError("bad page id")
-        if len(loc) != 2:
+        if type(loc) not in (tuple, list) or len(loc) != 2:
             raise TypeError("bad page id")
 
         chapter = loc[0]
         if type(chapter) != int or chapter < 0:
-            raise TypeError("bad page id")
+            raise TypeError("bad chapter number")
 
         pno = loc[1]
         if type(pno) != int or pno < 0:
-            raise TypeError("bad page id")
+            raise TypeError("bad page number")
 
         if chapter >= self.chapterCount:
             return False
@@ -3674,7 +3666,7 @@ class Page(object):
 
         """Get rectangle occupied by image 'name'.
 
-        'name' is either a full entry of the image list, or the identifying string."""
+        'name' is either an item of the image full list, or the reference string."""
         CheckParent(self)
         doc = self.parent
         if doc.isClosed or doc.isEncrypted:
@@ -3732,10 +3724,13 @@ class Page(object):
     @property
 
     def language(self):
+        """Page language."""
+
         return _fitz.Page_language(self)
 
+
     def setLanguage(self, language=None):
-        """Set the language default of a PDF page."""
+        """Set PDF page default language."""
         CheckParent(self)
 
         return _fitz.Page_setLanguage(self, language)
@@ -3994,7 +3989,8 @@ class Page(object):
 
 
     def addRedactAnnot(self, quad, text=None, fontname=None,
-                       fontsize=11, align=0, fill=None, text_color=None):
+                       fontsize=11, align=0, fill=None, text_color=None,
+                       cross_out=True):
         """Add a 'Redact' annotation."""
         da_str = None
         if text:
@@ -4031,16 +4027,17 @@ class Page(object):
     #------------------------------------------------------------------
     # change the generated appearance to show a crossed-out rectangle
     #------------------------------------------------------------------
-        ap_tab = annot._getAP().splitlines()[:-1]  # get the 4 commands only
-        _, LL, LR, UR, UL = ap_tab
-        ap_tab.append(LR)
-        ap_tab.append(LL)
-        ap_tab.append(UR)
-        ap_tab.append(LL)
-        ap_tab.append(UL)
-        ap_tab.append(b"S")
-        ap = b"\n".join(ap_tab)
-        annot._setAP(ap, 0)
+        if cross_out:
+            ap_tab = annot._getAP().splitlines()[:-1]  # get the 4 commands only
+            _, LL, LR, UR, UL = ap_tab
+            ap_tab.append(LR)
+            ap_tab.append(LL)
+            ap_tab.append(UR)
+            ap_tab.append(LL)
+            ap_tab.append(UL)
+            ap_tab.append(b"S")
+            ap = b"\n".join(ap_tab)
+            annot._setAP(ap, 0)
         return annot
 
 
@@ -4270,11 +4267,11 @@ class Page(object):
         return _fitz.Page_rotation(self)
 
 
-    def setRotation(self, rot):
+    def setRotation(self, rotation):
         """Set page rotation."""
         CheckParent(self)
 
-        return _fitz.Page_setRotation(self, rot)
+        return _fitz.Page_setRotation(self, rotation)
 
 
     def _addAnnot_FromString(self, linklist):
@@ -4414,6 +4411,8 @@ class Page(object):
         TOOLS._insert_contents(self, b"q\n", False)
         TOOLS._insert_contents(self, b"\nQ", True)
 
+    wrapContents = _wrapContents
+
 
     def links(self, kinds=None):
         """ Generator over the links of a page.
@@ -4531,7 +4530,10 @@ class Page(object):
     def MediaBoxSize(self):
         return Point(self.MediaBox.width, self.MediaBox.height)
 
-    cleanContents = _cleanContents
+    def cleanContents(self):
+        self._wrapContents()
+        self._cleanContents()
+
     getContents = _getContents
 
 
@@ -4547,7 +4549,7 @@ class Pixmap(object):
         _fitz.Pixmap_swiginit(self, _fitz.new_Pixmap(*args))
 
     def shrink(self, factor):
-        """Shrink by 2**factor. So after shrink(1) the pixmap will be 25% of original size."""
+        """Divide width and height by 2**factor. E.g. factor=1 shrinks to 25% of original size."""
 
         return _fitz.Pixmap_shrink(self, factor)
 
@@ -4568,7 +4570,7 @@ class Pixmap(object):
 
 
     def setAlpha(self, alphavalues=None):
-        """Set all alphas to values contained in integer array 'alphavalues'."""
+        """Set alphas to values contained in a byte array."""
 
         return _fitz.Pixmap_setAlpha(self, alphavalues)
 
@@ -4656,7 +4658,7 @@ class Pixmap(object):
 
 
     def setPixel(self, x, y, color):
-        """Set color of pixel (x,y)."""
+        """Set color of pixel (x, y)."""
 
         return _fitz.Pixmap_setPixel(self, x, y, color)
 
@@ -4675,7 +4677,7 @@ class Pixmap(object):
     @property
 
     def stride(self):
-        """Size of one image  (width * n)."""
+        """Length of one image line (width * n)."""
 
         return _fitz.Pixmap_stride(self)
 
@@ -5076,6 +5078,7 @@ class Annot(object):
                text_color=None,
                border_color=None,
                fill_color=None,
+               cross_out=True,
                rotate=-1,
                ):
 
@@ -5093,6 +5096,7 @@ class Annot(object):
             border_color: set border color, 'FreeText' only.
             text_color: set text color, 'FreeText' only.
             fill_color: set fill color, all annotations.
+            cross_out: draw diagonal lines, 'Redact' only.
             rotate: set rotation, 'FreeText' and some others.
         """
         CheckParent(self)
@@ -5164,6 +5168,7 @@ class Annot(object):
             return val
 
         bfill = color_string(fill, "f")
+        bstroke = color_string(stroke, "s")
 
         p_ctm = self.parent.transformationMatrix
         imat = ~p_ctm  # inverse page transf. matrix
@@ -5185,17 +5190,29 @@ class Annot(object):
         ap_updated = False  # assume we did nothing
 
         if type == PDF_ANNOT_REDACT:
-    # recreate the original PyMuPDF appearance (crossed-out rect)
-            ap_tab = ap_tab[:-1]
-            _, LL, LR, UR, UL = ap_tab
-            ap_tab.append(LR)
-            ap_tab.append(LL)
-            ap_tab.append(UR)
-            ap_tab.append(LL)
-            ap_tab.append(UL)
-            ap_tab.append(b"S")
+            if cross_out:  # create crossed-out rect
+                ap_updated = True
+                ap_tab = ap_tab[:-1]
+                _, LL, LR, UR, UL = ap_tab
+                ap_tab.append(LR)
+                ap_tab.append(LL)
+                ap_tab.append(UR)
+                ap_tab.append(LL)
+                ap_tab.append(UL)
+                ap_tab.append(b"S")
+
+            if bwidth > 0 or bstroke != b"":
+                ap_updated = True
+                ntab = [b"%g w" % bwidth] if bwidth > 0 else []
+                for line in ap_tab:
+                    if line.endswith(b"w"):
+                        continue
+                    if line.endswith(b"RG") and bstroke != b"":
+                        line = bstroke[:-1]
+                    ntab.append(line)
+                ap_tab = ntab
+
             ap = b"\n".join(ap_tab)
-            ap_updated = True
 
         if type == PDF_ANNOT_FREE_TEXT:
             CheckColor(border_color)
@@ -5345,7 +5362,7 @@ class Annot(object):
 
         """Set 'stroke' and 'fill' colors.
 
-        Use either a dict with key-value pairs, or the color tuples.
+        Use either a dict or the direct arguments.
         """
         CheckParent(self)
         if type(colors) is not dict:
@@ -5483,7 +5500,7 @@ class Annot(object):
 
 
     def delete_responses(self):
-        """Delete annotations responding to this one."""
+        """Delete responding annotations."""
         CheckParent(self)
 
         return _fitz.Annot_delete_responses(self)
