@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.17.0"
-VersionBind = "1.17.2"
-VersionDate = "2020-06-20 07:00:22"
-version = (VersionBind, VersionFitz, "20200620070022")
+VersionBind = "1.17.3"
+VersionDate = "2020-07-06 15:07:04"
+version = (VersionBind, VersionFitz, "20200706150704")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -2865,20 +2865,20 @@ class Document(object):
         return val
 
 
-    def makeBookmark(self, pno=0):
-        """Make page bookmark in a reflowable document."""
+    def makeBookmark(self, loc):
+        """Make a page pointer before layouting document."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        return _fitz.Document_makeBookmark(self, pno)
+        return _fitz.Document_makeBookmark(self, loc)
 
 
-    def findBookmark(self, bookmark):
-        """Find page number after layouting a document."""
+    def findBookmark(self, bm):
+        """Find new location after layouting a document."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        return _fitz.Document_findBookmark(self, bookmark)
+        return _fitz.Document_findBookmark(self, bm)
 
     @property
 
@@ -3017,6 +3017,8 @@ class Document(object):
             from_page: (int) first page of source PDF to copy.
             to_page: (int) last page of source PDF to copy.
             start_at: (int) from_page will become this page number in target.
+            links: (int/bool) whether to also copy links
+            annots: (int/bool) whether to also copy annotations
 
         Copy sequence will reversed if from_page > to_page."""
 
@@ -3536,31 +3538,31 @@ class Document(object):
         m = "closed " if self.isClosed else ""
         if self.stream is None:
             if self.name == "":
-                return m + "fitz.Document(<new PDF, doc# %i>)" % self._graft_id
-            return m + "fitz.Document('%s')" % (self.name,)
-        return m + "fitz.Document('%s', <memory, doc# %i>)" % (self.name, self._graft_id)
+                return m + "Document(<new PDF, doc# %i>)" % self._graft_id
+            return m + "Document('%s')" % (self.name,)
+        return m + "Document('%s', <memory, doc# %i>)" % (self.name, self._graft_id)
 
 
     def __contains__(self, loc):
         if type(loc) is int:
-            if loc >= self.pageCount:
-                return False
-            return True
+            if loc < self.pageCount:
+                return True
+            return False
         if type(loc) not in (tuple, list) or len(loc) != 2:
-            raise TypeError("bad page id")
-
-        chapter = loc[0]
-        if type(chapter) != int or chapter < 0:
-            raise TypeError("bad chapter number")
-
-        pno = loc[1]
-        if type(pno) != int or pno < 0:
-            raise TypeError("bad page number")
-
-        if chapter >= self.chapterCount:
             return False
-        if pno >= self.chapterPageCount(chapter):
+
+        chapter, pno = loc
+        if (type(chapter) != int or
+            chapter < 0 or 
+            chapter >= self.chapterCount
+            ):
             return False
+        if (type(pno) != int or
+            pno < 0 or
+            pno >= self.chapterPageCount(chapter)
+            ):
+            return False
+
         return True
 
 
@@ -3666,7 +3668,8 @@ class Page(object):
 
         """Get rectangle occupied by image 'name'.
 
-        'name' is either an item of the image full list, or the reference string."""
+        'name' is either an item of the image full list, or the referencing
+        name string."""
         CheckParent(self)
         doc = self.parent
         if doc.isClosed or doc.isEncrypted:
@@ -4531,7 +4534,6 @@ class Page(object):
         return Point(self.MediaBox.width, self.MediaBox.height)
 
     def cleanContents(self):
-        self._wrapContents()
         self._cleanContents()
 
     getContents = _getContents
@@ -4546,10 +4548,21 @@ class Pixmap(object):
     __swig_destroy__ = _fitz.delete_Pixmap
 
     def __init__(self, *args):
+        """Pixmap(colorspace, irect, alpha) - empty pixmap.
+        Pixmap(colorspace, src) - copy changing colorspace.
+        Pixmap(src, width, height,[clip]) - scaled copy, float dimensions.
+        Pixmap(src, alpha=1) - copy and add or drop alpha channel.
+        Pixmap(filename) - from an image in a file.
+        Pixmap(image) - from an image in memory (bytes).
+        Pixmap(colorspace, width, height, samples, alpha) - from samples data.
+        Pixmap(PDFdoc, xref) - from an image at xref in a PDF document.
+        """
+
         _fitz.Pixmap_swiginit(self, _fitz.new_Pixmap(*args))
 
     def shrink(self, factor):
-        """Divide width and height by 2**factor. E.g. factor=1 shrinks to 25% of original size."""
+        """Divide width and height by 2**factor.
+        E.g. factor=1 shrinks to 25% of original size (in place)."""
 
         return _fitz.Pixmap_shrink(self, factor)
 
@@ -4558,7 +4571,7 @@ class Pixmap(object):
         return _fitz.Pixmap_tintWith(self, black, white)
 
     def clearWith(self, *args):
-        """Fill all color components with same integer value."""
+        """Fill all color components with same value."""
 
         return _fitz.Pixmap_clearWith(self, *args)
 
@@ -4570,7 +4583,8 @@ class Pixmap(object):
 
 
     def setAlpha(self, alphavalues=None):
-        """Set alphas to values contained in a byte array."""
+        """Set alphas to values contained in a byte array.
+        If omitted, set alphas to 255."""
 
         return _fitz.Pixmap_setAlpha(self, alphavalues)
 
@@ -4644,15 +4658,57 @@ class Pixmap(object):
         return self._writeIMG(filename, 1)
 
 
+    def pillowWrite(self, *args, **kwargs):
+        """Write to image file using Pillow.
+
+        Arguments are passed to Pillow's Image.save() method.
+        Use instead of writeImage when other output formats are desired.
+        """
+        try:
+            from PIL import Image
+        except ImportError:
+            print("PIL/Pillow not instralled")
+            raise
+
+        cspace = self.colorspace
+        if cspace is None:
+            mode = "L"
+        elif cspace.n == 1:
+            mode = "L" if self.alpha == 0 else "LA"
+        elif cspace.n == 3:
+            mode = "RGB" if self.alpha == 0 else "RGBA"
+        else:
+            mode = "CMYK"
+
+        img = Image.frombytes(mode, (self.width, self.height), self.samples)
+
+        if "dpi" not in kwargs.keys():
+            kwargs["dpi"] = (self.xres, self.yres)
+
+        img.save(*args, **kwargs)
+
+    def pillowData(self, *args, **kwargs):
+        """Convert to binary image stream using pillow.
+
+        Arguments are passed to Pillow's Image.save() method.
+        Use it instead of writeImage when other output formats are needed.
+        """
+        from io import BytesIO
+        bytes_out = BytesIO()
+        self.pillowSave(bytes_out, *args, **kwargs)
+        return bytes_out.get_value()
+
+
 
     def invertIRect(self, bbox=None):
-        """Invert colors inside bbox."""
+        """Invert the colors inside a bbox."""
 
         return _fitz.Pixmap_invertIRect(self, bbox)
 
 
     def pixel(self, x, y):
-        """Get color of pixel (x, y) as a list. Last item is the alpha if Pixmap.alpha is true."""
+        """Get color tuple of pixel (x, y).
+        Last item is the alpha if Pixmap.alpha is true."""
 
         return _fitz.Pixmap_pixel(self, x, y)
 
@@ -4664,7 +4720,9 @@ class Pixmap(object):
 
 
     def setResolution(self, xres, yres):
-        """Set resolution in both dimensions."""
+        """Set resolution in both dimensions.
+
+        Use pillowWrite to reflect this in output image."""
 
         return _fitz.Pixmap_setResolution(self, xres, yres)
 
@@ -4778,9 +4836,9 @@ class Pixmap(object):
     def __repr__(self):
         if not type(self) is Pixmap: return
         if self.colorspace:
-            return "fitz.Pixmap(%s, %s, %s)" % (self.colorspace.name, self.irect, self.alpha)
+            return "Pixmap(%s, %s, %s)" % (self.colorspace.name, self.irect, self.alpha)
         else:
-            return "fitz.Pixmap(%s, %s, %s)" % ('None', self.irect, self.alpha)
+            return "Pixmap(%s, %s, %s)" % ('None', self.irect, self.alpha)
 
     def __del__(self):
         if not type(self) is Pixmap: return
@@ -4824,7 +4882,7 @@ class Colorspace(object):
 
     def __repr__(self):
         x = ("", "GRAY", "", "RGB", "CMYK")[self.n]
-        return "fitz.Colorspace(fitz.CS_%s) - %s" % (x, self.name)
+        return "Colorspace(CS_%s) - %s" % (x, self.name)
 
 
 # Register Colorspace in _fitz:
