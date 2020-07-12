@@ -3838,7 +3838,8 @@ char *JM_Python_str_AsChar(PyObject *str)
 // Modified copy of function of pdfmerge.c: we also copy annotations, but
 // we skip **link** annotations. In addition we rotate output.
 //----------------------------------------------------------------------------
-static void page_merge(fz_context *ctx, pdf_document *doc_des, pdf_document *doc_src, int page_from, int page_to, int rotate, int links, int copy_annots, pdf_graft_map *graft_map)
+static void
+page_merge(fz_context *ctx, pdf_document *doc_des, pdf_document *doc_src, int page_from, int page_to, int rotate, int links, int copy_annots, pdf_graft_map *graft_map)
 {
     pdf_obj *page_ref = NULL;
     pdf_obj *page_dict = NULL;
@@ -3875,24 +3876,27 @@ static void page_merge(fz_context *ctx, pdf_document *doc_des, pdf_document *doc
                 pdf_dict_put_drop(ctx, page_dict, known_page_objs[i], pdf_graft_mapped_object(ctx, graft_map, obj));
         }
 
-        if (copy_annots) {  // we shall copy annotations also
+        // Copy the annotations, but skip types Link and Popup.
+        // Also skip IRT annotations ("in response to").
+        // Remove dict keys P (parent) and Popup from copyied annot.
+        if (copy_annots) {
             pdf_obj *old_annots = pdf_dict_get(ctx, page_ref, PDF_NAME(Annots));
             if (old_annots) {
                 n = pdf_array_len(ctx, old_annots);
                 pdf_obj *new_annots = pdf_new_array(ctx, doc_des, n);
                 for (i = 0; i < n; i++) {
                     pdf_obj *o = pdf_array_get(ctx, old_annots, i);
-                    if (!pdf_name_eq(ctx, pdf_dict_get(ctx, o, PDF_NAME(Subtype)),
-                                     PDF_NAME(Link))) {
-                        pdf_array_push_drop(ctx, new_annots,
-                                pdf_graft_mapped_object(ctx, graft_map, o));
-                    }
+                    pdf_obj *subtype = pdf_dict_get(ctx, o, PDF_NAME(Subtype));
+                    if (pdf_name_eq(ctx, subtype, PDF_NAME(Link))) continue;
+                    if (pdf_name_eq(ctx, subtype, PDF_NAME(Popup))) continue;
+                    if (pdf_dict_gets(ctx, o, "IRT")) continue;
+                    pdf_obj *copy_o = pdf_graft_mapped_object(ctx, graft_map, o);
+                    pdf_dict_del(gctx, copy_o, PDF_NAME(Popup));
+                    pdf_dict_del(gctx, copy_o, PDF_NAME(P));
+                    pdf_array_push_drop(ctx, new_annots, copy_o);
+
                 }
-                if (pdf_array_len(ctx, new_annots)) {
-                    pdf_dict_put_drop(ctx, page_dict, PDF_NAME(Annots), new_annots);
-                } else {
-                    pdf_drop_obj(ctx, new_annots);
-                }
+                pdf_dict_put_drop(ctx, page_dict, PDF_NAME(Annots), new_annots);
             }
         }
         // rotate the page as requested
@@ -4105,46 +4109,6 @@ pdf_obj *JM_pdf_obj_from_str(fz_context *ctx, pdf_document *doc, char *src)
 
 }
 
-//-----------------------------------------------------------------------------
-// dummy structure for various tools and utilities
-//-----------------------------------------------------------------------------
-struct Tools {int index;};
-
-typedef struct fz_item fz_item;
-
-struct fz_item
-{
-	void *key;
-	fz_storable *val;
-	size_t size;
-	fz_item *next;
-	fz_item *prev;
-	fz_store *store;
-	const fz_store_type *type;
-};
-
-struct fz_store
-{
-	int refs;
-
-	/* Every item in the store is kept in a doubly linked list, ordered
-	 * by usage (so LRU entries are at the end). */
-	fz_item *head;
-	fz_item *tail;
-
-	/* We have a hash table that allows to quickly find a subset of the
-	 * entries (those whose keys are indirect objects). */
-	fz_hash_table *hash;
-
-	/* We keep track of the size of the store, and keep it below max. */
-	size_t max;
-	size_t size;
-
-	int defer_reap_count;
-	int needs_reaping;
-};
-
-
 //----------------------------------------------------------------------------
 // return normalized /Rotate value
 //----------------------------------------------------------------------------
@@ -4266,6 +4230,48 @@ fz_matrix JM_derotate_page_matrix(fz_context *ctx, pdf_page *page)
 {  // just the inverse of rotation
     return fz_invert_matrix(JM_rotate_page_matrix(ctx, page));
 }
+
+
+//-----------------------------------------------------------------------------
+// dummy structure for various tools and utilities
+//-----------------------------------------------------------------------------
+struct Tools {int index;};
+
+typedef struct fz_item fz_item;
+
+struct fz_item
+{
+	void *key;
+	fz_storable *val;
+	size_t size;
+	fz_item *next;
+	fz_item *prev;
+	fz_store *store;
+	const fz_store_type *type;
+};
+
+struct fz_store
+{
+	int refs;
+
+	/* Every item in the store is kept in a doubly linked list, ordered
+	 * by usage (so LRU entries are at the end). */
+	fz_item *head;
+	fz_item *tail;
+
+	/* We have a hash table that allows to quickly find a subset of the
+	 * entries (those whose keys are indirect objects). */
+	fz_hash_table *hash;
+
+	/* We keep track of the size of the store, and keep it below max. */
+	size_t max;
+	size_t size;
+
+	int defer_reap_count;
+	int needs_reaping;
+};
+
+
 
 
 //-----------------------------------------------------------------------------
@@ -4578,13 +4584,11 @@ JM_pixmap_from_page(fz_context *ctx,
                 else
                     for (i = 0; i < n; i++)
                         fz_set_separation_behavior(ctx, seps, i, FZ_SEPARATION_COMPOSITE);
-            }
-            else if (fz_page_uses_overprint(ctx, page)) {
+            } else if (fz_page_uses_overprint(ctx, page)) {
                 /* This page uses overprint, so we need an empty
                  * sep object to force the overprint simulation on. */
                 seps = fz_new_separations(ctx, 0);
-            }
-            else if (oi && fz_colorspace_n(ctx, oi) != fz_colorspace_n(ctx, colorspace)) {
+            } else if (oi && fz_colorspace_n(ctx, oi) != fz_colorspace_n(ctx, colorspace)) {
                 /* We have an output intent, and it's incompatible
                  * with the colorspace our device needs. Force the
                  * overprint simulation on, because this ensures that
@@ -4597,16 +4601,14 @@ JM_pixmap_from_page(fz_context *ctx,
 
         if (alpha) {
             fz_clear_pixmap(ctx, pix);
-        }
-        else {
+        } else {
             fz_clear_pixmap_with_value(ctx, pix, 0xFF);
         }
 
         dev = fz_new_draw_device(ctx, matrix, pix);
         if (annots) {
             fz_run_page(ctx, page, dev, fz_identity, NULL);
-        }
-        else {
+        } else {
             fz_run_page_contents(ctx, page, dev, fz_identity, NULL);
         }
         fz_close_device(ctx, dev);
@@ -10313,7 +10315,7 @@ SWIGINTERN PyObject *Page__insertFont(struct Page *self,char *fontname,char *bfn
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             pdf_document *pdf;
             pdf_obj *resources, *fonts, *font_obj;
-            fz_font *font;
+            fz_font *font = NULL;
             fz_buffer *res = NULL;
             const unsigned char *data = NULL;
             int size, ixref = 0, index = 0, simple = 0;
@@ -10393,13 +10395,12 @@ SWIGINTERN PyObject *Page__insertFont(struct Page *self,char *fontname,char *bfn
                 Py_CLEAR(name);
                 Py_CLEAR(subt);
 
-                // resources and fonts objects will contain named reference to font
-                pdf_dict_puts(gctx, fonts, fontname, font_obj);
-                pdf_drop_obj(gctx, font_obj);
-                fz_drop_font(gctx, font);
+                // store font in resources and fonts objects will contain named reference to font
+                pdf_dict_puts_drop(gctx, fonts, fontname, font_obj);
             }
             fz_always(gctx) {
                 fz_drop_buffer(gctx, res);
+                fz_drop_font(gctx, font);
             }
             fz_catch(gctx) {
                 return NULL;
@@ -11974,6 +11975,11 @@ SWIGINTERN struct TextPage *DisplayList_getTextPage(struct DisplayList *self,int
             }
             return (struct TextPage *) tp;
         }
+SWIGINTERN void delete_TextPage(struct TextPage *self){
+            DEBUGMSG1("TextPage");
+            fz_drop_stext_page(gctx, (fz_stext_page *) self);
+            DEBUGMSG2;
+        }
 SWIGINTERN struct TextPage *new_TextPage(PyObject *mediabox){
             fz_stext_page *tp = NULL;
             fz_try(gctx) {
@@ -11983,11 +11989,6 @@ SWIGINTERN struct TextPage *new_TextPage(PyObject *mediabox){
                 return NULL;
             }
             return (struct TextPage *) tp;
-        }
-SWIGINTERN void delete_TextPage(struct TextPage *self){
-            DEBUGMSG1("TextPage");
-            fz_drop_stext_page(gctx, (fz_stext_page *) self);
-            DEBUGMSG2;
         }
 SWIGINTERN PyObject *TextPage_search(struct TextPage *self,char const *needle,int hit_max,int quads){
             fz_quad *result = NULL;
@@ -12235,7 +12236,7 @@ SWIGINTERN PyObject *TextWriter_append(struct TextWriter *self,PyObject *pos,cha
 SWIGINTERN PyObject *TextWriter__bbox(struct TextWriter *self){
             return JM_py_from_rect(fz_bound_text(gctx, (fz_text *) self, NULL, fz_identity));
         }
-SWIGINTERN PyObject *TextWriter_writeText(struct TextWriter *self,struct Page *page,PyObject *color,float opacity,int overlay,PyObject *morph){
+SWIGINTERN PyObject *TextWriter_writeText(struct TextWriter *self,struct Page *page,PyObject *color,float opacity,int overlay,PyObject *morph,int render_mode){
             pdf_page *pdfpage = pdf_page_from_fz_page(gctx, (fz_page *) page);
             fz_rect mediabox = fz_bound_page(gctx, (fz_page *) page);
             pdf_obj *resources = NULL;
@@ -21027,6 +21028,28 @@ SWIGINTERN PyObject *DisplayList_swiginit(PyObject *SWIGUNUSEDPARM(self), PyObje
   return SWIG_Python_InitShadowInstance(args);
 }
 
+SWIGINTERN PyObject *_wrap_delete_TextPage(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct TextPage *arg1 = (struct TextPage *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_TextPage, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_TextPage" "', argument " "1"" of type '" "struct TextPage *""'"); 
+  }
+  arg1 = (struct TextPage *)(argp1);
+  delete_TextPage(arg1);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_new_TextPage(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   PyObject *arg1 = (PyObject *) 0 ;
@@ -21044,28 +21067,6 @@ SWIGINTERN PyObject *_wrap_new_TextPage(PyObject *SWIGUNUSEDPARM(self), PyObject
     }
   }
   resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_TextPage, SWIG_POINTER_NEW |  0 );
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_delete_TextPage(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  struct TextPage *arg1 = (struct TextPage *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  PyObject *swig_obj[1] ;
-  
-  if (!args) SWIG_fail;
-  swig_obj[0] = args;
-  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_TextPage, SWIG_POINTER_DISOWN |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_TextPage" "', argument " "1"" of type '" "struct TextPage *""'"); 
-  }
-  arg1 = (struct TextPage *)(argp1);
-  delete_TextPage(arg1);
-  resultobj = SWIG_Py_Void();
   return resultobj;
 fail:
   return NULL;
@@ -21544,6 +21545,7 @@ SWIGINTERN PyObject *_wrap_TextWriter_writeText(PyObject *SWIGUNUSEDPARM(self), 
   float arg4 = (float) -1 ;
   int arg5 = (int) 1 ;
   PyObject *arg6 = (PyObject *) NULL ;
+  int arg7 = (int) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 = 0 ;
@@ -21552,10 +21554,12 @@ SWIGINTERN PyObject *_wrap_TextWriter_writeText(PyObject *SWIGUNUSEDPARM(self), 
   int ecode4 = 0 ;
   int val5 ;
   int ecode5 = 0 ;
-  PyObject *swig_obj[6] ;
+  int val7 ;
+  int ecode7 = 0 ;
+  PyObject *swig_obj[7] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "TextWriter_writeText", 2, 6, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "TextWriter_writeText", 2, 7, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_TextWriter, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextWriter_writeText" "', argument " "1"" of type '" "struct TextWriter *""'"); 
@@ -21586,8 +21590,15 @@ SWIGINTERN PyObject *_wrap_TextWriter_writeText(PyObject *SWIGUNUSEDPARM(self), 
   if (swig_obj[5]) {
     arg6 = swig_obj[5];
   }
+  if (swig_obj[6]) {
+    ecode7 = SWIG_AsVal_int(swig_obj[6], &val7);
+    if (!SWIG_IsOK(ecode7)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode7), "in method '" "TextWriter_writeText" "', argument " "7"" of type '" "int""'");
+    } 
+    arg7 = (int)(val7);
+  }
   {
-    result = (PyObject *)TextWriter_writeText(arg1,arg2,arg3,arg4,arg5,arg6);
+    result = (PyObject *)TextWriter_writeText(arg1,arg2,arg3,arg4,arg5,arg6,arg7);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -23392,8 +23403,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "DisplayList_getTextPage", _wrap_DisplayList_getTextPage, METH_VARARGS, NULL},
 	 { "DisplayList_swigregister", DisplayList_swigregister, METH_O, NULL},
 	 { "DisplayList_swiginit", DisplayList_swiginit, METH_VARARGS, NULL},
-	 { "new_TextPage", _wrap_new_TextPage, METH_O, NULL},
 	 { "delete_TextPage", _wrap_delete_TextPage, METH_O, NULL},
+	 { "new_TextPage", _wrap_new_TextPage, METH_O, NULL},
 	 { "TextPage_search", _wrap_TextPage_search, METH_VARARGS, NULL},
 	 { "TextPage__getNewBlockList", _wrap_TextPage__getNewBlockList, METH_VARARGS, NULL},
 	 { "TextPage_extractBLOCKS", _wrap_TextPage_extractBLOCKS, METH_VARARGS, NULL},

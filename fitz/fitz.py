@@ -78,9 +78,9 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 
 
 VersionFitz = "1.17.0"
-VersionBind = "1.17.3"
-VersionDate = "2020-07-06 15:07:04"
-version = (VersionBind, VersionFitz, "20200706150704")
+VersionBind = "1.17.4"
+VersionDate = "2020-07-12 14:01:21"
+version = (VersionBind, VersionFitz, "20200712140121")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -5793,10 +5793,10 @@ _fitz.DisplayList_swigregister(DisplayList)
 class TextPage(object):
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
+    __swig_destroy__ = _fitz.delete_TextPage
 
     def __init__(self, mediabox):
         _fitz.TextPage_swiginit(self, _fitz.new_TextPage(mediabox))
-    __swig_destroy__ = _fitz.delete_TextPage
 
     def search(self, needle, hit_max=16, quads=1):
         """Locate up to 'hit_max' 'needle' occurrences returning rects or quads."""
@@ -5895,6 +5895,10 @@ class TextPage(object):
         """Return page content as a Python dict of images and text characters."""
         return self._textpage_dict(raw=True)
 
+    def __del__(self):
+        if not type(self) is TextPage: return
+        self.__swig_destroy__(self)
+
 
 # Register TextPage in _fitz:
 _fitz.TextPage_swigregister(TextPage)
@@ -5906,6 +5910,12 @@ class Graftmap(object):
 
     def __init__(self, doc):
         _fitz.Graftmap_swiginit(self, _fitz.new_Graftmap(doc))
+
+    def __del__(self):
+        if not type(self) is Graftmap:
+            return
+        self.__swig_destroy__(self)
+
 
 # Register Graftmap in _fitz:
 _fitz.Graftmap_swigregister(Graftmap)
@@ -5959,9 +5969,9 @@ class TextWriter(object):
         return val
 
 
-    def writeText(self, page, color=None, opacity=-1, overlay=1, morph=None):
+    def writeText(self, page, color=None, opacity=-1, overlay=1, morph=None, render_mode=0):
 
-        """Write the text to a PDF page with the TextWriter's page size.
+        """Write the text to a PDF page having the TextWriter's page size.
 
         Args:
             page: a PDF page having same size.
@@ -5969,6 +5979,7 @@ class TextWriter(object):
             opacity: override transparency.
             overlay: put in foreground or background.
             morph: tuple(Point, Matrix), apply Matrix with fixpoint Point.
+            render_mode: (int) PDF render mode operator 'Tr'.
         """
 
         CheckParent(page)
@@ -5986,7 +5997,7 @@ class TextWriter(object):
             color = self.color
 
 
-        val = _fitz.TextWriter_writeText(self, page, color, opacity, overlay, morph)
+        val = _fitz.TextWriter_writeText(self, page, color, opacity, overlay, morph, render_mode)
 
         max_nums = val[0]
         content = val[1]
@@ -6004,6 +6015,10 @@ class TextWriter(object):
         for line in old_cont_lines:
             if line.endswith(" cm"):
                 continue
+            if line == "BT":
+                new_cont_lines.append(line)
+                new_cont_lines.append("%i Tr" % render_mode)
+                continue
             if line.endswith(" gs"):
                 alp = int(line.split()[0][4:]) + max_alp
                 line = "/Alp%i gs" % alp
@@ -6011,6 +6026,12 @@ class TextWriter(object):
                 temp = line.split()
                 font = int(temp[0][2:]) + max_font
                 line = " ".join(["/F%i" % font] + temp[1:])
+            elif line.endswith(" rg"):
+                new_cont_lines.append(line.replace("rg", "RG"))
+            elif line.endswith(" g"):
+                new_cont_lines.append(line.replace(" g", " G"))
+            elif line.endswith(" k"):
+                new_cont_lines.append(line.replace(" k", " K"))
             new_cont_lines.append(line)
         new_cont_lines.append("Q\n")
         content = "\n".join(new_cont_lines).encode("utf-8")
@@ -6019,6 +6040,12 @@ class TextWriter(object):
 
 
         return val
+
+
+    def __del__(self):
+        if not type(self) is TextWriter:
+            return
+        self.__swig_destroy__(self)
 
 
 # Register TextWriter in _fitz:
@@ -6094,6 +6121,11 @@ class Font(object):
 
     def __repr__(self):
         return "Font('%s')" % self.name
+
+    def __del__(self):
+        if type(self) is not Font:
+            return None
+        self.__swig_destroy__(self)
 
 
 # Register Font in _fitz:
