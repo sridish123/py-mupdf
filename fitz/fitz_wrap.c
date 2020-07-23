@@ -12695,6 +12695,30 @@ SWIGINTERN PyObject *Tools__hor_matrix(struct Tools *self,PyObject *C,PyObject *
             fz_matrix m2 = fz_make_matrix(s.x, -s.y, s.y, s.x, 0, 0);
             return JM_py_from_matrix(fz_concat(m1, m2));
         }
+SWIGINTERN PyObject *Tools_set_font_width(struct Tools *self,struct Document *doc,int xref,int width){
+            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) doc);
+            if (!pdf) Py_RETURN_FALSE;
+            pdf_obj *font=NULL, *dfonts=NULL;
+            fz_try(gctx) {
+                font = pdf_load_object(gctx, pdf, xref);
+                dfonts = pdf_dict_get(gctx, font, PDF_NAME(DescendantFonts));
+                if (pdf_is_array(gctx, dfonts)) {
+                    int i, n = pdf_array_len(gctx, dfonts);
+                    for (i = 0; i < n; i++) {
+                        pdf_obj *dfont = pdf_array_get(gctx, dfonts, i);
+                        pdf_obj *warray = pdf_new_array(gctx, pdf, 3);
+                        pdf_array_push(gctx, warray, pdf_new_int(gctx, 0));
+                        pdf_array_push(gctx, warray, pdf_new_int(gctx, 65532));
+                        pdf_array_push(gctx, warray, pdf_new_int(gctx, width));
+                        pdf_dict_put_drop(gctx, dfont, PDF_NAME(W), warray);
+                    }
+                }
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            Py_RETURN_TRUE;
+        }
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -23278,6 +23302,58 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Tools_set_font_width(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Tools *arg1 = (struct Tools *) 0 ;
+  struct Document *arg2 = (struct Document *) 0 ;
+  int arg3 ;
+  int arg4 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  int val3 ;
+  int ecode3 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  PyObject *swig_obj[4] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Tools_set_font_width", 4, 4, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools_set_font_width" "', argument " "1"" of type '" "struct Tools *""'"); 
+  }
+  arg1 = (struct Tools *)(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Tools_set_font_width" "', argument " "2"" of type '" "struct Document *""'"); 
+  }
+  arg2 = (struct Document *)(argp2);
+  ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Tools_set_font_width" "', argument " "3"" of type '" "int""'");
+  } 
+  arg3 = (int)(val3);
+  ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+  if (!SWIG_IsOK(ecode4)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Tools_set_font_width" "', argument " "4"" of type '" "int""'");
+  } 
+  arg4 = (int)(val4);
+  {
+    result = (PyObject *)Tools_set_font_width(arg1,arg2,arg3,arg4);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_new_Tools(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *result = 0 ;
@@ -23627,6 +23703,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools__measure_string", _wrap_Tools__measure_string, METH_VARARGS, NULL},
 	 { "Tools__sine_between", _wrap_Tools__sine_between, METH_VARARGS, NULL},
 	 { "Tools__hor_matrix", _wrap_Tools__hor_matrix, METH_VARARGS, NULL},
+	 { "Tools_set_font_width", _wrap_Tools_set_font_width, METH_VARARGS, NULL},
 	 { "new_Tools", _wrap_new_Tools, METH_NOARGS, NULL},
 	 { "delete_Tools", _wrap_delete_Tools, METH_O, NULL},
 	 { "Tools_swigregister", Tools_swigregister, METH_O, NULL},

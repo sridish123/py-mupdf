@@ -2953,91 +2953,31 @@ def repair_mono_font(page, font):
     """Repair character spacing for mono fonts.
 
     Notes:
-        Some mono-spaced fonts seem to have issues with character spacing, when
-        used with MuPDF. This function shifts left each character by 400 units
-        in every PDF text write command (TJ) referring to this font.
+        Some mono-spaced fonts are displayed with a too large character
+        distance, e.g. "a b c" instead of "abc". This utility adds an entry
+        "/W[0 65532 w]" to the descendent font(s) of font.
+        This should enforce viewers to use 'w' as the character width.
 
     Args:
         page: fitz.Page object.
         font: fitz.Font object.
     """
-
-    def repair_line(old_line):
-        """Modifies char spacing for a PDF 'TJ' command:
-
-        Each character is encoded as a 4-digit hex number, so each two chars
-        <aaaabbbb> become <aaaa>400<bbbb>. Some complexity comes from the fact
-        that MuPDF generates TJ commands in this general form:
-                [<string1>mod<string2> ...<stringn>]TJ
-        where 'mod' is some distance modifier. So we change each of the
-        bracketed strings and return this result.
-        """
-        shift = ">400<"  # insert this between characters
-        if shift in old_line:  # do nothing: line already repaired!
-            return old_line
-        pos3 = 0
-        new_line = "["  # resulting line
-        pos1 = old_line.find("<")  # find left string delimiter
-        while True:
-            pos2 = old_line.find(">", pos3)  # right delimiter
-            s = old_line[pos1 + 1 : pos2]  # string
-            chars = []  # list of single chars of 's'
-            for i in range(0, len(s), 4):
-                chars.append(s[i : i + 4])
-            new_line += "<" + shift.join(chars) + ">"  # append modified 's'
-            pos3 = pos2 + 1
-            pos1 = old_line.find("<", pos3)  # next left delimiter
-            if pos1 < 0:  # no more strings to handle
-                new_line += old_line[pos3:]  # append rest of old line
-                break  # done
-            new_line += old_line[pos3:pos1]  # append stuff between > and <
-            pos3 = pos1 + 1
-        return new_line
-
+    if not font.flags["mono"]:
+        return None
     doc = page.parent
-    page.cleanContents()  # join and reformat any multiple /Contents objects
-    xref = page.getContents()[0]  # read the xref of the result
     fontlist = page.getFontList()  # list of fonts on page
-    ref_names = [  # "/Fnnn"-type references to our font
-        "/" + f[4]
+    xrefs = [  # list of objects referring to font
+        f[0]
         for f in fontlist
         if (f[3] == font.name and f[4].startswith("F") and f[5].startswith("Identity"))
     ]
-    if ref_names == []:  # our font does not occur
+    if xrefs == []:  # our font does not occur
         return
-
-    old_cont = page.readContents().decode()  # read page /Contents object
-    ever_found = False  # switch: is our font ever actually used?
-    for ref in ref_names:
-        if ref in old_cont:
-            ever_found = True
-            break
-    if not ever_found:  # our font is not used at all!
-        return
-    old_lines = old_cont.splitlines()
-    new_lines = []
-
-# Find and repair text writing commands for our font
-    our_font = False
-    for line in old_lines:
-        if line.endswith(" Tf"):  # a new font is referenced
-            word1 = line.split(sep=" ", maxsplit=1)[0]  # first word
-            if word1 in ref_names:  # one of our reference names?
-                our_font = True
-            else:
-                our_font = False  # not our font
-            new_lines.append(line)
-            continue
-
-        if our_font and line.endswith("TJ"):
-            new_line = repair_line(line)
-            new_lines.append(new_line)
-        else:
-            new_lines.append(line)
-
-    new_cont = "\n".join(new_lines)
-    doc.updateStream(xref, new_cont.encode())
-
+    xrefs = set(xrefs)  # drop any double counts
+    width = int(font.glyph_advance(32) * 1000)
+    for xref in xrefs:
+        if not TOOLS.set_font_width(doc, xref, width):
+            print("Could set width for '%s' in xref %i" % (font.name, xref))
 
 class Document(object):
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
@@ -6555,6 +6495,7 @@ class TextWriter(object):
         self.lastPoint.__doc__ = "Position following last text insertion."
         self.textRect = Rect(0, 0, -1, -1)
         self.textRect.__doc__ = "Accumulated area of text spans."
+        self.used_fonts = set()
 
 
 
@@ -6572,6 +6513,8 @@ class TextWriter(object):
         self.lastPoint = Point(val[-2:]) * self.ctm
         self.textRect = self._bbox * self.ctm
         val = self.textRect, self.lastPoint
+        if font.flags["mono"] == 1:
+            self.used_fonts.add(font)
 
 
         return val
@@ -6653,6 +6596,8 @@ class TextWriter(object):
         content = "\n".join(new_cont_lines).encode("utf-8")
         TOOLS._insert_contents(page, content, overlay=overlay)
         val = None
+        for font in self.used_fonts:
+            repair_mono_font(page, font)
 
 
         return val
@@ -6981,6 +6926,9 @@ class Tools(object):
 
     def _hor_matrix(self, C, P):
         return _fitz.Tools__hor_matrix(self, C, P)
+
+    def set_font_width(self, doc, xref, width):
+        return _fitz.Tools_set_font_width(self, doc, xref, width)
 
     def _le_annot_parms(self, annot, p1, p2, fill_color):
         """Get common parameters for making line end symbols.
