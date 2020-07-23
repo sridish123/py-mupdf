@@ -2218,6 +2218,13 @@ def getColorInfoList():
     ]
 
 
+def getColorInfoDict():
+    d = {}
+    for item in getColorInfoList():
+        d[item[0].lower()] = item[1:]
+    return d
+
+
 def getColor(name):
     """Retrieve RGB color in PDF format by name.
 
