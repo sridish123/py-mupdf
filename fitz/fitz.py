@@ -6207,7 +6207,12 @@ class Annot(object):
 
     def getPixmap(self, matrix=None, colorspace=None, alpha=0):
         """Annotation Pixmap."""
+
         CheckParent(self)
+        cspaces = {"gray": csGRAY, "rgb": csRGB, "cmyk": csCMYK}
+        if type(colorspace) is str:
+            colorspace = cspaces.get(colorspace.lower(), None)
+
 
         return _fitz.Annot_getPixmap(self, matrix, colorspace, alpha)
 
@@ -6684,9 +6689,9 @@ class Font(object):
                     del pymupdf_fonts  # remove package again
                 except Exception as exc:
                     if repr(exc).startswith(("ImportError", "AttributeError")):
-                        raise ImportError("Optional package 'pymupdf_fonts' not installed") from None
+                        raise ImportError("Optional package 'pymupdf_fonts' not installed")
                     else:
-                        raise exc from None
+                        raise exc
             elif ordering < 0:
                 fontname = Base14_fontdict.get(fontname.lower(), fontname)
 
