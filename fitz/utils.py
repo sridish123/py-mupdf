@@ -2639,7 +2639,7 @@ class Shape(object):
         if cnt < 4:
             raise ValueError("points too close")
         mb = rad / cnt  # revised breadth
-        matrix = TOOLS._hor_matrix(p1, p2)  # normalize line to x-axis
+        matrix = Matrix(TOOLS._hor_matrix(p1, p2))  # normalize line to x-axis
         i_mat = ~matrix  # get original position
         k = 2.4142135623765633  # y of drawCurve helper point
 

@@ -76,11 +76,19 @@ from binascii import hexlify
 fitz_py2 = str is bytes  # if true, this is Python 2
 string_types = (str, unicode) if fitz_py2 else (str,)
 
+try:
+    from pymupdf_fonts import fontdescriptors
+
+    fitz_fontdescritors = fontdescriptors.copy()
+    del fontdescriptors
+except ImportError:
+    fitz_fontdescritors = {}
+
 
 VersionFitz = "1.17.0"
-VersionBind = "1.17.4"
-VersionDate = "2020-07-20 18:09:40"
-version = (VersionBind, VersionFitz, "20200720180940")
+VersionBind = "1.17.5"
+VersionDate = "2020-07-30 12:50:33"
+version = (VersionBind, VersionFitz, "20200730125033")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -1624,6 +1632,7 @@ Base14_fontnames = (
 Base14_fontdict = {}
 for f in Base14_fontnames:
     Base14_fontdict[f.lower()] = f
+    del f
 Base14_fontdict["helv"] = "Helvetica"
 Base14_fontdict["heit"] = "Helvetica-Oblique"
 Base14_fontdict["hebo"] = "Helvetica-Bold"
@@ -2955,7 +2964,7 @@ def repair_mono_font(page, font):
     Notes:
         Some mono-spaced fonts are displayed with a too large character
         distance, e.g. "a b c" instead of "abc". This utility adds an entry
-        "/W[0 65532 w]" to the descendent font(s) of font.
+        "/W[0 65535 w]" to the descendent font(s) of font.
         This should enforce viewers to use 'w' as the character width.
 
     Args:
@@ -2974,7 +2983,7 @@ def repair_mono_font(page, font):
     if xrefs == []:  # our font does not occur
         return
     xrefs = set(xrefs)  # drop any double counts
-    width = int(font.glyph_advance(32) * 1000)
+    width = int(round((font.glyph_advance(32) * 1000)))
     for xref in xrefs:
         if not TOOLS.set_font_width(doc, xref, width):
             print("Could set width for '%s' in xref %i" % (font.name, xref))
@@ -3702,7 +3711,7 @@ class Document(object):
 
 
     def getSigFlags(self):
-        """Get /SigFlags value."""
+        """Get the /SigFlags value."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -4909,6 +4918,12 @@ class Page(object):
             except:
                 pass
 
+        if fontname.lower() in fitz_fontdescritors.keys():
+    # one of the extra fonts
+            import pymupdf_fonts
+            fontbuffer = pymupdf_fonts.myfont(fontname)  # make a copy
+            del pymupdf_fonts
+
     # install the font for the page
         val = self._insertFont(fontname, bfname, fontfile, fontbuffer, set_simple, idx,
                                wmode, serif, encoding, CJK_number)
@@ -4965,7 +4980,7 @@ class Page(object):
         """Check if /Contents is wrapped in string pair "q" / "Q".
         """
         cont = self.readContents().split()
-        if len(cont) < 1 or cont[0] != b"q" or cont[-1] != "Q":
+        if len(cont) < 1 or cont[0] != b"q" or cont[-1] != b"Q":
             return False
         return True
 
@@ -6177,7 +6192,7 @@ class Annot(object):
 
     def __del__(self):
         if self.parent is None:
-            retturn
+            return
         self._erase()
 
 # Register Annot in _fitz:
@@ -6626,17 +6641,13 @@ class Font(object):
                 ordering = ("china-t", "china-s", "japan", "korea","china-ts", "china-ss", "japan-s", "korea-s").index(fontname.lower()) % 4
             except ValueError:
                 ordering = -1
-            if fontname.lower().startswith(("fig", "fim")):
-                try:
-                    import pymupdf_fonts  # optional fonts
-                    fontbuffer = pymupdf_fonts.myfont(fontname)[:]  # make a copy
-                    fontname = None  # ensure using fontbuffer only
-                    del pymupdf_fonts  # remove package again
-                except Exception as exc:
-                    if repr(exc).startswith(("ImportError", "AttributeError")):
-                        raise ImportError("Optional package 'pymupdf_fonts' not installed")
-                    else:
-                        raise exc
+
+            if fontname.lower() in fitz_fontdescritors.keys():
+                import pymupdf_fonts  # optional fonts
+                fontbuffer = pymupdf_fonts.myfont(fontname)  # make a copy
+                fontname = None  # ensure using fontbuffer only
+                del pymupdf_fonts  # remove package again
+
             elif ordering < 0:
                 fontname = Base14_fontdict.get(fontname.lower(), fontname)
 
@@ -6661,11 +6672,32 @@ class Font(object):
         return _fitz.Font_glyph_advance(self, chr, language, script, wmode)
 
 
-    def has_glyph(self, chr, language=None, script=0):
+    def glyph_bbox(self, chr, language=None, script=0, wmode=0):
+        """Return the glyph bbox of a unicode."""
+
+        val = _fitz.Font_glyph_bbox(self, chr, language, script, wmode)
+        val = Rect(val)
+
+        return val
+
+
+    def has_glyph(self, chr, language=None, script=0, fallback=0):
         """Return whether font has a glyph for this unicode."""
 
-        return _fitz.Font_has_glyph(self, chr, language, script)
+        return _fitz.Font_has_glyph(self, chr, language, script, fallback)
 
+
+    def valid_codepoints(self):
+        from array import array
+        gc = self.glyph_count
+        cp = array("l", (0,) * gc)
+        arr = cp.buffer_info()
+        self._valid_unicodes(arr)
+        return array("l", sorted(set(cp)))
+
+
+    def _valid_unicodes(self, arr):
+        return _fitz.Font__valid_unicodes(self, arr)
     @property
 
     def flags(self):

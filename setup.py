@@ -1,5 +1,33 @@
 from distutils.core import setup, Extension
-import sys, os
+import sys, os, re
+
+DEFAULT = ["mupdf", "mupdf-third"]
+ARCH_LINUX = DEFAULT + ["jbig2dec", "openjp2", "jpeg", "freetype"]
+OPENSUSE = ARCH_LINUX + ["harfbuzz", "png16"]
+LIBRARIES = {"default": DEFAULT, "arch": ARCH_LINUX, "opensuse": OPENSUSE}
+
+
+def load_libraries():
+    filepath = "/etc/os-release"
+    if not os.path.exists(filepath):
+        return LIBRARIES["default"]
+    regex = re.compile("^([\\w]+)=(?:'|\")?(.*?)(?:'|\")?$")
+    with open(filepath) as os_release:
+        info = {
+            regex.match(line.strip()).group(1): re.sub(
+                r'\\([$"\'\\`])', r"\1", regex.match(line.strip()).group(2)
+            )
+            for line in os_release
+            if regex.match(line.strip())
+        }
+
+    os_id = info["ID"]
+    if os_id.startswith("opensuse"):
+        os_id = "opensuse"
+    if os_id not in LIBRARIES:
+        return LIBRARIES["default"]
+    return LIBRARIES[os_id]
+
 
 # check the platform
 if sys.platform.startswith("linux"):
@@ -10,13 +38,7 @@ if sys.platform.startswith("linux"):
             "/usr/include/mupdf",
             "/usr/local/include/mupdf",
         ],
-        # library_dirs=['<mupdf_and_3rd_party_libraries_dir>'],
-        libraries=[
-            "mupdf",
-            #'crypto', #openssl is required by mupdf on archlinux
-            #'jbig2dec', 'openjp2', 'jpeg', 'freetype',
-            "mupdf-third",
-        ],  # the libraries to link with
+        libraries=load_libraries(),
     )
 elif sys.platform.startswith(("darwin", "freebsd")):
     module = Extension(
@@ -71,12 +93,12 @@ long_desc = "\n".join(long_dtab)
 
 setup(
     name="PyMuPDF",
-    version="1.17.4",
+    version="1.17.5",
     description="Python bindings for the PDF rendering library MuPDF",
     long_description=long_desc,
     classifiers=classifier,
     url="https://github.com/pymupdf/PyMuPDF",
-    author="Jorj McKie, Ruikai Liu",
+    author="Jorj McKie",
     author_email="jorj.x.mckie@outlook.de",
     ext_modules=[module],
     py_modules=["fitz.fitz", "fitz.utils", "fitz.__main__"],

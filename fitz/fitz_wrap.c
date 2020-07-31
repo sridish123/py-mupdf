@@ -2741,6 +2741,7 @@ fz_pixmap *fz_scale_pixmap(fz_context *ctx, fz_pixmap *src, float x, float y, fl
 int fz_pixmap_size(fz_context *ctx, fz_pixmap *src);
 void fz_subsample_pixmap(fz_context *ctx, fz_pixmap *tile, int factor);
 void fz_copy_pixmap_rect(fz_context *ctx, fz_pixmap *dest, fz_pixmap *src, fz_irect b, const fz_default_colorspaces *default_cs);
+void jm_valid_chars(fz_context *ctx, fz_font *font, void *ptr);
 // end of additional MuPDF headers --------------------------------------------
 
 PyObject *JM_mupdf_warnings_store;
@@ -8939,25 +8940,25 @@ SWIGINTERN PyObject *Document_need_appearances(struct Document *self,PyObject *v
             }
             return_none;
         }
-SWIGINTERN PyObject *Document_getSigFlags(struct Document *self){
+SWIGINTERN int Document_getSigFlags(struct Document *self){
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
-            if (!pdf) return Py_BuildValue("i", -1);  // not a PDF
-            size_t sigflag = -1;
+            if (!pdf) return -1;  // not a PDF
+            int sigflag = -1;
             fz_try(gctx) {
                 pdf_obj *sigflags = pdf_dict_getl(gctx,
-                                                  pdf_trailer(gctx, pdf),
-                                                  PDF_NAME(Root),
-                                                  PDF_NAME(AcroForm),
-                                                  PDF_NAME(SigFlags),
-                                                  NULL);
+                                        pdf_trailer(gctx, pdf),
+                                        PDF_NAME(Root),
+                                        PDF_NAME(AcroForm),
+                                        PDF_NAME(SigFlags),
+                                        NULL);
                 if (sigflags) {
-                    sigflag = (size_t) pdf_to_int(gctx, sigflags);
+                    sigflag = (int) pdf_to_int(gctx, sigflags);
                 }
             }
             fz_catch(gctx) {
-                return Py_BuildValue("i", -1);  // any problem
+                return -1;  // any problem
             }
-            return Py_BuildValue("I", sigflag);
+            return sigflag;
         }
 SWIGINTERN PyObject *Document_isFormPDF(struct Document *self){
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
@@ -10435,7 +10436,23 @@ SWIGINTERN PyObject *Page__insertFont(struct Page *self,char *fontname,char *bfn
 
                 weiter: ;
                 ixref = pdf_to_num(gctx, font_obj);
-
+                if (fz_font_is_monospaced(gctx, font)) {
+                    float adv = fz_advance_glyph(gctx, font,
+                                    fz_encode_character(gctx, font, 32), 0);
+                    int width = (int) floor(adv * 1000.0f + 0.5f);
+                    pdf_obj *dfonts = pdf_dict_get(gctx, font_obj, PDF_NAME(DescendantFonts));
+                    if (pdf_is_array(gctx, dfonts)) {
+                        int i, n = pdf_array_len(gctx, dfonts);
+                        for (i = 0; i < n; i++) {
+                            pdf_obj *dfont = pdf_array_get(gctx, dfonts, i);
+                            pdf_obj *warray = pdf_new_array(gctx, pdf, 3);
+                            pdf_array_push(gctx, warray, pdf_new_int(gctx, 0));
+                            pdf_array_push(gctx, warray, pdf_new_int(gctx, 65535));
+                            pdf_array_push(gctx, warray, pdf_new_int(gctx, (int64_t) width));
+                            pdf_dict_put_drop(gctx, dfont, PDF_NAME(W), warray);
+                        }
+                    }
+                }
                 PyObject *name = JM_EscapeStrFromStr(pdf_to_name(gctx,
                             pdf_dict_get(gctx, font_obj, PDF_NAME(BaseFont))));
 
@@ -12394,12 +12411,29 @@ SWIGINTERN float Font_glyph_advance(struct Font *self,int chr,char *language,int
             int gid = fz_encode_character_with_fallback(gctx, (fz_font *) self, chr, script, lang, &font);
             return fz_advance_glyph(gctx, font, gid, wmode);
         }
-SWIGINTERN PyObject *Font_has_glyph(struct Font *self,int chr,char *language,int script){
+SWIGINTERN PyObject *Font_glyph_bbox(struct Font *self,int chr,char *language,int script,int wmode){
             fz_font *font;
             fz_text_language lang = fz_text_language_from_string(language);
             int gid = fz_encode_character_with_fallback(gctx, (fz_font *) self, chr, script, lang, &font);
+            return JM_py_from_rect(fz_bound_glyph(gctx, font, gid, fz_identity));
+        }
+SWIGINTERN PyObject *Font_has_glyph(struct Font *self,int chr,char *language,int script,int fallback){
+            fz_font *font;
+            fz_text_language lang;
+            int gid;
+            if (fallback) {
+                lang = fz_text_language_from_string(language);
+                gid = fz_encode_character_with_fallback(gctx, (fz_font *) self, chr, script, lang, &font);
+            } else {
+                gid = fz_encode_character(gctx, (fz_font *) self, chr);
+            }
             if (gid > 0) Py_RETURN_TRUE;
             Py_RETURN_FALSE;
+        }
+SWIGINTERN void Font__valid_unicodes(struct Font *self,PyObject *arr){
+            fz_font *font = (fz_font *) self;
+            void *ptr = PyLong_AsVoidPtr(PySequence_ITEM(arr, 0));
+            jm_valid_chars(gctx, font, ptr);
         }
 SWIGINTERN PyObject *Font_flags(struct Font *self){
             fz_font_flags_t *f = fz_font_flags((fz_font *) self);
@@ -12708,8 +12742,8 @@ SWIGINTERN PyObject *Tools_set_font_width(struct Tools *self,struct Document *do
                         pdf_obj *dfont = pdf_array_get(gctx, dfonts, i);
                         pdf_obj *warray = pdf_new_array(gctx, pdf, 3);
                         pdf_array_push(gctx, warray, pdf_new_int(gctx, 0));
-                        pdf_array_push(gctx, warray, pdf_new_int(gctx, 65532));
-                        pdf_array_push(gctx, warray, pdf_new_int(gctx, width));
+                        pdf_array_push(gctx, warray, pdf_new_int(gctx, 65535));
+                        pdf_array_push(gctx, warray, pdf_new_int(gctx, (int64_t) width));
                         pdf_dict_put_drop(gctx, dfont, PDF_NAME(W), warray);
                     }
                 }
@@ -14997,7 +15031,7 @@ SWIGINTERN PyObject *_wrap_Document_getSigFlags(PyObject *SWIGUNUSEDPARM(self), 
   void *argp1 = 0 ;
   int res1 = 0 ;
   PyObject *swig_obj[1] ;
-  PyObject *result = 0 ;
+  int result;
   
   if (!args) SWIG_fail;
   swig_obj[0] = args;
@@ -15006,8 +15040,8 @@ SWIGINTERN PyObject *_wrap_Document_getSigFlags(PyObject *SWIGUNUSEDPARM(self), 
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_getSigFlags" "', argument " "1"" of type '" "struct Document *""'"); 
   }
   arg1 = (struct Document *)(argp1);
-  result = (PyObject *)Document_getSigFlags(arg1);
-  resultobj = result;
+  result = (int)Document_getSigFlags(arg1);
+  resultobj = SWIG_From_int((int)(result));
   return resultobj;
 fail:
   return NULL;
@@ -22084,12 +22118,13 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Font_has_glyph(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Font_glyph_bbox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Font *arg1 = (struct Font *) 0 ;
   int arg2 ;
   char *arg3 = (char *) NULL ;
   int arg4 = (int) 0 ;
+  int arg5 = (int) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int val2 ;
@@ -22099,10 +22134,75 @@ SWIGINTERN PyObject *_wrap_Font_has_glyph(PyObject *SWIGUNUSEDPARM(self), PyObje
   int alloc3 = 0 ;
   int val4 ;
   int ecode4 = 0 ;
-  PyObject *swig_obj[4] ;
+  int val5 ;
+  int ecode5 = 0 ;
+  PyObject *swig_obj[5] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Font_has_glyph", 2, 4, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Font_glyph_bbox", 2, 5, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Font, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_glyph_bbox" "', argument " "1"" of type '" "struct Font *""'"); 
+  }
+  arg1 = (struct Font *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Font_glyph_bbox" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  if (swig_obj[2]) {
+    res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Font_glyph_bbox" "', argument " "3"" of type '" "char *""'");
+    }
+    arg3 = (char *)(buf3);
+  }
+  if (swig_obj[3]) {
+    ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+    if (!SWIG_IsOK(ecode4)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Font_glyph_bbox" "', argument " "4"" of type '" "int""'");
+    } 
+    arg4 = (int)(val4);
+  }
+  if (swig_obj[4]) {
+    ecode5 = SWIG_AsVal_int(swig_obj[4], &val5);
+    if (!SWIG_IsOK(ecode5)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "Font_glyph_bbox" "', argument " "5"" of type '" "int""'");
+    } 
+    arg5 = (int)(val5);
+  }
+  result = (PyObject *)Font_glyph_bbox(arg1,arg2,arg3,arg4,arg5);
+  resultobj = result;
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return resultobj;
+fail:
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_has_glyph(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Font *arg1 = (struct Font *) 0 ;
+  int arg2 ;
+  char *arg3 = (char *) NULL ;
+  int arg4 = (int) 0 ;
+  int arg5 = (int) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int res3 ;
+  char *buf3 = 0 ;
+  int alloc3 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  int val5 ;
+  int ecode5 = 0 ;
+  PyObject *swig_obj[5] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Font_has_glyph", 2, 5, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Font, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_has_glyph" "', argument " "1"" of type '" "struct Font *""'"); 
@@ -22127,12 +22227,42 @@ SWIGINTERN PyObject *_wrap_Font_has_glyph(PyObject *SWIGUNUSEDPARM(self), PyObje
     } 
     arg4 = (int)(val4);
   }
-  result = (PyObject *)Font_has_glyph(arg1,arg2,arg3,arg4);
+  if (swig_obj[4]) {
+    ecode5 = SWIG_AsVal_int(swig_obj[4], &val5);
+    if (!SWIG_IsOK(ecode5)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "Font_has_glyph" "', argument " "5"" of type '" "int""'");
+    } 
+    arg5 = (int)(val5);
+  }
+  result = (PyObject *)Font_has_glyph(arg1,arg2,arg3,arg4,arg5);
   resultobj = result;
   if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
   return resultobj;
 fail:
   if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font__valid_unicodes(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Font *arg1 = (struct Font *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Font__valid_unicodes", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Font, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font__valid_unicodes" "', argument " "1"" of type '" "struct Font *""'"); 
+  }
+  arg1 = (struct Font *)(argp1);
+  arg2 = swig_obj[1];
+  Font__valid_unicodes(arg1,arg2);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
   return NULL;
 }
 
@@ -23661,7 +23791,9 @@ static PyMethodDef SwigMethods[] = {
 	 { "Font_unicode_to_glyph_name", _wrap_Font_unicode_to_glyph_name, METH_VARARGS, NULL},
 	 { "Font_glyph_name_to_unicode", _wrap_Font_glyph_name_to_unicode, METH_VARARGS, NULL},
 	 { "Font_glyph_advance", _wrap_Font_glyph_advance, METH_VARARGS, NULL},
+	 { "Font_glyph_bbox", _wrap_Font_glyph_bbox, METH_VARARGS, NULL},
 	 { "Font_has_glyph", _wrap_Font_has_glyph, METH_VARARGS, NULL},
+	 { "Font__valid_unicodes", _wrap_Font__valid_unicodes, METH_VARARGS, NULL},
 	 { "Font_flags", _wrap_Font_flags, METH_O, NULL},
 	 { "Font_name", _wrap_Font_name, METH_O, NULL},
 	 { "Font_glyph_count", _wrap_Font_glyph_count, METH_O, NULL},
