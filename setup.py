@@ -4,7 +4,13 @@ import sys, os, re
 DEFAULT = ["mupdf", "mupdf-third"]
 ARCH_LINUX = DEFAULT + ["jbig2dec", "openjp2", "jpeg", "freetype"]
 OPENSUSE = ARCH_LINUX + ["harfbuzz", "png16"]
-LIBRARIES = {"default": DEFAULT, "arch": ARCH_LINUX, "opensuse": OPENSUSE}
+FEDORA = ARCH_LINUX + ["harfbuzz"]
+LIBRARIES = {
+    "default": DEFAULT,
+    "arch": ARCH_LINUX,
+    "opensuse": OPENSUSE,
+    "fedora": FEDORA,
+}
 
 
 def load_libraries():

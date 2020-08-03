@@ -4307,11 +4307,11 @@ class Page(object):
         return _fitz.Page_setLanguage(self, language)
 
 
-    def getSVGimage(self, matrix=None):
+    def getSVGimage(self, matrix=None, text_as_path=1):
         """Make SVG image from page."""
         CheckParent(self)
 
-        return _fitz.Page_getSVGimage(self, matrix)
+        return _fitz.Page_getSVGimage(self, matrix, text_as_path)
 
 
     def _add_caret_annot(self, point):
@@ -6963,7 +6963,7 @@ class Tools(object):
         return _fitz.Tools_set_font_width(self, doc, xref, width)
 
     def _le_annot_parms(self, annot, p1, p2, fill_color):
-        """Get common parameters for making line end symbols.
+        """Get common parameters for making annot line end symbols.
 
         Returns:
             m: matrix that maps p1, p2 to points L, P on the x-axis

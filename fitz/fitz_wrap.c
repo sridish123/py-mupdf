@@ -9495,7 +9495,7 @@ SWIGINTERN PyObject *Page_setLanguage(struct Page *self,char *language){
             }
             Py_RETURN_TRUE;
         }
-SWIGINTERN PyObject *Page_getSVGimage(struct Page *self,PyObject *matrix){
+SWIGINTERN PyObject *Page_getSVGimage(struct Page *self,PyObject *matrix,int text_as_path){
             fz_rect mediabox = fz_bound_page(gctx, (fz_page *) self);
             fz_device *dev = NULL;
             fz_buffer *res = NULL;
@@ -9507,6 +9507,7 @@ SWIGINTERN PyObject *Page_getSVGimage(struct Page *self,PyObject *matrix){
             fz_var(dev);
             fz_var(res);
             fz_rect tbounds = mediabox;
+            int text_option = (text_as_path == 1) ? FZ_SVG_TEXT_AS_PATH : FZ_SVG_TEXT_AS_TEXT;
             tbounds = fz_transform_rect(tbounds, ctm);
 
             fz_try(gctx) {
@@ -9515,7 +9516,7 @@ SWIGINTERN PyObject *Page_getSVGimage(struct Page *self,PyObject *matrix){
                 dev = fz_new_svg_device(gctx, out,
                                         tbounds.x1-tbounds.x0,  // width
                                         tbounds.y1-tbounds.y0,  // height
-                                        FZ_SVG_TEXT_AS_PATH, 1);
+                                        text_option, 1);
                 fz_run_page(gctx, (fz_page *) self, dev, ctm, NULL);
                 fz_close_device(gctx, dev);
                 text = JM_EscapeStrFromBuffer(gctx, res);
@@ -12467,9 +12468,8 @@ SWIGINTERN PyObject *Tools_set_icc(struct Tools *self,int on){
                     if (FZ_ENABLE_ICC)
                         fz_enable_icc(gctx);
                     else
-                        THROWMSG("PyMuPDF generated without ICC components.");
-                }
-                else if (FZ_ENABLE_ICC) {
+                        THROWMSG("MuPDF generated without ICC suppot.");
+                } else if (FZ_ENABLE_ICC) {
                     fz_disable_icc(gctx);
                 }
             }
@@ -12479,8 +12479,7 @@ SWIGINTERN PyObject *Tools_set_icc(struct Tools *self,int on){
             return_none;
         }
 SWIGINTERN PyObject *Tools_store_shrink(struct Tools *self,int percent){
-            if (percent >= 100)
-            {
+            if (percent >= 100) {
                 fz_empty_store(gctx);
                 return Py_BuildValue("i", 0);
             }
@@ -12707,7 +12706,7 @@ SWIGINTERN float Tools__measure_string(struct Tools *self,char const *text,char 
             return w * fontsize;
         }
 SWIGINTERN PyObject *Tools__sine_between(struct Tools *self,PyObject *C,PyObject *P,PyObject *Q){
-            // calculate the sine between lines CP and QP
+            // for points C, P, Q compute the sine between lines CP and QP
             fz_point c = JM_point_from_py(C);
             fz_point p = JM_point_from_py(P);
             fz_point q = JM_point_from_py(Q);
@@ -12720,8 +12719,8 @@ SWIGINTERN PyObject *Tools__sine_between(struct Tools *self,PyObject *C,PyObject
             return Py_BuildValue("f", c.y);
         }
 SWIGINTERN PyObject *Tools__hor_matrix(struct Tools *self,PyObject *C,PyObject *P){
-            // calculate matrix m that maps the line from C to P to the x-axis,
-            // such that C * m = (0, 0), and the target line has same length.
+            // calculate matrix m that maps line CP to the x-axis,
+            // such that C * m = (0, 0), and target line has same length.
             fz_point c = JM_point_from_py(C);
             fz_point p = JM_point_from_py(P);
             fz_point s = fz_normalize_vector(fz_make_point(p.x - c.x, p.y - c.y));
@@ -15960,12 +15959,15 @@ SWIGINTERN PyObject *_wrap_Page_getSVGimage(PyObject *SWIGUNUSEDPARM(self), PyOb
   PyObject *resultobj = 0;
   struct Page *arg1 = (struct Page *) 0 ;
   PyObject *arg2 = (PyObject *) NULL ;
+  int arg3 = (int) 1 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  PyObject *swig_obj[2] ;
+  int val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Page_getSVGimage", 1, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Page_getSVGimage", 1, 3, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page_getSVGimage" "', argument " "1"" of type '" "struct Page *""'"); 
@@ -15974,8 +15976,15 @@ SWIGINTERN PyObject *_wrap_Page_getSVGimage(PyObject *SWIGUNUSEDPARM(self), PyOb
   if (swig_obj[1]) {
     arg2 = swig_obj[1];
   }
+  if (swig_obj[2]) {
+    ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
+    if (!SWIG_IsOK(ecode3)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Page_getSVGimage" "', argument " "3"" of type '" "int""'");
+    } 
+    arg3 = (int)(val3);
+  }
   {
-    result = (PyObject *)Page_getSVGimage(arg1,arg2);
+    result = (PyObject *)Page_getSVGimage(arg1,arg2,arg3);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
