@@ -5490,9 +5490,9 @@ PyObject *JM_merge_resources(fz_context *ctx, pdf_page *page, pdf_obj *temp_res)
     pdf_obj *temp_extg = pdf_dict_get(ctx, temp_res, PDF_NAME(ExtGState));
     pdf_obj *temp_fonts = pdf_dict_get(ctx, temp_res, PDF_NAME(Font));
 
-    int max_alp = 0, max_fonts = 0, i, n;
-    char start_str[32] = {0};  // string for comparison
-    char text[32] = {0};  // string for comparison
+
+    int max_alp = -1, max_fonts = -1, i, n;
+    char text[20];
 
     // Handle /Alp objects
     if (pdf_is_dict(ctx, temp_extg))  // any created at all?
@@ -5500,53 +5500,45 @@ PyObject *JM_merge_resources(fz_context *ctx, pdf_page *page, pdf_obj *temp_res)
         n = pdf_dict_len(ctx, temp_extg);
         if (pdf_is_dict(ctx, main_extg))  // does page have /ExtGState yet?
         {
-            for (i = 0; i < pdf_dict_len(ctx, main_extg); i++)
-            {   // get highest number of objects named /Alp?
+            for (i = 0; i < pdf_dict_len(ctx, main_extg); i++) {
+                // get highest number of objects named /Alpxxx
                 char *alp = (char *) pdf_to_name(ctx, pdf_dict_get_key(ctx, main_extg, i));
                 if (strncmp(alp, "Alp", 3) != 0) continue;
-                if (strcmp(start_str, alp) < 0) strcpy(start_str, alp);
-            }
-            while (strcmp(text, start_str) < 0)
-            {   // compute next available number
-                fz_snprintf(text, sizeof(text), "Alp%d", max_alp);
-                max_alp++;
+                int j = fz_atoi(alp + 3);
+                if (j > max_alp) max_alp = j;
             }
         }
         else  // create a /ExtGState for the page
             main_extg = pdf_dict_put_dict(ctx, resources, PDF_NAME(ExtGState), n);
 
+        max_alp += 1;
         for (i = 0; i < n; i++)  // copy over renumbered /Alp objects
         {
-            fz_snprintf(text, sizeof(text), "Alp%d", i + max_alp);  // new name
+            char *alp = (char *) pdf_to_name(ctx, pdf_dict_get_key(ctx, temp_extg, i));
+            int j = fz_atoi(alp + 3) + max_alp;
+            fz_snprintf(text, sizeof(text), "Alp%d", j);  // new name
             pdf_obj *val = pdf_dict_get_val(ctx, temp_extg, i);
             pdf_dict_puts(ctx, main_extg, text, val);
         }
     }
 
-    text[0] = 0;  // empty comparison string
-    start_str[0] = 0;  // empty comparison string
 
-    if (pdf_is_dict(ctx, main_fonts))  // has page any fonts yet?
-    {
-        for (i = 0; i < pdf_dict_len(ctx, main_fonts); i++)
-        {   // get highest number of fonts named /Fxxx
+    if (pdf_is_dict(ctx, main_fonts)) { // has page any fonts yet?
+        for (i = 0; i < pdf_dict_len(ctx, main_fonts); i++) { // get max font number
             char *font = (char *) pdf_to_name(ctx, pdf_dict_get_key(ctx, main_fonts, i));
             if (strncmp(font, "F", 1) != 0) continue;
-            if (strcmp(start_str, font) < 0 || strlen(start_str) < strlen(font))
-                strcpy(start_str, font);
-        }
-        while (strcmp(text, start_str) < 0)
-        {   // compute next available number
-            fz_snprintf(text, sizeof(text), "F%d", max_fonts);
-            max_fonts++;
+            int j = fz_atoi(font + 1);
+            if (j > max_fonts) max_fonts = j;
         }
     }
     else  // create a Resources/Font for the page
         main_fonts = pdf_dict_put_dict(ctx, resources, PDF_NAME(Font), 2);
 
-    for (i = 0; i < pdf_dict_len(ctx, temp_fonts); i++)
-    {   // copy over renumbered font objects
-        fz_snprintf(text, sizeof(text), "F%d", i + max_fonts);
+    max_fonts += 1;
+    for (i = 0; i < pdf_dict_len(ctx, temp_fonts); i++) { // copy renumbered fonts
+        char *font = (char *) pdf_to_name(ctx, pdf_dict_get_key(ctx, temp_fonts, i));
+        int j = fz_atoi(font + 1) + max_fonts;
+        fz_snprintf(text, sizeof(text), "F%d", j);
         pdf_obj *val = pdf_dict_get_val(ctx, temp_fonts, i);
         pdf_dict_puts(ctx, main_fonts, text, val);
     }
@@ -12304,7 +12296,7 @@ SWIGINTERN void delete_TextWriter(struct TextWriter *self){
             fz_drop_text(gctx, (fz_text *) self);
             DEBUGMSG2;
         }
-SWIGINTERN struct TextWriter *new_TextWriter(PyObject *page_rect,int opacity,PyObject *color){
+SWIGINTERN struct TextWriter *new_TextWriter(PyObject *page_rect,float opacity,PyObject *color){
             fz_text *text = NULL;
             fz_try(gctx) {
                 text = fz_new_text(gctx);
@@ -21608,9 +21600,9 @@ fail:
 SWIGINTERN PyObject *_wrap_new_TextWriter(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   PyObject *arg1 = (PyObject *) 0 ;
-  int arg2 = (int) 1 ;
+  float arg2 = (float) 1 ;
   PyObject *arg3 = (PyObject *) NULL ;
-  int val2 ;
+  float val2 ;
   int ecode2 = 0 ;
   PyObject *swig_obj[3] ;
   struct TextWriter *result = 0 ;
@@ -21618,11 +21610,11 @@ SWIGINTERN PyObject *_wrap_new_TextWriter(PyObject *SWIGUNUSEDPARM(self), PyObje
   if (!SWIG_Python_UnpackTuple(args, "new_TextWriter", 1, 3, swig_obj)) SWIG_fail;
   arg1 = swig_obj[0];
   if (swig_obj[1]) {
-    ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+    ecode2 = SWIG_AsVal_float(swig_obj[1], &val2);
     if (!SWIG_IsOK(ecode2)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "new_TextWriter" "', argument " "2"" of type '" "int""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "new_TextWriter" "', argument " "2"" of type '" "float""'");
     } 
-    arg2 = (int)(val2);
+    arg2 = (float)(val2);
   }
   if (swig_obj[2]) {
     arg3 = swig_obj[2];

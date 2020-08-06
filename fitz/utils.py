@@ -102,14 +102,12 @@ def showPDFpage(
             Transformation matrix.
         """
         # calc center point of source rect
-        smp = Point((sr.x1 + sr.x0) / 2.0, (sr.y1 + sr.y0) / 2.0)
+        smp = (sr.tl + sr.br) / 2.0
         # calc center point of target rect
-        tmp = Point((tr.x1 + tr.x0) / 2.0, (tr.y1 + tr.y0) / 2.0)
-
-        rot = Matrix(rotate)  # rotation matrix
+        tmp = (tr.tl + tr.br) / 2.0
 
         # m moves to (0, 0), then rotates
-        m = Matrix(1, 0, 0, 1, -smp.x, -smp.y) * rot
+        m = Matrix(1, 0, 0, 1, -smp.x, -smp.y) * Matrix(rotate)
 
         sr1 = sr * m  # resulting source rect to calculate scale factors
 
