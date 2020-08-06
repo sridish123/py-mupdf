@@ -79,10 +79,10 @@ string_types = (str, unicode) if fitz_py2 else (str,)
 try:
     from pymupdf_fonts import fontdescriptors
 
-    fitz_fontdescritors = fontdescriptors.copy()
+    fitz_fontdescriptors = fontdescriptors.copy()
     del fontdescriptors
 except ImportError:
-    fitz_fontdescritors = {}
+    fitz_fontdescriptors = {}
 
 
 VersionFitz = "1.17.0"
@@ -4918,7 +4918,7 @@ class Page(object):
             except:
                 pass
 
-        if fontname.lower() in fitz_fontdescritors.keys():
+        if fontname.lower() in fitz_fontdescriptors.keys():
     # one of the extra fonts
             import pymupdf_fonts
             fontbuffer = pymupdf_fonts.myfont(fontname)  # make a copy
@@ -6642,7 +6642,7 @@ class Font(object):
             except ValueError:
                 ordering = -1
 
-            if fontname.lower() in fitz_fontdescritors.keys():
+            if fontname.lower() in fitz_fontdescriptors.keys():
                 import pymupdf_fonts  # optional fonts
                 fontbuffer = pymupdf_fonts.myfont(fontname)  # make a copy
                 fontname = None  # ensure using fontbuffer only
