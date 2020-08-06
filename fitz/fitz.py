@@ -6565,7 +6565,7 @@ class TextWriter(object):
                 or type(morph[1]) is not Matrix
                 ):
                 raise ValueError("morph must be (Point, Matrix) or None")
-        if getattr(opacity, "__float__", None) is None:
+        if getattr(opacity, "__float__", None) is None or opacity == -1:
             opacity = self.opacity
         if color is None:
             color = self.color
