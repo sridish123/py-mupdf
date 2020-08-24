@@ -86,9 +86,9 @@ except ImportError:
 
 
 VersionFitz = "1.17.0"
-VersionBind = "1.17.5"
-VersionDate = "2020-08-06 06:31:06"
-version = (VersionBind, VersionFitz, "20200806063106")
+VersionBind = "1.17.6"
+VersionDate = "2020-08-18 19:52:25"
+version = (VersionBind, VersionFitz, "20200818195225")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -4237,7 +4237,7 @@ class Page(object):
         """Get rectangle occupied by image 'name'.
 
         'name' is either an item of the image full list, or the referencing
-        name string."""
+        name string - elem[7] of the resp. item."""
         CheckParent(self)
         doc = self.parent
         if doc.isClosed or doc.isEncrypted:
@@ -4278,7 +4278,11 @@ class Page(object):
 
 
     def _get_text_page(self, flags=0):
-        return _fitz.Page__get_text_page(self, flags)
+        val = _fitz.Page__get_text_page(self, flags)
+        val.thisown = True
+
+        return val
+
 
     def getTextPage(self, flags=0):
         CheckParent(self)
@@ -4690,7 +4694,10 @@ class Page(object):
         CheckParent(self)
 
 
-        return _fitz.Page_getDisplayList(self, annots)
+        val = _fitz.Page_getDisplayList(self, annots)
+        val.thisown = True
+
+        return val
 
 
     def _apply_redactions(self):
@@ -4855,11 +4862,11 @@ class Page(object):
     def _getLinkXrefs(self):
         return _fitz.Page__getLinkXrefs(self)
 
-    def _cleanContents(self):
+    def _cleanContents(self, sanitize=0):
         """Clean page /Contents object(s)."""
         CheckParent(self)
 
-        return _fitz.Page__cleanContents(self)
+        return _fitz.Page__cleanContents(self, sanitize)
 
 
     def _showPDFpage(self, fz_srcpage, overlay=1, matrix=None, xref=0, clip=None, graftmap=None, _imgname=None):
@@ -5107,8 +5114,8 @@ class Page(object):
     def MediaBoxSize(self):
         return Point(self.MediaBox.width, self.MediaBox.height)
 
-    def cleanContents(self):
-        self._cleanContents()
+    def cleanContents(self, sanitize=True):
+        self._cleanContents(sanitize)
 
     getContents = _getContents
 
@@ -6117,11 +6124,11 @@ class Annot(object):
         return _fitz.Annot_flags(self)
 
 
-    def _cleanContents(self):
+    def _cleanContents(self, sanitize=0):
         """Clean appearance contents object."""
         CheckParent(self)
 
-        return _fitz.Annot__cleanContents(self)
+        return _fitz.Annot__cleanContents(self, sanitize)
 
 
     def setFlags(self, flags):
@@ -6335,6 +6342,9 @@ class DisplayList(object):
 
     def __init__(self, mediabox):
         _fitz.DisplayList_swiginit(self, _fitz.new_DisplayList(mediabox))
+        self.thisown = True
+
+
 
     def run(self, dw, m, area):
         return _fitz.DisplayList_run(self, dw, m, area)
@@ -6347,15 +6357,25 @@ class DisplayList(object):
         return val
 
 
-    def getPixmap(self, matrix=None, colorspace=None, alpha=1, clip=None):
-        return _fitz.DisplayList_getPixmap(self, matrix, colorspace, alpha, clip)
+    def getPixmap(self, matrix=None, colorspace=None, alpha=0, clip=None):
+        val = _fitz.DisplayList_getPixmap(self, matrix, colorspace, alpha, clip)
+        val.thisown = True
+
+        return val
+
 
     def getTextPage(self, flags=3):
-        return _fitz.DisplayList_getTextPage(self, flags)
+        val = _fitz.DisplayList_getTextPage(self, flags)
+        val.thisown = True
+
+        return val
+
 
     def __del__(self):
         if not type(self) is DisplayList: return
-        self.__swig_destroy__(self)
+        if getattr(self, "thisown", False):
+            self.__swig_destroy__(self)
+        self.thisown = False
 
 
 # Register DisplayList in _fitz:
@@ -6368,6 +6388,9 @@ class TextPage(object):
 
     def __init__(self, mediabox):
         _fitz.TextPage_swiginit(self, _fitz.new_TextPage(mediabox))
+        self.thisown = True
+
+
 
     def search(self, needle, hit_max=16, quads=1):
         """Locate up to 'hit_max' 'needle' occurrences returning rects or quads."""
@@ -6468,7 +6491,9 @@ class TextPage(object):
 
     def __del__(self):
         if not type(self) is TextPage: return
-        self.__swig_destroy__(self)
+        if getattr(self, "thisown", False):
+            self.__swig_destroy__(self)
+        self.thisown = False
 
 
 # Register TextPage in _fitz:
@@ -6515,7 +6540,7 @@ class TextWriter(object):
 
 
 
-    def append(self, pos, text, font=None, fontsize=11, language=None, wmode=0, bidi_level=0):
+    def append(self, pos, text, font=None, fontsize=11, language=None, wmode=0, bidi_level=0, markup_dir=0):
 
         """Store 'text' at point 'pos' using 'font' and 'fontsize'."""
 
@@ -6523,7 +6548,7 @@ class TextWriter(object):
         if font is None:
             font = Font("helv")
 
-        val = _fitz.TextWriter_append(self, pos, text, font, fontsize, language, wmode, bidi_level)
+        val = _fitz.TextWriter_append(self, pos, text, font, fontsize, language, wmode, bidi_level, markup_dir)
 
         self.lastPoint = Point(val[-2:]) * self.ctm
         self.textRect = self._bbox * self.ctm
@@ -6579,6 +6604,10 @@ class TextWriter(object):
         old_cont_lines = content.splitlines()
 
         new_cont_lines = ["q"]
+
+        cb = page.CropBoxPosition
+        if bool(cb):
+            new_cont_lines.append("1 0 0 1 %g %g cm" % (cb.x, cb.y))
 
         if morph:
             p = morph[0] * self.ictm
@@ -6710,6 +6739,10 @@ class Font(object):
 
     def glyph_count(self):
         return _fitz.Font_glyph_count(self)
+    @property
+
+    def buffer(self):
+        return _fitz.Font_buffer(self)
     @property
 
     def bbox(self):
