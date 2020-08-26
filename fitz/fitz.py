@@ -87,8 +87,8 @@ except ImportError:
 
 VersionFitz = "1.17.0"
 VersionBind = "1.17.6"
-VersionDate = "2020-08-18 19:52:25"
-version = (VersionBind, VersionFitz, "20200818195225")
+VersionDate = "2020-08-26 14:54:32"
+version = (VersionBind, VersionFitz, "20200826145432")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -5115,6 +5115,8 @@ class Page(object):
         return Point(self.MediaBox.width, self.MediaBox.height)
 
     def cleanContents(self, sanitize=True):
+        if not sanitize and not self._isWrapped:
+            self.wrapContents()
         self._cleanContents(sanitize)
 
     getContents = _getContents

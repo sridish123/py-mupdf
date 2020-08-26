@@ -2,7 +2,7 @@
 
 ![logo](https://github.com/pymupdf/PyMuPDF/blob/master/demo/pymupdf.jpg)
 
-Release date: August 6, 2020
+Release date: August 26, 2020
 
 **Travis-CI:** [![Build Status](https://travis-ci.org/JorjMcKie/py-mupdf.svg?branch=master)](https://travis-ci.org/JorjMcKie/py-mupdf)
 
@@ -35,6 +35,7 @@ For all supported document types (i.e. **_including images_**) you can
 **PDF documents** can be created, joined or split up. Pages can be inserted, deleted, re-arranged or modified in many ways (including annotations and form fields).
 
 * Images and fonts can be extracted or inserted.
+    > You may want to have a look at [this](https://github.com/pymupdf/PyMuPDF-Utilities/blob/master/examples/image-maintenance.py) cool new GUI example script, which lets you insert, delete, replace or re-position images under your visual control.
 * Embedded files are fully supported.
 * PDFs can be reformatted to support double-sided printing, posterizing, applying logos or watermarks
 * Password protection is fully supported: decryption, encryption, encryption method selection, permmission level and user / owner password setting.
@@ -70,8 +71,8 @@ To do this, you must download and generate MuPDF. This process depends very much
 
 * This repo's `fitz` folder contains one or more files whose names start with a single underscore `"_"`. These files contain configuration data and hotfixes. Each one must be copy-renamed to its correct target location **inside the MuPDF source** that you have downloaded, **before you generate MuPDF**. Currently, these files are:
   - fitz configuration file `_config.h` copy-replace to: `mupdf/include/mupdf/fitz/config.h`. It contains configuration data like e.g. which fonts to support.
-  - font support file `_pdf-font-add.c` copy-replace to: `mupdf/include/mupdf/pdf/pdf-font-add.c`.
-  - fax compression file `_encode-fax.c` copy-replace to: `mupdf/include/mupdf/fitz/encode-fax.c`.
+  - font support file `_pdf-font-add.c` copy-replace to: `mupdf/source/pdf/pdf-font-add.c`.
+  - fax compression file `_encode-fax.c` copy-replace to: `mupdf/source/fitz/encode-fax.c`.
 
   - Now MuPDF can be generated.
 
