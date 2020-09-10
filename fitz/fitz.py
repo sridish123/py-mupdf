@@ -86,9 +86,9 @@ except ImportError:
 
 
 VersionFitz = "1.17.0"
-VersionBind = "1.17.6"
-VersionDate = "2020-08-26 14:54:32"
-version = (VersionBind, VersionFitz, "20200826145432")
+VersionBind = "1.17.7"
+VersionDate = "2020-09-10 08:49:01"
+version = (VersionBind, VersionFitz, "20200910084901")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -1657,48 +1657,6 @@ annot_skel = {
     "uri": "<</A<</S/URI/URI(%s)>>/Rect[%s]/BS<</W 0>>/Subtype/Link>>",
     "named": "<</A<</S/Named/N/%s/Type/Action>>/Rect[%s]/BS<</W 0>>/Subtype/Link>>",
 }
-
-
-def _toc_remove_page(toc, first, last):
-    """ Remove all ToC entries pointing to certain pages.
-
-    Args:
-        toc: old table of contents generated with getToC(False).
-        first: (int) number of first page to remove.
-        last: (int) number of last page to remove.
-    Returns:
-        Modified table of contents, which should be used by PDF
-        document method setToC.
-    """
-    toc2 = []  # intermediate new toc
-    count = last - first + 1  # number of pages to remove
-# step 1: remove numbers from toc
-    for t in toc:
-        if first <= t[2] <= last:  # skip entries between first and last
-            continue
-        if t[2] < first:  # keep smaller page numbers
-            toc2.append(t)
-            continue
-# larger page numbers
-        t[2] -= count  # decrease page number
-        d = t[3]
-        if d["kind"] == LINK_GOTO:
-            d["page"] -= count
-            t[3] = d
-        toc2.append(t)
-
-    toc3 = []  # final new toc
-    old_lvl = 0
-
-# step 2: deal with hierarchy lvl gaps > 1
-    for t in toc2:
-        while t[0] - old_lvl > 1:  # lvl gap too large
-            old_lvl += 1  # increase previous lvl
-            toc3.append([old_lvl] + t[1:])  # insert a filler item
-        old_lvl = t[0]
-        toc3.append(t)
-
-    return toc3
 
 
 def getTextlength(text, fontname="helv", fontsize=11, encoding=0):
@@ -3565,7 +3523,7 @@ class Document(object):
         return _fitz.Document_write(self, garbage, clean, deflate, ascii, expand, linear, pretty, encryption, permissions, owner_pw, user_pw)
 
 
-    def insertPDF(self, docsrc, from_page=-1, to_page=-1, start_at=-1, rotate=-1, links=1, annots=1):
+    def insertPDF(self, docsrc, from_page=-1, to_page=-1, start_at=-1, rotate=-1, links=1, annots=1, show_progress=0):
 
         """Insert a page range from another PDF.
 
@@ -3586,8 +3544,17 @@ class Document(object):
         sa = start_at
         if sa < 0:
             sa = self.pageCount
+        if len(docsrc) > show_progress > 0:
+            inname = os.path.basename(docsrc.name)
+            if not inname:
+                inname = "memory PDF"
+            outname = os.path.basename(self.name)
+            if not outname:
+                outname = "memory PDF"
+            print("Inserting '%s' at '%s'" % (inname, outname))
 
-        val = _fitz.Document_insertPDF(self, docsrc, from_page, to_page, start_at, rotate, links, annots)
+
+        val = _fitz.Document_insertPDF(self, docsrc, from_page, to_page, start_at, rotate, links, annots, show_progress)
 
         self._reset_page_refs()
         if links:
@@ -3656,6 +3623,17 @@ class Document(object):
         return _fitz.Document__getPageObjNumber(self, pno)
 
 
+    def pageCropBox(self, pno):
+        """Get CropBox of page number (without loading page)."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        val = _fitz.Document_pageCropBox(self, pno)
+        val = Rect(val)
+
+        return val
+
+
     def _getPageInfo(self, pno, what):
         """List fonts, images, XObjects used on a page."""
         if self.isClosed or self.isEncrypted:
@@ -3689,6 +3667,14 @@ class Document(object):
         self.initData()
 
         return val
+
+
+    def outlineXref(self, index):
+        """Get outline xref by index."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_outlineXref(self, index)
 
 
     def isStream(self, xref=0):
@@ -3870,6 +3856,12 @@ class Document(object):
         return val
 
 
+    def _remove_toc_item(self, xref):
+        return _fitz.Document__remove_toc_item(self, xref)
+
+    def _update_toc_item(self, xref, action=None, title=None):
+        return _fitz.Document__update_toc_item(self, xref, action, title)
+
     def initData(self):
         if self.isEncrypted:
             raise ValueError("cannot initData - document still encrypted")
@@ -3879,6 +3871,12 @@ class Document(object):
 
     outline = property(lambda self: self._outline)
     _getPageXref = _getPageObjNumber
+
+
+    def pageXref(self, pno):
+        """Return the xref of page number pno."""
+        return self._getPageObjNumber(pno)[0]
+
 
     def getPageFontList(self, pno, full=False):
         """Retrieve a list of fonts used on a page.
@@ -3965,7 +3963,7 @@ class Document(object):
 
         return self._move_copy_page(pno, to, before, copy)
 
-    def deletePage(self, pno = -1):
+    def deletePage(self, pno=-1):
         """ Delete one page from a PDF.
         """
         if not self.isPDF:
@@ -3980,13 +3978,15 @@ class Document(object):
         if not pno in range(pageCount):
             raise ValueError("bad page number(s)")
 
-        old_toc = self.getToC(False)
-        new_toc = _toc_remove_page(old_toc, pno+1, pno+1)
+    # remove TOC bookmarks pointing to deleted page
+        old_toc = self.getToC()
+        for i, item in enumerate(old_toc):
+            if item[2] == pno + 1:
+                xref = self.outlineXref(i)
+                self._remove_toc_item(xref)
+
         self._remove_links_to(pno, pno)
-
         self._deletePage(pno)
-
-        self.setToC(new_toc)
         self._reset_page_refs()
 
 
@@ -4009,14 +4009,17 @@ class Document(object):
         if not f <= t < pageCount:
             raise ValueError("bad page number(s)")
 
-        old_toc = self.getToC(False)
-        new_toc = _toc_remove_page(old_toc, f+1, t+1)
+        old_toc = self.getToC()
+        for i, item in enumerate(old_toc):
+            if f + 1 <= item[2] <= t + 1:
+                xref = self.outlineXref(i)
+                self._remove_toc_item(xref)
+
         self._remove_links_to(f, t)
 
         for i in range(t, f - 1, -1):  # delete pages, last to first
             self._deletePage(i)
 
-        self.setToC(new_toc)
         self._reset_page_refs()
 
 
@@ -5300,6 +5303,12 @@ class Pixmap(object):
         """Set color of pixel (x, y)."""
 
         return _fitz.Pixmap_setPixel(self, x, y, color)
+
+
+    def setOrigin(self, x, y):
+        """Set top-left coordinates."""
+
+        return _fitz.Pixmap_setOrigin(self, x, y)
 
 
     def setResolution(self, xres, yres):

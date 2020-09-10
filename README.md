@@ -1,8 +1,8 @@
-# PyMuPDF 1.17.6
+# PyMuPDF 1.17.7
 
 ![logo](https://github.com/pymupdf/PyMuPDF/blob/master/demo/pymupdf.jpg)
 
-Release date: August 26, 2020
+Release date: September 15, 2020
 
 **Travis-CI:** [![Build Status](https://travis-ci.org/JorjMcKie/py-mupdf.svg?branch=master)](https://travis-ci.org/JorjMcKie/py-mupdf)
 
@@ -14,7 +14,7 @@ On **[PyPI](https://pypi.org/project/PyMuPDF)** since August 2016: [![](https://
 
 # Introduction
 
-This is **version 1.17.6 of PyMuPDF**, a Python binding with support for [MuPDF 1.17.*](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
+This is **version 1.17.7 of PyMuPDF**, a Python binding with support for [MuPDF 1.17.*](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
 
 MuPDF can access files in PDF, XPS, OpenXPS, CBZ, EPUB and FB2 (e-books) formats, and it is known for its top performance and high rendering quality.
 
@@ -73,6 +73,8 @@ To do this, you must download and generate MuPDF. This process depends very much
   - fitz configuration file `_config.h` copy-replace to: `mupdf/include/mupdf/fitz/config.h`. It contains configuration data like e.g. which fonts to support.
   - font support file `_pdf-font-add.c` copy-replace to: `mupdf/source/pdf/pdf-font-add.c`.
   - fax compression file `_encode-fax.c` copy-replace to: `mupdf/source/fitz/encode-fax.c`.
+  - PDF cleaning file `_pdf_clean.c` copy-replace to: `mupdf/source/pdf/pdf_clean.c`.
+  - PDF page header `_pdf_page.h` copy-replace to: `mupdf/include/mupdf/pdf/page.h`.
 
   - Now MuPDF can be generated.
 

@@ -33,7 +33,7 @@ def writeText(
         rotate: arbitrary rotation angle.
     """
     if not writers:
-        raise ValueError("specify at least one TextWriter")
+        raise ValueError("need at least one TextWriter")
     if type(writers) is TextWriter:
         if rotate == 0 and rect is None:
             writers.writeText(page, opacity=opacity, color=color, overlay=overlay)
@@ -286,7 +286,7 @@ def insertImage(
     if rotate not in (0, 90, 180, 270):
         raise ValueError("bad rotate value")
 
-    r = rect
+    r = Rect(rect)
     if r.isEmpty or r.isInfinite:
         raise ValueError("rect must be finite and not empty")
 
@@ -661,6 +661,98 @@ def getToC(doc, simple=True):
     return recurse(olItem, liste, lvl)
 
 
+def delTOC_item(doc, idx):
+    """Delete TOC / bookmark item by index."""
+    toc = doc.getTOC()
+    xref = doc.outlineXref(idx)
+    if xref == 0:
+        raise ValueError("bad TOC item number")
+    doc._remove_toc_item(xref)
+
+
+def setTOC_item(
+    doc,
+    idx,
+    dest_dict=None,
+    kind=None,
+    pno=None,
+    uri=None,
+    title=None,
+    to=None,
+    filename=None,
+    zoom=0,
+):
+    """Update TOC item by index.
+    
+    It allows changing the item's title and link destination.
+
+    Args:
+        idx: (int) desired index of the TOC list, as created by getTOC.
+        dest_dict: (dict) destination dictionary as created by getTOC(False).
+            Outrules all other parameters. If None, the remaining parameters
+            are used to make a dest dictionary.
+        kind: (int) kind of link (LINK_GOTO, etc.). If None, then only the
+            title will be updated. If LINK_NONE, the TOC item will be deleted.
+        pno: (int) page number (1-based like in getTOC). Required if LINK_GOTO.
+        uri: (str) the URL, required if LINK_URI.
+        title: (str) the new title. No change if None.
+        to: (point-like) destination on the target page. If omitted, (72, 36)
+            will be used as taget coordinates.
+        filename: (str) destination filename, required for LINK_GOTOR and
+            LINK_LAUNCH.
+        name: (str) a destination name for LINK_NAMED.
+        zoom: (float) a zoom factor for the target location (LINK_GOTO).
+    """
+    xref = doc.outlineXref(idx)
+    if xref == 0:
+        raise ValueError("bad TOC item number")
+    page_xref = 0
+    if type(dest_dict) is dict:
+        if dest_dict["kind"] == LINK_GOTO:
+            pno = dest_dict["page"]
+            page_xref = doc.pageXref(pno)
+            page_height = doc.pageCropBox(pno).height
+            to = dest_dict.get(to, Point(72, 36))
+            to.y = page_height - to.y
+            dest_dict["to"] = to
+        action = getDestStr(page_xref, dest_dict)
+        if not action.startswith("/A"):
+            raise ValueError("bad bookmark dest")
+        return doc._update_toc_item(xref, action=action[2:], title=title)
+
+    if kind == LINK_NONE:  # delete bookmark item
+        return doc.delTOC_item(idx)
+    if kind is None and title is None:  # treat as no-op
+        return None
+    if kind is None:  # only update title text
+        return doc._update_toc_item(xref, action=None, title=title)
+
+    if kind == LINK_GOTO:
+        if pno is None or pno not in range(1, doc.pageCount + 1):
+            raise ValueError("bad page number")
+        page_xref = doc.pageXref(pno - 1)
+        page_height = doc.pageCropBox(pno - 1).height
+        if to is None:
+            to = Point(72, page_height - 38)
+        else:
+            to = Point(to)
+            to.y = page_height - to.y
+
+    ddict = {
+        "kind": kind,
+        "to": to,
+        "uri": uri,
+        "page": pno,
+        "file": filename,
+        "zoom": zoom,
+    }
+    action = getDestStr(page_xref, ddict)
+    if action == "" or not action.startswith("/A"):
+        raise ValueError("bad bookmark dest")
+
+    return doc._update_toc_item(xref, action=action[2:], title=title)
+
+
 def getRectArea(*args):
     """Calculate area of rectangle.\nparameter is one of 'px' (default), 'in', 'cm', or 'mm'."""
     rect = args[0]
@@ -840,21 +932,22 @@ def setToC(doc, toc, collapse=1):
         lvl = o[0]  # level
         title = getPDFstr(o[1])  # title
         pno = min(doc.pageCount - 1, max(0, o[2] - 1))  # page number
-        page = doc[pno]  # load the page
-        ictm = ~page.transformationMatrix  # get inverse transformation matrix
-        top = Point(72, 36) * ictm  # default top location
+        page_xref = doc.pageXref(pno)
+        page_height = doc.pageCropBox(pno).height
+        top = Point(72, page_height - 36)
         dest_dict = {"to": top, "kind": LINK_GOTO}  # fall back target
         if o[2] < 0:
             dest_dict["kind"] = LINK_NONE
         if len(o) > 3:  # some target is specified
             if type(o[3]) in (int, float):  # convert a number to a point
-                dest_dict["to"] = Point(72, o[3]) * ictm
+                dest_dict["to"] = Point(72, page_height - o[3])
             else:  # if something else, make sure we have a dict
                 dest_dict = o[3] if type(o[3]) is dict else dest_dict
                 if "to" not in dest_dict:  # target point not in dict?
                     dest_dict["to"] = top  # put default in
                 else:  # transform target to PDF coordinates
-                    point = dest_dict["to"] * ictm
+                    point = +dest_dict["to"]
+                    point.y = page_height - point.y
                     dest_dict["to"] = point
         d = {}
         d["first"] = -1
@@ -862,7 +955,7 @@ def setToC(doc, toc, collapse=1):
         d["last"] = -1
         d["prev"] = -1
         d["next"] = -1
-        d["dest"] = getDestStr(page.xref, dest_dict)
+        d["dest"] = getDestStr(page_xref, dest_dict)
         d["top"] = dest_dict["to"]
         d["title"] = title
         d["parent"] = lvltab[lvl - 1]
@@ -3407,7 +3500,7 @@ def scrub(
 
         found_redacts = False
         for annot in page.annots():
-            if annot.type[0] == PDF_ANNOT_FILEATTACHMENT and attached_files:
+            if annot.type[0] == PDF_ANNOT_FILE_ATTACHMENT and attached_files:
                 annot.fileUpd(buffer=b"")  # set file content to empty
             if reset_responses:
                 annot.delete_responses()

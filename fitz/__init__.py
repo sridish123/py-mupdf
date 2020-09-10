@@ -31,11 +31,15 @@ import fitz.utils
 # ------------------------------------------------------------------------------
 fitz.open = fitz.Document
 fitz.Document.getToC = fitz.utils.getToC
+fitz.Document.getTOC = fitz.utils.getToC
+fitz.Document.setToC = fitz.utils.setToC
+fitz.Document.setTOC = fitz.utils.setToC
+fitz.Document.setTOC_item = fitz.utils.setTOC_item
+fitz.Document.delTOC_item = fitz.utils.delTOC_item
 fitz.Document._do_links = fitz.utils.do_links
 fitz.Document.getPagePixmap = fitz.utils.getPagePixmap
 fitz.Document.getPageText = fitz.utils.getPageText
 fitz.Document.setMetadata = fitz.utils.setMetadata
-fitz.Document.setToC = fitz.utils.setToC
 fitz.Document.searchPageFor = fitz.utils.searchPageFor
 fitz.Document.newPage = fitz.utils.newPage
 fitz.Document.insertPage = fitz.utils.insertPage

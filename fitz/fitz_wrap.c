@@ -3929,20 +3929,32 @@ page_merge(fz_context *ctx, pdf_document *doc_des, pdf_document *doc_src, int pa
 // location (apage) of the target PDF.
 // If spage > epage, the sequence of source pages is reversed.
 //-----------------------------------------------------------------------------
-void JM_merge_range(fz_context *ctx, pdf_document *doc_des, pdf_document *doc_src, int spage, int epage, int apage, int rotate, int links, int annots)
+void JM_merge_range(fz_context *ctx, pdf_document *doc_des, pdf_document *doc_src, int spage, int epage, int apage, int rotate, int links, int annots, int show_progress)
 {
     int page, afterpage;
     pdf_graft_map *graft_map;
     afterpage = apage;
     graft_map = pdf_new_graft_map(ctx, doc_des);
+    int counter = 0;  // copied page counter
+    int total = fz_absi(epage - spage) + 1;  // total pages to copy
 
     fz_try(ctx) {
         if (spage < epage) {
-            for (page = spage; page <= epage; page++, afterpage++)
+            for (page = spage; page <= epage; page++, afterpage++) {
                 page_merge(ctx, doc_des, doc_src, page, afterpage, rotate, links, annots, graft_map);
+                counter ++;
+                if (show_progress > 0 && counter % show_progress == 0) {
+                    PySys_WriteStdout("Inserted %i of %i pages.\n", counter, total);
+                }
+            }
         } else {
-            for (page = spage; page >= epage; page--, afterpage++)
+            for (page = spage; page >= epage; page--, afterpage++) {
                 page_merge(ctx, doc_des, doc_src, page, afterpage, rotate, links, annots, graft_map);
+                counter ++;
+                if (show_progress > 0 && counter % show_progress == 0) {
+                    PySys_WriteStdout("Inserted %i of %i pages.\n", counter, total);
+                }
+            }
         }
     }
 
@@ -3973,6 +3985,49 @@ PyObject *JM_outline_xrefs(fz_context *ctx, pdf_obj *obj, PyObject *xrefs)
         if (!thisobj) thisobj = parent;  // goto parent if no next exists
     }
     return xrefs;
+}
+
+//----------------------------------------------------------------------------
+// Return xref of n-th outline entry
+// 'obj' first OL item
+// n entry number, 0 on invocation
+//----------------------------------------------------------------------------
+int JM_outline_xref(fz_context *ctx, pdf_obj *obj, int search)
+{
+    pdf_obj *first, *parent, *thisobj, *next;
+    if (!obj) return 0;
+    parent = thisobj = obj;
+    int n = 0;
+    while (thisobj) {
+        if (n > search) return 0;
+        if (n == search) {
+            return pdf_to_num(ctx, thisobj);
+        }
+        first = pdf_dict_get(ctx, thisobj, PDF_NAME(First));
+        if (first) {
+            parent = thisobj;
+            thisobj = first;
+            n++;
+            continue;
+        }
+        next = pdf_dict_get(ctx, thisobj, PDF_NAME(Next));
+        if (next) {
+            thisobj = next;
+            n++;
+            continue;
+        }
+        parent = pdf_dict_get(ctx, thisobj, PDF_NAME(Parent));
+        repeat:;
+        thisobj = pdf_dict_get(ctx, parent, PDF_NAME(Next));
+        if (thisobj) {
+            n++;
+            continue;
+        }
+        parent = pdf_dict_get(ctx, parent, PDF_NAME(Parent));
+        if (!parent) break;
+        goto repeat;
+    }
+    return 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -4142,11 +4197,11 @@ int JM_page_rotation(fz_context *ctx, pdf_page *page)
 //----------------------------------------------------------------------------
 // return a PDF page's MediaBox
 //----------------------------------------------------------------------------
-fz_rect JM_mediabox(fz_context *ctx, pdf_page *page)
+fz_rect JM_mediabox(fz_context *ctx, pdf_obj *page_obj)
 {
     fz_rect mediabox, page_mediabox;
 
-    mediabox = pdf_to_rect(ctx, pdf_dict_get_inheritable(ctx, page->obj,
+    mediabox = pdf_to_rect(ctx, pdf_dict_get_inheritable(ctx, page_obj,
         PDF_NAME(MediaBox)));
     if (fz_is_empty_rect(mediabox) || fz_is_infinite_rect(mediabox))
     {
@@ -4172,11 +4227,11 @@ fz_rect JM_mediabox(fz_context *ctx, pdf_page *page)
 //----------------------------------------------------------------------------
 // return a PDF page's CropBox
 //----------------------------------------------------------------------------
-fz_rect JM_cropbox(fz_context *ctx, pdf_page *page)
+fz_rect JM_cropbox(fz_context *ctx, pdf_obj *page_obj)
 {
-    fz_rect mediabox = JM_mediabox(ctx, page);
+    fz_rect mediabox = JM_mediabox(ctx, page_obj);
     fz_rect cropbox = pdf_to_rect(ctx,
-                pdf_dict_get_inheritable(ctx, page->obj, PDF_NAME(CropBox)));
+                pdf_dict_get_inheritable(ctx, page_obj, PDF_NAME(CropBox)));
     if (fz_is_infinite_rect(cropbox) || fz_is_empty_rect(cropbox))
         return mediabox;
     float y0 = mediabox.y1 - cropbox.y1;
@@ -4190,12 +4245,12 @@ fz_rect JM_cropbox(fz_context *ctx, pdf_page *page)
 //----------------------------------------------------------------------------
 // calculate width and height of the UNROTATED page
 //----------------------------------------------------------------------------
-fz_point JM_cropbox_size(fz_context *ctx, pdf_page *page)
+fz_point JM_cropbox_size(fz_context *ctx, pdf_obj *page_obj)
 {
     fz_point size;
     fz_try(ctx)
     {
-        fz_rect rect = JM_cropbox(ctx, page);
+        fz_rect rect = JM_cropbox(ctx, page_obj);
         float w = (rect.x0 < rect.x1 ? rect.x1 - rect.x0 : rect.x0 - rect.x1);
         float h = (rect.y0 < rect.y1 ? rect.y1 - rect.y0 : rect.y0 - rect.y1);
         size = fz_make_point(w, h);
@@ -4214,7 +4269,7 @@ fz_matrix JM_rotate_page_matrix(fz_context *ctx, pdf_page *page)
     int rotation = JM_page_rotation(ctx, page);
     if (rotation == 0) return fz_identity;  // no rotation
     fz_matrix m;
-    fz_point cb_size = JM_cropbox_size(ctx, page);
+    fz_point cb_size = JM_cropbox_size(ctx, page->obj);
     float w = cb_size.x;
     float h = cb_size.y;
     if (rotation == 90)
@@ -8483,7 +8538,7 @@ SWIGINTERN PyObject *Document_write(struct Document *self,int garbage,int clean,
             }
             return r;
         }
-SWIGINTERN PyObject *Document_insertPDF(struct Document *self,struct Document *docsrc,int from_page,int to_page,int start_at,int rotate,int links,int annots){
+SWIGINTERN PyObject *Document_insertPDF(struct Document *self,struct Document *docsrc,int from_page,int to_page,int start_at,int rotate,int links,int annots,int show_progress){
             fz_document *doc = (fz_document *) self;
             pdf_document *pdfout = pdf_specifics(gctx, doc);
             pdf_document *pdfsrc = pdf_specifics(gctx, (fz_document *) docsrc);
@@ -8505,7 +8560,7 @@ SWIGINTERN PyObject *Document_insertPDF(struct Document *self,struct Document *d
 
             fz_try(gctx) {
                 if (!pdfout || !pdfsrc) THROWMSG("source or target not a PDF");
-                JM_merge_range(gctx, pdfout, pdfsrc, fp, tp, sa, rotate, links, annots);
+                JM_merge_range(gctx, pdfout, pdfsrc, fp, tp, sa, rotate, links, annots, show_progress);
             }
             fz_catch(gctx) {
                 return NULL;
@@ -8678,6 +8733,26 @@ SWIGINTERN PyObject *Document__getPageObjNumber(struct Document *self,int pno){
             return Py_BuildValue("ii", pdf_to_num(gctx, pageref),
                                        pdf_to_gen(gctx, pageref));
         }
+SWIGINTERN PyObject *Document_pageCropBox(struct Document *self,int pno){
+            fz_document *this_doc = (fz_document *) self;
+            int pageCount = fz_count_pages(gctx, this_doc);
+            int n = pno;
+            while (n < 0) n += pageCount;
+            pdf_obj *pageref = NULL;
+            fz_var(pageref);
+            pdf_document *pdf = pdf_specifics(gctx, this_doc);
+            fz_try(gctx) {
+                if (n >= pageCount) THROWMSG("bad page number(s)");
+                ASSERT_PDF(pdf);
+                pageref = pdf_lookup_page_obj(gctx, pdf, n);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+
+            fz_rect cropbox = JM_cropbox(gctx, pageref);
+            return JM_py_from_rect(cropbox);
+        }
 SWIGINTERN PyObject *Document__getPageInfo(struct Document *self,int pno,int what){
             fz_document *doc = (fz_document *) self;
             pdf_document *pdf = pdf_specifics(gctx, doc);
@@ -8771,6 +8846,7 @@ SWIGINTERN PyObject *Document_extractImage(struct Document *self,int xref){
             const char *cs_name = NULL;
             int img_type, xres, yres, colorspace;
             int smask = 0, width, height, bpc;
+            fz_compressed_buffer *cbuf = NULL;
             fz_var(img);
             fz_var(res);
             fz_var(obj);
@@ -8784,7 +8860,7 @@ SWIGINTERN PyObject *Document_extractImage(struct Document *self,int xref){
                 pdf_obj *subtype = pdf_dict_get(gctx, obj, PDF_NAME(Subtype));
 
                 if (!pdf_name_eq(gctx, subtype, PDF_NAME(Image)))
-                    THROWMSG("xref not an image");
+                    THROWMSG("xref is no image");
 
                 pdf_obj *o = pdf_dict_get(gctx, obj, PDF_NAME(SMask));
                 if (o) smask = pdf_to_num(gctx, o);
@@ -8793,20 +8869,31 @@ SWIGINTERN PyObject *Document_extractImage(struct Document *self,int xref){
                 unsigned char *c = NULL;
                 fz_buffer_storage(gctx, res, &c);
                 img_type = fz_recognize_image_format(gctx, c);
+                ext = JM_image_extension(img_type);
 
-                if (img_type != FZ_IMAGE_UNKNOWN)
-                {
-                    img = fz_new_image_from_buffer(gctx, res);
-                    ext = JM_image_extension(img_type);
-                }
-                else
-                {
+                if (img_type == FZ_IMAGE_UNKNOWN) {
                     fz_drop_buffer(gctx, res);
                     res = NULL;
                     img = pdf_load_image(gctx, pdf, obj);
                     res = fz_new_buffer_from_image_as_png(gctx, img,
                                 fz_default_color_params);
                     ext = "png";
+                } else if (smask == 0) {
+                    img = fz_new_image_from_buffer(gctx, res);
+                } else {
+                    fz_drop_buffer(gctx, res);
+                    res = NULL;
+                    img = pdf_load_image(gctx, pdf, obj);
+                    cbuf = fz_compressed_image_buffer(gctx, img);
+                    if (!cbuf) {
+                        res = fz_new_buffer_from_image_as_png(gctx, img,
+                                        fz_default_color_params);
+                        ext = "png";
+                    } else {
+                        res = cbuf->buffer;
+                        img_type = cbuf->params.type;
+                        ext = JM_image_extension(img_type);
+                    }
                 }
                 fz_image_resolution(img, &xres, &yres);
                 width = img->w;
@@ -8839,7 +8926,7 @@ SWIGINTERN PyObject *Document_extractImage(struct Document *self,int xref){
             }
             fz_always(gctx) {
                 fz_drop_image(gctx, img);
-                fz_drop_buffer(gctx, res);
+                if (!cbuf) fz_drop_buffer(gctx, res);
                 pdf_drop_obj(gctx, obj);
             }
 
@@ -8883,6 +8970,20 @@ SWIGINTERN PyObject *Document__delToC(struct Document *self){
             LIST_APPEND_DROP(xrefs, Py_BuildValue("i", olroot_xref));
             pdf->dirty = 1;
             return xrefs;
+        }
+SWIGINTERN int Document_outlineXref(struct Document *self,int index){
+            if (index < 0) return 0;  // nonsense call
+            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+            if (!pdf) return 0;  // only works for PDF
+            // get the main root
+            pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
+            // get the outline root
+            pdf_obj *olroot = pdf_dict_get(gctx, root, PDF_NAME(Outlines));
+            if (!olroot) return 0;  // no outlines / some problem
+            // first outline
+            pdf_obj *first = pdf_dict_get(gctx, olroot, PDF_NAME(First));
+            if (!first) return 0;
+            return JM_outline_xref(gctx, first, index);
         }
 SWIGINTERN PyObject *Document_isStream(struct Document *self,int xref){
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
@@ -9407,6 +9508,48 @@ SWIGINTERN PyObject *Document__move_copy_page(struct Document *self,int pno,int 
             }
             return_none;
         }
+SWIGINTERN PyObject *Document__remove_toc_item(struct Document *self,int xref){
+            // "remove" bookmark by letting it point to nowhere
+            pdf_obj *item = NULL;
+            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+            fz_try(gctx) {
+                item = pdf_new_indirect(gctx, pdf, xref, 0);
+                pdf_dict_del(gctx, item, PDF_NAME(Dest));
+                pdf_dict_del(gctx, item, PDF_NAME(A));
+                pdf_dict_put_text_string(gctx, item, PDF_NAME(Title), "<>");
+            }
+            fz_always(gctx) {
+                pdf_drop_obj(gctx, item);
+            }
+            fz_catch(gctx){
+                return NULL;
+            }
+            return_none;
+        }
+SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,char *action,char *title){
+            // "update" bookmark by letting it point to nowhere
+            pdf_obj *item = NULL;
+            pdf_obj *obj = NULL;
+            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+            fz_try(gctx) {
+                item = pdf_new_indirect(gctx, pdf, xref, 0);
+                if (title) {
+                    pdf_dict_put_text_string(gctx, item, PDF_NAME(Title), title);
+                }
+                if (action) {
+                    pdf_dict_del(gctx, item, PDF_NAME(Dest));
+                    obj = JM_pdf_obj_from_str(gctx, pdf, action);
+                    pdf_dict_put_drop(gctx, item, PDF_NAME(A), obj);
+                }
+            }
+            fz_always(gctx) {
+                pdf_drop_obj(gctx, item);
+            }
+            fz_catch(gctx){
+                return NULL;
+            }
+            return_none;
+        }
 SWIGINTERN void delete_Page(struct Page *self){
             DEBUGMSG1("Page");
             fz_page *this_page = (fz_page *) self;
@@ -9910,8 +10053,8 @@ SWIGINTERN PyObject *Page__apply_redactions(struct Page *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             int success = 0;
             pdf_redact_options opts;
-            opts.no_black_boxes = 1;  // no black boxes
-            opts.keep_images = 0;  // do not keep images
+            opts.black_boxes = 0;  // no black boxes
+            opts.image_method = PDF_REDACT_IMAGE_REMOVE;  // no kept images
             fz_try(gctx) {
                 ASSERT_PDF(page);
                 success = pdf_redact_page(gctx, page->doc, page, &opts);
@@ -10051,13 +10194,13 @@ SWIGINTERN PyObject *Page_MediaBox(struct Page *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             if (!page)
                 return JM_py_from_rect(fz_bound_page(gctx, (fz_page *) self));
-            return JM_py_from_rect(JM_mediabox(gctx, page));
+            return JM_py_from_rect(JM_mediabox(gctx, page->obj));
         }
 SWIGINTERN PyObject *Page_CropBox(struct Page *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             if (!page)
                 return JM_py_from_rect(fz_bound_page(gctx, (fz_page *) self));
-            return JM_py_from_rect(JM_cropbox(gctx, page));
+            return JM_py_from_rect(JM_cropbox(gctx, page->obj));
         }
 SWIGINTERN int Page_rotation(struct Page *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
@@ -10695,7 +10838,7 @@ SWIGINTERN struct Pixmap *new_Pixmap__SWIG_7(struct Document *doc,int xref){
                 ref = pdf_new_indirect(gctx, pdf, xref, 0);
                 type = pdf_dict_get(gctx, ref, PDF_NAME(Subtype));
                 if (!pdf_name_eq(gctx, type, PDF_NAME(Image)))
-                    THROWMSG("xref not an image");
+                    THROWMSG("xref is no image");
                 img = pdf_load_image(gctx, pdf, ref);
                 pix = fz_get_pixmap_from_image(gctx, img, NULL, NULL, NULL, NULL);
             }
@@ -10909,6 +11052,12 @@ SWIGINTERN PyObject *Pixmap_setPixel(struct Pixmap *self,int x,int y,PyObject *c
                 return NULL;
             }
             return_none;
+        }
+SWIGINTERN PyObject *Pixmap_setOrigin(struct Pixmap *self,int x,int y){
+            fz_pixmap *pm = (fz_pixmap *) self;
+            pm->x = x;
+            pm->y = y;
+            Py_RETURN_NONE;
         }
 SWIGINTERN PyObject *Pixmap_setResolution(struct Pixmap *self,int xres,int yres){
             fz_pixmap *pm = (fz_pixmap *) self;
@@ -11299,11 +11448,11 @@ SWIGINTERN PyObject *Annot__get_redact_values(struct Annot *self){
                 return_none;
 
             PyObject *values = PyDict_New();
+            pdf_obj *obj = NULL;
             const char *text = NULL;
             fz_try(gctx) {
-                pdf_obj *obj = pdf_dict_gets(gctx, annot->obj, "RO");
-                if (obj) {
-                    THROWMSG("unsupported redaction key '/RO'.");
+                if (pdf_dict_gets(gctx, annot->obj, "RO")) {
+                    JM_Warning("Ignoring redaction key '/RO'.");
                 }
                 obj = pdf_dict_gets(gctx, annot->obj, "OverlayText");
                 if (obj) {
@@ -14448,6 +14597,7 @@ SWIGINTERN PyObject *_wrap_Document_insertPDF(PyObject *SWIGUNUSEDPARM(self), Py
   int arg6 = (int) -1 ;
   int arg7 = (int) 1 ;
   int arg8 = (int) 1 ;
+  int arg9 = (int) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 = 0 ;
@@ -14464,10 +14614,12 @@ SWIGINTERN PyObject *_wrap_Document_insertPDF(PyObject *SWIGUNUSEDPARM(self), Py
   int ecode7 = 0 ;
   int val8 ;
   int ecode8 = 0 ;
-  PyObject *swig_obj[8] ;
+  int val9 ;
+  int ecode9 = 0 ;
+  PyObject *swig_obj[9] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Document_insertPDF", 2, 8, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Document_insertPDF", 2, 9, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_insertPDF" "', argument " "1"" of type '" "struct Document *""'"); 
@@ -14520,8 +14672,15 @@ SWIGINTERN PyObject *_wrap_Document_insertPDF(PyObject *SWIGUNUSEDPARM(self), Py
     } 
     arg8 = (int)(val8);
   }
+  if (swig_obj[8]) {
+    ecode9 = SWIG_AsVal_int(swig_obj[8], &val9);
+    if (!SWIG_IsOK(ecode9)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode9), "in method '" "Document_insertPDF" "', argument " "9"" of type '" "int""'");
+    } 
+    arg9 = (int)(val9);
+  }
   {
-    result = (PyObject *)Document_insertPDF(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8);
+    result = (PyObject *)Document_insertPDF(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -14801,6 +14960,42 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Document_pageCropBox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document_pageCropBox", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_pageCropBox" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_pageCropBox" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  {
+    result = (PyObject *)Document_pageCropBox(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Document__getPageInfo(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Document *arg1 = (struct Document *) 0 ;
@@ -14946,6 +15141,36 @@ SWIGINTERN PyObject *_wrap_Document__delToC(PyObject *SWIGUNUSEDPARM(self), PyOb
   arg1 = (struct Document *)(argp1);
   result = (PyObject *)Document__delToC(arg1);
   resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Document_outlineXref(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  int result;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document_outlineXref", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_outlineXref" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_outlineXref" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  result = (int)Document_outlineXref(arg1,arg2);
+  resultobj = SWIG_From_int((int)(result));
   return resultobj;
 fail:
   return NULL;
@@ -15717,6 +15942,104 @@ SWIGINTERN PyObject *_wrap_Document__move_copy_page(PyObject *SWIGUNUSEDPARM(sel
   resultobj = result;
   return resultobj;
 fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Document__remove_toc_item(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document__remove_toc_item", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document__remove_toc_item" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document__remove_toc_item" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  {
+    result = (PyObject *)Document__remove_toc_item(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Document__update_toc_item(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  int arg2 ;
+  char *arg3 = (char *) NULL ;
+  char *arg4 = (char *) NULL ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int res3 ;
+  char *buf3 = 0 ;
+  int alloc3 = 0 ;
+  int res4 ;
+  char *buf4 = 0 ;
+  int alloc4 = 0 ;
+  PyObject *swig_obj[4] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document__update_toc_item", 2, 4, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document__update_toc_item" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document__update_toc_item" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  if (swig_obj[2]) {
+    res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Document__update_toc_item" "', argument " "3"" of type '" "char *""'");
+    }
+    arg3 = (char *)(buf3);
+  }
+  if (swig_obj[3]) {
+    res4 = SWIG_AsCharPtrAndSize(swig_obj[3], &buf4, NULL, &alloc4);
+    if (!SWIG_IsOK(res4)) {
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "Document__update_toc_item" "', argument " "4"" of type '" "char *""'");
+    }
+    arg4 = (char *)(buf4);
+  }
+  {
+    result = (PyObject *)Document__update_toc_item(arg1,arg2,arg3,arg4);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  if (alloc4 == SWIG_NEWOBJ) free((char*)buf4);
+  return resultobj;
+fail:
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  if (alloc4 == SWIG_NEWOBJ) free((char*)buf4);
   return NULL;
 }
 
@@ -18545,6 +18868,44 @@ SWIGINTERN PyObject *_wrap_Pixmap_setPixel(PyObject *SWIGUNUSEDPARM(self), PyObj
       return NULL;
     }
   }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Pixmap_setOrigin(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Pixmap *arg1 = (struct Pixmap *) 0 ;
+  int arg2 ;
+  int arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Pixmap_setOrigin", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Pixmap, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Pixmap_setOrigin" "', argument " "1"" of type '" "struct Pixmap *""'"); 
+  }
+  arg1 = (struct Pixmap *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Pixmap_setOrigin" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Pixmap_setOrigin" "', argument " "3"" of type '" "int""'");
+  } 
+  arg3 = (int)(val3);
+  result = (PyObject *)Pixmap_setOrigin(arg1,arg2,arg3);
   resultobj = result;
   return resultobj;
 fail:
@@ -23627,10 +23988,12 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document_permissions", _wrap_Document_permissions, METH_O, NULL},
 	 { "Document__getCharWidths", _wrap_Document__getCharWidths, METH_VARARGS, NULL},
 	 { "Document__getPageObjNumber", _wrap_Document__getPageObjNumber, METH_VARARGS, NULL},
+	 { "Document_pageCropBox", _wrap_Document_pageCropBox, METH_VARARGS, NULL},
 	 { "Document__getPageInfo", _wrap_Document__getPageInfo, METH_VARARGS, NULL},
 	 { "Document_extractFont", _wrap_Document_extractFont, METH_VARARGS, NULL},
 	 { "Document_extractImage", _wrap_Document_extractImage, METH_VARARGS, NULL},
 	 { "Document__delToC", _wrap_Document__delToC, METH_O, NULL},
+	 { "Document_outlineXref", _wrap_Document_outlineXref, METH_VARARGS, NULL},
 	 { "Document_isStream", _wrap_Document_isStream, METH_VARARGS, NULL},
 	 { "Document_need_appearances", _wrap_Document_need_appearances, METH_VARARGS, NULL},
 	 { "Document_getSigFlags", _wrap_Document_getSigFlags, METH_O, NULL},
@@ -23652,6 +24015,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document__make_page_map", _wrap_Document__make_page_map, METH_O, NULL},
 	 { "Document_fullcopyPage", _wrap_Document_fullcopyPage, METH_VARARGS, NULL},
 	 { "Document__move_copy_page", _wrap_Document__move_copy_page, METH_VARARGS, NULL},
+	 { "Document__remove_toc_item", _wrap_Document__remove_toc_item, METH_VARARGS, NULL},
+	 { "Document__update_toc_item", _wrap_Document__update_toc_item, METH_VARARGS, NULL},
 	 { "Document_swigregister", Document_swigregister, METH_O, NULL},
 	 { "Document_swiginit", Document_swiginit, METH_VARARGS, NULL},
 	 { "delete_Page", _wrap_delete_Page, METH_O, NULL},
@@ -23714,6 +24079,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Pixmap_invertIRect", _wrap_Pixmap_invertIRect, METH_VARARGS, NULL},
 	 { "Pixmap_pixel", _wrap_Pixmap_pixel, METH_VARARGS, NULL},
 	 { "Pixmap_setPixel", _wrap_Pixmap_setPixel, METH_VARARGS, NULL},
+	 { "Pixmap_setOrigin", _wrap_Pixmap_setOrigin, METH_VARARGS, NULL},
 	 { "Pixmap_setResolution", _wrap_Pixmap_setResolution, METH_VARARGS, NULL},
 	 { "Pixmap_setRect", _wrap_Pixmap_setRect, METH_VARARGS, NULL},
 	 { "Pixmap_stride", _wrap_Pixmap_stride, METH_O, NULL},
