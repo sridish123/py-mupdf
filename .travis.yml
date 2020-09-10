@@ -42,6 +42,7 @@ install:
 - cp fitz/_pdf-font-add.c mupdf/source/pdf/pdf-font-add.c
 - cp fitz/_pdf-clean.c mupdf/source/pdf/pdf-clean.c
 - cp fitz/_pdf_page.h mupdf/include/mupdf/pdf/page.h
+- cp fitz/_murun.c mupdf/source/tools/murun.c
 
 script:
 - export CIBW_SKIP="pp27-* pp35-* pp36-* pp37-* pp38-* cp33-* *i686"
