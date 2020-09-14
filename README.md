@@ -59,11 +59,13 @@ Our **documentation**, written using Sphinx, is available in various formats fro
 
 # Installation
 
-For the major **Windows** and (thanks to our user **@jbarlow83**!) **Mac OSX** or **Linux** versions we offer wheels in the [download section of PyPI](https://pypi.org/project/PyMuPDF/#files). This includes Python 2.7 and version Python 3.5 through 3.8.
+For the major **Windows** and (thanks to our user **@jbarlow83**!) **Mac OSX** or **Linux** versions we provide wheels in the [download section of PyPI](https://pypi.org/project/PyMuPDF/#files). This includes Python 2.7 and versions Python 3.5 through 3.9.
+
+> Starting January 2021, wheels for Python version 2 will no longer be built. You will need to build PyMuPDF for Python 2 from sources as explained below.
 
 For other Python versions or operating systems you need to generate PyMuPDF yourself as follows. This should work for all platforms which support Python and MuPDF. In any case you need the development version of Python.
 
-To do this, you must download and generate MuPDF. This process depends very much on your system. For most platforms, the MuPDF source contains prepared procedures for achieving this. Please observe the following general steps:
+Before building PyMuPDF from sources, you must build MuPDF. This process depends very much on your system. For most platforms, the MuPDF source contains prepared procedures for achieving this. Please observe the following general steps:
 
 * Be sure to download the official MuPDF source release from [here](https://mupdf.com/downloads/archive).
 
@@ -73,7 +75,8 @@ To do this, you must download and generate MuPDF. This process depends very much
   - fitz configuration file `_config.h` copy-replace to: `mupdf/include/mupdf/fitz/config.h`. It contains configuration data like e.g. which fonts to support.
   - font support file `_pdf-font-add.c` copy-replace to: `mupdf/source/pdf/pdf-font-add.c`.
   - fax compression file `_encode-fax.c` copy-replace to: `mupdf/source/fitz/encode-fax.c`.
-  - PDF cleaning file `_pdf_clean.c` copy-replace to: `mupdf/source/pdf/pdf_clean.c`.
+  - CLI subtool `_murun.c` copy-replace to: `mupdf/source/tools/murun.c`.
+  - PDF page cleaning `_pdf_clean.c` copy-replace to: `mupdf/source/pdf/pdf_clean.c`.
   - PDF page header `_pdf_page.h` copy-replace to: `mupdf/include/mupdf/pdf/page.h`.
 
   - Now MuPDF can be generated.

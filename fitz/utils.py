@@ -353,7 +353,7 @@ def insertImage(
     )
 
 
-def searchFor(page, text, hit_max=16, quads=False, flags=None):
+def searchFor(page, text, hit_max=16, quads=False, clip=None, flags=None):
     """ Search for a string on a page.
 
     Args:
@@ -366,13 +366,13 @@ def searchFor(page, text, hit_max=16, quads=False, flags=None):
     CheckParent(page)
     if flags is None:
         flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
-    tp = page.getTextPage(flags)  # create TextPage
+    tp = page.getTextPage(clip, flags)  # create TextPage
     rlist = tp.search(text, hit_max=hit_max, quads=quads)
     tp = None
     return rlist
 
 
-def searchPageFor(doc, pno, text, hit_max=16, quads=False, flags=None):
+def searchPageFor(doc, pno, text, hit_max=16, quads=False, clip=None, flags=None):
     """ Search for a string on a page.
 
     Args:
@@ -384,10 +384,12 @@ def searchPageFor(doc, pno, text, hit_max=16, quads=False, flags=None):
         a list of rectangles or quads, each containing an occurrence.
     """
 
-    return doc[pno].searchFor(text, hit_max=hit_max, quads=quads, flags=flags)
+    return doc[pno].searchFor(
+        text, hit_max=hit_max, quads=quads, clip=clip, flags=flags
+    )
 
 
-def getTextBlocks(page, flags=None):
+def getTextBlocks(page, clip=None, flags=None):
     """Return the text blocks on a page.
 
     Notes:
@@ -401,14 +403,14 @@ def getTextBlocks(page, flags=None):
     CheckParent(page)
     if flags is None:
         flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
-    tp = page.getTextPage(flags)
+    tp = page.getTextPage(clip, flags)
     l = []
     tp.extractBLOCKS(l)
     del tp
     return l
 
 
-def getTextWords(page, flags=None):
+def getTextWords(page, clip=None, flags=None):
     """Return the text words as a list with the bbox for each word.
 
     Args:
@@ -417,20 +419,40 @@ def getTextWords(page, flags=None):
     CheckParent(page)
     if flags is None:
         flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
-    tp = page.getTextPage(flags)
+    tp = page.getTextPage(clip, flags)
     l = []
     tp.extractWORDS(l)
     del tp
     return l
 
 
-def getText(page, option="text", flags=None):
+def getTextbox(page, rect, clip=None):
+    CheckParent(page)
+    flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
+    tp = page.getTextPage(clip, flags)
+    rc = tp.extractRect(rect)
+    del tp
+    return rc
+
+
+def getTextSelection(page, p1, p2, clip=None):
+    CheckParent(page)
+    flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
+    tp = page.getTextPage(clip, flags)
+    rc = tp.extractSelection(p1, p2)
+    del tp
+    return rc
+
+
+def getText(page, option="text", clip=None, flags=None):
     """ Extract a document page's text.
 
     This is a unifying wrapper for various methods of Page / TextPage classes.
 
     Args:
         option: (str) text, words, blocks, html, dict, json, rawdict, xhtml or xml.
+        clip: (rect-like) restrict output to this area.
+        flags: bitfield to e.g. exclude images.
 
     Returns:
         the output of Page methods getTextWords / getTextBlocks or TextPage
@@ -440,9 +462,9 @@ def getText(page, option="text", flags=None):
     """
     option = option.lower()
     if option == "words":
-        return getTextWords(page, flags=flags)
+        return getTextWords(page, clip=clip, flags=flags)
     if option == "blocks":
-        return getTextBlocks(page, flags=flags)
+        return getTextBlocks(page, clip=clip, flags=flags)
     CheckParent(page)
     # available output types
     formats = ("text", "html", "json", "xml", "xhtml", "dict", "rawdict")
@@ -456,7 +478,7 @@ def getText(page, option="text", flags=None):
         if images[f] == 1:
             flags |= TEXT_PRESERVE_IMAGES
 
-    tp = page.getTextPage(flags)  # TextPage with or without images
+    tp = page.getTextPage(clip, flags)  # TextPage with or without images
 
     if f == 2:
         t = tp.extractJSON()
@@ -471,7 +493,7 @@ def getText(page, option="text", flags=None):
     return t
 
 
-def getPageText(doc, pno, option="text", flags=None):
+def getPageText(doc, pno, option="text", clip=None, flags=None):
     """ Extract a document page's text by page number.
 
     Notes:
@@ -482,7 +504,7 @@ def getPageText(doc, pno, option="text", flags=None):
     Returns:
         output from page.TextPage().
     """
-    return doc[pno].getText(option, flags=flags)
+    return doc[pno].getText(option, clip=clip, flags=flags)
 
 
 def getPixmap(page, matrix=None, colorspace=csRGB, clip=None, alpha=False, annots=True):

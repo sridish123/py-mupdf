@@ -87,8 +87,8 @@ except ImportError:
 
 VersionFitz = "1.17.0"
 VersionBind = "1.17.7"
-VersionDate = "2020-09-10 08:49:01"
-version = (VersionBind, VersionFitz, "20200910084901")
+VersionDate = "2020-09-14 06:33:06"
+version = (VersionBind, VersionFitz, "20200914063306")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -4280,20 +4280,22 @@ class Page(object):
         return _fitz.Page_run(self, dw, m)
 
 
-    def _get_text_page(self, flags=0):
-        val = _fitz.Page__get_text_page(self, flags)
+    def _get_text_page(self, clip, flags=0):
+        val = _fitz.Page__get_text_page(self, clip, flags)
         val.thisown = True
 
         return val
 
 
-    def getTextPage(self, flags=0):
+    def getTextPage(self, clip=None, flags=0):
         CheckParent(self)
         old_rotation = self.rotation
         if old_rotation != 0:
             self.setRotation(0)
         try:
-            textpage = self._get_text_page(flags=flags)
+            if clip is None:
+                clip = self.rect
+            textpage = self._get_text_page(clip, flags=flags)
         finally:
             if old_rotation != 0:
                 self.setRotation(old_rotation)
@@ -6457,6 +6459,12 @@ class TextPage(object):
     def _extractText(self, format):
         return _fitz.TextPage__extractText(self, format)
 
+    def extractRect(self, rect):
+        return _fitz.TextPage_extractRect(self, rect)
+
+    def extractSelection(self, pointa, pointb):
+        return _fitz.TextPage_extractSelection(self, pointa, pointb)
+
     def extractText(self):
         """Return simple, bare text on the page."""
         return self._extractText(0)
@@ -6551,7 +6559,7 @@ class TextWriter(object):
 
 
 
-    def append(self, pos, text, font=None, fontsize=11, language=None, wmode=0, bidi_level=0, markup_dir=0):
+    def append(self, pos, text, font=None, fontsize=11, language=None):
 
         """Store 'text' at point 'pos' using 'font' and 'fontsize'."""
 
@@ -6559,7 +6567,7 @@ class TextWriter(object):
         if font is None:
             font = Font("helv")
 
-        val = _fitz.TextWriter_append(self, pos, text, font, fontsize, language, wmode, bidi_level, markup_dir)
+        val = _fitz.TextWriter_append(self, pos, text, font, fontsize, language)
 
         self.lastPoint = Point(val[-2:]) * self.ctm
         self.textRect = self._bbox * self.ctm
@@ -6569,6 +6577,16 @@ class TextWriter(object):
 
 
         return val
+
+
+    def appendv(self, pos, text, font=None, fontsize=11,
+        language=None):
+        lheight = fontsize * 1.2
+        for c in text:
+            self.append(pos, c, font=font, fontsize=fontsize,
+                language=language)
+            pos.y += lheight
+        return self.textRect, self.lastPoint
 
     @property
 
@@ -6675,14 +6693,13 @@ class Font(object):
     def __init__(self, fontname=None, fontfile=None, fontbuffer=None, script=0, language=None, ordering=-1, is_bold=0, is_italic=0, is_serif=0):
 
         if fontname:
-            if "/" in fontname or "\\" in fontname:
-                print("Warning: did you mean fontfile?")
-            try:
-                ordering = ("china-t", "china-s", "japan", "korea","china-ts", "china-ss", "japan-s", "korea-s").index(fontname.lower()) % 4
-            except ValueError:
-                ordering = -1
+            if "/" in fontname or "\\" in fontname or "." in fontname:
+                print("Warning: did you mean a fontfile?")
 
-            if fontname.lower() in fitz_fontdescriptors.keys():
+            if fontname.lower() in ("china-t", "china-s", "japan", "korea","china-ts", "china-ss", "japan-s", "korea-s", "cjk"):
+                ordering = 0
+
+            elif fontname.lower() in fitz_fontdescriptors.keys():
                 import pymupdf_fonts  # optional fonts
                 fontbuffer = pymupdf_fonts.myfont(fontname)  # make a copy
                 fontname = None  # ensure using fontbuffer only
@@ -6712,10 +6729,10 @@ class Font(object):
         return _fitz.Font_glyph_advance(self, chr, language, script, wmode)
 
 
-    def glyph_bbox(self, chr, language=None, script=0, wmode=0):
+    def glyph_bbox(self, chr, language=None, script=0):
         """Return the glyph bbox of a unicode."""
 
-        val = _fitz.Font_glyph_bbox(self, chr, language, script, wmode)
+        val = _fitz.Font_glyph_bbox(self, chr, language, script)
         val = Rect(val)
 
         return val
