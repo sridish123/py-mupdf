@@ -404,10 +404,9 @@ def getTextBlocks(page, clip=None, flags=None):
     if flags is None:
         flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
     tp = page.getTextPage(clip, flags)
-    l = []
-    tp.extractBLOCKS(l)
+    blocks = tp.extractBLOCKS()
     del tp
-    return l
+    return blocks
 
 
 def getTextWords(page, clip=None, flags=None):
@@ -420,16 +419,17 @@ def getTextWords(page, clip=None, flags=None):
     if flags is None:
         flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
     tp = page.getTextPage(clip, flags)
-    l = []
-    tp.extractWORDS(l)
+    words = tp.extractWORDS()
     del tp
-    return l
+    return words
 
 
-def getTextbox(page, rect, clip=None):
+def getTextbox(page, rect=None, clip=None):
     CheckParent(page)
     flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
     tp = page.getTextPage(clip, flags)
+    if rect is None:
+        rect = page.rect
     rc = tp.extractRect(rect)
     del tp
     return rc

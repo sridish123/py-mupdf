@@ -1,8 +1,8 @@
-# PyMuPDF 1.17.7
+# PyMuPDF 1.17.8
 
 ![logo](https://github.com/pymupdf/PyMuPDF/blob/master/demo/pymupdf.jpg)
 
-Release date: September 15, 2020
+Release date: October 1, 2020
 
 **Travis-CI:** [![Build Status](https://travis-ci.org/JorjMcKie/py-mupdf.svg?branch=master)](https://travis-ci.org/JorjMcKie/py-mupdf)
 
@@ -14,7 +14,7 @@ On **[PyPI](https://pypi.org/project/PyMuPDF)** since August 2016: [![](https://
 
 # Introduction
 
-This is **version 1.17.7 of PyMuPDF**, a Python binding with support for [MuPDF 1.17.*](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
+This is **version 1.17.8 of PyMuPDF**, a Python binding with support for [MuPDF 1.17.*](http://mupdf.com/) - "a lightweight PDF, XPS, and E-book viewer".
 
 MuPDF can access files in PDF, XPS, OpenXPS, CBZ, EPUB and FB2 (e-books) formats, and it is known for its top performance and high rendering quality.
 
@@ -32,8 +32,9 @@ For all supported document types (i.e. **_including images_**) you can
 
 > To some degree, PyMuPDF can therefore be used as an [image converter](https://github.com/pymupdf/PyMuPDF/wiki/How-to-Convert-Images): it can read a range of input formats and can produce **Portable Network Graphics (PNG)**, **Portable Anymaps** (**PNM**, etc.), **Portable Arbitrary Maps (PAM)**, **Adobe Postscript** and **Adobe Photoshop** documents, making the use of other graphics packages obselete in these cases. But interfacing with e.g. PIL/Pillow for image input and output is easy as well.
 
-**PDF documents** can be created, joined or split up. Pages can be inserted, deleted, re-arranged or modified in many ways (including annotations and form fields).
+For **PDF documents,** there exists a plethorea of additional features: they can be created, joined or split up. Pages can be inserted, deleted, re-arranged or modified in many ways (including annotations and form fields).
 
+* **_NEW:_** Drawings on a PDF page can be extracted. You can now find out, where lines, rectangles or curves have been drawn on the page. This may help detecting the location of tables and text positions. The feature is still in development and can be imported as a separate module from [this](https://github.com/pymupdf/PyMuPDF-Utilities/blob/master/examples/extract-graphics) folder. You will also find detailed documentation there.
 * Images and fonts can be extracted or inserted.
     > You may want to have a look at [this](https://github.com/pymupdf/PyMuPDF-Utilities/blob/master/examples/image-maintenance.py) cool new GUI example script, which lets you insert, delete, replace or re-position images under your visual control.
 * Embedded files are fully supported.
@@ -62,6 +63,7 @@ Our **documentation**, written using Sphinx, is available in various formats fro
 For the major **Windows** and (thanks to our user **@jbarlow83**!) **Mac OSX** or **Linux** versions we provide wheels in the [download section of PyPI](https://pypi.org/project/PyMuPDF/#files). This includes Python 2.7 and versions Python 3.5 through 3.9.
 
 > Starting January 2021, wheels for Python version 2 will no longer be built. You will need to build PyMuPDF for Python 2 from sources as explained below.
+> Similarly for Python 3.5: it has reached its end of life on 2020-09-13 and will therefore also no longer be serviced with wheels in 2021.
 
 For other Python versions or operating systems you need to generate PyMuPDF yourself as follows. This should work for all platforms which support Python and MuPDF. In any case you need the development version of Python.
 

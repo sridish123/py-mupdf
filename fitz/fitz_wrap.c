@@ -3192,6 +3192,7 @@ PyObject *dictkey_length;
 PyObject *dictkey_lines;
 PyObject *dictkey_modDate;
 PyObject *dictkey_name;
+PyObject *dictkey_number;
 PyObject *dictkey_origin;
 PyObject *dictkey_size;
 PyObject *dictkey_smask;
@@ -3929,12 +3930,10 @@ page_merge(fz_context *ctx, pdf_document *doc_des, pdf_document *doc_src, int pa
 // location (apage) of the target PDF.
 // If spage > epage, the sequence of source pages is reversed.
 //-----------------------------------------------------------------------------
-void JM_merge_range(fz_context *ctx, pdf_document *doc_des, pdf_document *doc_src, int spage, int epage, int apage, int rotate, int links, int annots, int show_progress)
+void JM_merge_range(fz_context *ctx, pdf_document *doc_des, pdf_document *doc_src, int spage, int epage, int apage, int rotate, int links, int annots, int show_progress, pdf_graft_map *graft_map)
 {
     int page, afterpage;
-    pdf_graft_map *graft_map;
     afterpage = apage;
-    graft_map = pdf_new_graft_map(ctx, doc_des);
     int counter = 0;  // copied page counter
     int total = fz_absi(epage - spage) + 1;  // total pages to copy
 
@@ -3958,9 +3957,6 @@ void JM_merge_range(fz_context *ctx, pdf_document *doc_des, pdf_document *doc_sr
         }
     }
 
-    fz_always(ctx) {
-        pdf_drop_graft_map(ctx, graft_map);
-    }
     fz_catch(ctx) {
         fz_rethrow(ctx);
     }
@@ -5516,7 +5512,9 @@ void JM_make_textpage_dict(fz_context *ctx, fz_stext_page *tp, PyObject *page_di
     fz_buffer *text_buffer = fz_new_buffer(ctx, 128);
     PyObject *block_dict, *block_list = PyList_New(0);
     fz_rect tp_rect = tp->mediabox;
+    int block_n = -1;
     for (block = tp->first_block; block; block = block->next) {
+        block_n++;
         if (fz_is_empty_rect(fz_intersect_rect(tp_rect, block->bbox))) {
             continue;
         }
@@ -5526,6 +5524,7 @@ void JM_make_textpage_dict(fz_context *ctx, fz_stext_page *tp, PyObject *page_di
         }
 
         block_dict = PyDict_New();
+        DICT_SETITEM_DROP(block_dict, dictkey_number, Py_BuildValue("i", block_n));
         DICT_SETITEM_DROP(block_dict, dictkey_type, Py_BuildValue("i", block->type));
         if (block->type == FZ_STEXT_BLOCK_IMAGE) {
             DICT_SETITEM_DROP(block_dict, dictkey_bbox, JM_py_from_rect(block->bbox));
@@ -6996,8 +6995,7 @@ pdf_obj *JM_xobject_from_page(fz_context * ctx, pdf_document * pdfout, fz_page *
 
         if (xref > 0) {
             xobj1 = pdf_new_indirect(ctx, pdfout, xref, 0);
-        }
-        else {
+        } else {
             // Deep-copy resources object of source page
             o = pdf_dict_get_inheritable(ctx, spageref, PDF_NAME(Resources));
             if (gmap) // use graftmap when possible
@@ -7046,15 +7044,13 @@ int JM_insert_contents(fz_context * ctx, pdf_document * pdf,
                 pdf_array_push(ctx, contents, newconts);
             else // prepend new object
                 pdf_array_insert(ctx, contents, newconts, 0);
-        }
-        else {
+        } else {
             pdf_obj *carr = pdf_new_array(ctx, pdf, 5);
             if (overlay) {
                 if (contents)
                     pdf_array_push(ctx, carr, contents);
                 pdf_array_push(ctx, carr, newconts);
-            }
-            else {
+            } else {
                 pdf_array_push_drop(ctx, carr, newconts);
                 if (contents)
                     pdf_array_push(ctx, carr, contents);
@@ -7109,8 +7105,7 @@ JM_filter_content_stream(
 			proc_filter = pdf_new_filter_processor(ctx, doc, proc_buffer, in_res, *out_res, struct_parents, transform, filter);
 			pdf_process_contents(ctx, proc_filter, doc, in_res, in_stm, NULL);
 			pdf_close_processor(ctx, proc_filter);
-		}
-		else {
+		} else {
 			*out_res = pdf_keep_obj(ctx, in_res);
 			pdf_process_contents(ctx, proc_buffer, doc, in_res, in_stm, NULL);
 		}
@@ -8581,7 +8576,7 @@ SWIGINTERN PyObject *Document_write(struct Document *self,int garbage,int clean,
             }
             return r;
         }
-SWIGINTERN PyObject *Document_insertPDF(struct Document *self,struct Document *docsrc,int from_page,int to_page,int start_at,int rotate,int links,int annots,int show_progress){
+SWIGINTERN PyObject *Document_insertPDF(struct Document *self,struct Document *docsrc,int from_page,int to_page,int start_at,int rotate,int links,int annots,int show_progress,struct Graftmap *_gmap){
             fz_document *doc = (fz_document *) self;
             pdf_document *pdfout = pdf_specifics(gctx, doc);
             pdf_document *pdfsrc = pdf_specifics(gctx, (fz_document *) docsrc);
@@ -8603,7 +8598,7 @@ SWIGINTERN PyObject *Document_insertPDF(struct Document *self,struct Document *d
 
             fz_try(gctx) {
                 if (!pdfout || !pdfsrc) THROWMSG("source or target not a PDF");
-                JM_merge_range(gctx, pdfout, pdfsrc, fp, tp, sa, rotate, links, annots, show_progress);
+                JM_merge_range(gctx, pdfout, pdfsrc, fp, tp, sa, rotate, links, annots, show_progress, (pdf_graft_map *) _gmap);
             }
             fz_catch(gctx) {
                 return NULL;
@@ -11518,6 +11513,19 @@ SWIGINTERN PyObject *Annot__get_redact_values(struct Annot *self){
             }
             return values;
         }
+SWIGINTERN struct TextPage *Annot_getTextPage(struct Annot *self,PyObject *clip,int flags){
+            fz_stext_page *textpage=NULL;
+            fz_stext_options options = { 0 };
+            options.flags = flags;
+            fz_try(gctx) {
+                pdf_annot *annot = (pdf_annot *) self;
+                textpage = pdf_new_stext_page_from_annot(gctx, annot, &options);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return (struct TextPage *) textpage;
+        }
 SWIGINTERN PyObject *Annot_setName(struct Annot *self,char *name){
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
@@ -12290,20 +12298,22 @@ SWIGINTERN PyObject *TextPage__getNewBlockList(struct TextPage *self,PyObject *p
             }
             return_none;
         }
-SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self,PyObject *lines){
+SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
             fz_stext_block *block;
             fz_stext_line *line;
             fz_stext_char *ch;
-            int block_n = 0;
+            int block_n = -1;
             PyObject *text = NULL, *litem;
             fz_buffer *res = NULL;
             fz_var(res);
             fz_stext_page *this_tpage = (fz_stext_page *) self;
             fz_rect tp_rect = this_tpage->mediabox;
-
+            PyObject *lines = NULL;
             fz_try(gctx) {
                 res = fz_new_buffer(gctx, 1024);
+                lines = PyList_New(0);
                 for (block = this_tpage->first_block; block; block = block->next) {
+                    block_n++;
                     fz_rect blockrect = fz_empty_rect;
                     if (block->type == FZ_STEXT_BLOCK_TEXT) {
                         fz_clear_buffer(gctx, res);  // set text buffer to empty
@@ -12349,7 +12359,6 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self,PyObject *line
                         LIST_APPEND_DROP(lines, litem);
                     }
                     Py_CLEAR(text);
-                    block_n++;
                 }
             }
             fz_always(gctx) {
@@ -12359,25 +12368,26 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self,PyObject *line
             fz_catch(gctx) {
                 return NULL;
             }
-            return_none;
+            return lines;
         }
-SWIGINTERN PyObject *TextPage_extractWORDS(struct TextPage *self,PyObject *lines){
+SWIGINTERN PyObject *TextPage_extractWORDS(struct TextPage *self){
             fz_stext_block *block;
             fz_stext_line *line;
             fz_stext_char *ch;
             fz_buffer *buff = NULL;
             fz_var(buff);
             size_t buflen = 0;
-            int block_n = 0, line_n, word_n;
+            int block_n = -1, line_n, word_n;
             fz_rect wbbox = {0,0,0,0};  // word bbox
             fz_stext_page *this_tpage = (fz_stext_page *) self;
             fz_rect tp_rect = this_tpage->mediabox;
-
+            PyObject *lines = NULL;
             fz_try(gctx) {
                 buff = fz_new_buffer(gctx, 64);
+                lines = PyList_New(0);
                 for (block = this_tpage->first_block; block; block = block->next) {
+                    block_n++;
                     if (block->type != FZ_STEXT_BLOCK_TEXT) {
-                        block_n++;
                         continue;
                     }
                     line_n = 0;
@@ -12414,7 +12424,6 @@ SWIGINTERN PyObject *TextPage_extractWORDS(struct TextPage *self,PyObject *lines
                         }
                         line_n++;
                     }
-                    block_n++;
                 }
             }
             fz_always(gctx) {
@@ -12424,7 +12433,7 @@ SWIGINTERN PyObject *TextPage_extractWORDS(struct TextPage *self,PyObject *lines
             fz_catch(gctx) {
                 return NULL;
             }
-            return_none;
+            return lines;
         }
 SWIGINTERN PyObject *TextPage_rect(struct TextPage *self){
             fz_stext_page *this_tpage = (fz_stext_page *) self;
@@ -12611,17 +12620,6 @@ SWIGINTERN struct Font *new_Font(char *fontname,char *fontfile,PyObject *fontbuf
             }
             return (struct Font *) font;
         }
-SWIGINTERN PyObject *Font_unicode_to_glyph_name(struct Font *self,int c,char *language,int script){
-            fz_font *font;
-            fz_text_language lang = fz_text_language_from_string(language);
-            char name[32];
-            int gid = fz_encode_character_with_fallback(gctx, (fz_font *) self, c, script, lang, &font);
-            fz_get_glyph_name(gctx, font, gid, name, sizeof(name));
-            return Py_BuildValue("s", name);
-        }
-SWIGINTERN PyObject *Font_glyph_name_to_unicode(struct Font *self,char const *name){
-            return Py_BuildValue("i", fz_unicode_from_glyph_name(name));
-        }
 SWIGINTERN float Font_glyph_advance(struct Font *self,int chr,char *language,int script,int wmode){
             fz_font *font;
             fz_text_language lang = fz_text_language_from_string(language);
@@ -12637,15 +12635,14 @@ SWIGINTERN PyObject *Font_glyph_bbox(struct Font *self,int chr,char *language,in
 SWIGINTERN PyObject *Font_has_glyph(struct Font *self,int chr,char *language,int script,int fallback){
             fz_font *font;
             fz_text_language lang;
-            int gid;
+            int gid = 0;
             if (fallback) {
                 lang = fz_text_language_from_string(language);
                 gid = fz_encode_character_with_fallback(gctx, (fz_font *) self, chr, script, lang, &font);
             } else {
                 gid = fz_encode_character(gctx, (fz_font *) self, chr);
             }
-            if (gid > 0) Py_RETURN_TRUE;
-            Py_RETURN_FALSE;
+            return Py_BuildValue("i", gid);
         }
 SWIGINTERN void Font__valid_unicodes(struct Font *self,PyObject *arr){
             fz_font *font = (fz_font *) self;
@@ -12661,6 +12658,15 @@ SWIGINTERN PyObject *Font_flags(struct Font *self){
             "stretch", f->ft_stretch, "fake-bold", f->fake_bold,
             "fake-italic", f->fake_italic, "opentype", f->has_opentype,
             "invalid-bbox", f->invalid_bbox);
+        }
+SWIGINTERN PyObject *Font_isWritable(struct Font *self){
+            fz_font *font = (fz_font *) self;
+            if (fz_font_t3_procs(gctx, font) ||
+                fz_font_flags(font)->ft_substitute ||
+                !pdf_font_writing_supported(font)) {
+                Py_RETURN_FALSE;
+            }
+            Py_RETURN_TRUE;
         }
 SWIGINTERN PyObject *Font_name(struct Font *self){
             return JM_UnicodeFromStr(fz_font_name(gctx, (fz_font *) self));
@@ -12678,6 +12684,12 @@ SWIGINTERN PyObject *Font_buffer(struct Font *self){
 SWIGINTERN PyObject *Font_bbox(struct Font *self){
             fz_font *this_font = (fz_font *) self;
             return JM_py_from_rect(fz_font_bbox(gctx, this_font));
+        }
+SWIGINTERN float Font_ascender(struct Font *self){
+            return fz_font_ascender(gctx, (fz_font *) self);
+        }
+SWIGINTERN float Font_descender(struct Font *self){
+            return fz_font_descender(gctx, (fz_font *) self);
         }
 SWIGINTERN PyObject *Tools_gen_id(struct Tools *self){
             JM_UNIQUE_ID += 1;
@@ -14685,6 +14697,7 @@ SWIGINTERN PyObject *_wrap_Document_insertPDF(PyObject *SWIGUNUSEDPARM(self), Py
   int arg7 = (int) 1 ;
   int arg8 = (int) 1 ;
   int arg9 = (int) 0 ;
+  struct Graftmap *arg10 = (struct Graftmap *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 = 0 ;
@@ -14703,10 +14716,12 @@ SWIGINTERN PyObject *_wrap_Document_insertPDF(PyObject *SWIGUNUSEDPARM(self), Py
   int ecode8 = 0 ;
   int val9 ;
   int ecode9 = 0 ;
-  PyObject *swig_obj[9] ;
+  void *argp10 = 0 ;
+  int res10 = 0 ;
+  PyObject *swig_obj[10] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Document_insertPDF", 2, 9, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Document_insertPDF", 2, 10, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_insertPDF" "', argument " "1"" of type '" "struct Document *""'"); 
@@ -14766,8 +14781,15 @@ SWIGINTERN PyObject *_wrap_Document_insertPDF(PyObject *SWIGUNUSEDPARM(self), Py
     } 
     arg9 = (int)(val9);
   }
+  if (swig_obj[9]) {
+    res10 = SWIG_ConvertPtr(swig_obj[9], &argp10,SWIGTYPE_p_Graftmap, 0 |  0 );
+    if (!SWIG_IsOK(res10)) {
+      SWIG_exception_fail(SWIG_ArgError(res10), "in method '" "Document_insertPDF" "', argument " "10"" of type '" "struct Graftmap *""'"); 
+    }
+    arg10 = (struct Graftmap *)(argp10);
+  }
   {
-    result = (PyObject *)Document_insertPDF(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9);
+    result = (PyObject *)Document_insertPDF(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -20302,6 +20324,48 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Annot_getTextPage(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Annot *arg1 = (struct Annot *) 0 ;
+  PyObject *arg2 = (PyObject *) NULL ;
+  int arg3 = (int) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
+  struct TextPage *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Annot_getTextPage", 1, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_getTextPage" "', argument " "1"" of type '" "struct Annot *""'"); 
+  }
+  arg1 = (struct Annot *)(argp1);
+  if (swig_obj[1]) {
+    arg2 = swig_obj[1];
+  }
+  if (swig_obj[2]) {
+    ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
+    if (!SWIG_IsOK(ecode3)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Annot_getTextPage" "', argument " "3"" of type '" "int""'");
+    } 
+    arg3 = (int)(val3);
+  }
+  {
+    result = (struct TextPage *)Annot_getTextPage(arg1,arg2,arg3);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_TextPage, 0 |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Annot_setName(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
@@ -21848,21 +21912,20 @@ fail:
 SWIGINTERN PyObject *_wrap_TextPage_extractBLOCKS(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct TextPage *arg1 = (struct TextPage *) 0 ;
-  PyObject *arg2 = (PyObject *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  PyObject *swig_obj[2] ;
+  PyObject *swig_obj[1] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "TextPage_extractBLOCKS", 2, 2, swig_obj)) SWIG_fail;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_TextPage, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextPage_extractBLOCKS" "', argument " "1"" of type '" "struct TextPage *""'"); 
   }
   arg1 = (struct TextPage *)(argp1);
-  arg2 = swig_obj[1];
   {
-    result = (PyObject *)TextPage_extractBLOCKS(arg1,arg2);
+    result = (PyObject *)TextPage_extractBLOCKS(arg1);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -21878,21 +21941,20 @@ fail:
 SWIGINTERN PyObject *_wrap_TextPage_extractWORDS(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct TextPage *arg1 = (struct TextPage *) 0 ;
-  PyObject *arg2 = (PyObject *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  PyObject *swig_obj[2] ;
+  PyObject *swig_obj[1] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "TextPage_extractWORDS", 2, 2, swig_obj)) SWIG_fail;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_TextPage, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextPage_extractWORDS" "', argument " "1"" of type '" "struct TextPage *""'"); 
   }
   arg1 = (struct TextPage *)(argp1);
-  arg2 = swig_obj[1];
   {
-    result = (PyObject *)TextPage_extractWORDS(arg1,arg2);
+    result = (PyObject *)TextPage_extractWORDS(arg1);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -22462,92 +22524,6 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Font_unicode_to_glyph_name(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  struct Font *arg1 = (struct Font *) 0 ;
-  int arg2 ;
-  char *arg3 = (char *) NULL ;
-  int arg4 = (int) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int val2 ;
-  int ecode2 = 0 ;
-  int res3 ;
-  char *buf3 = 0 ;
-  int alloc3 = 0 ;
-  int val4 ;
-  int ecode4 = 0 ;
-  PyObject *swig_obj[4] ;
-  PyObject *result = 0 ;
-  
-  if (!SWIG_Python_UnpackTuple(args, "Font_unicode_to_glyph_name", 2, 4, swig_obj)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Font, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_unicode_to_glyph_name" "', argument " "1"" of type '" "struct Font *""'"); 
-  }
-  arg1 = (struct Font *)(argp1);
-  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
-  if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Font_unicode_to_glyph_name" "', argument " "2"" of type '" "int""'");
-  } 
-  arg2 = (int)(val2);
-  if (swig_obj[2]) {
-    res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
-    if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Font_unicode_to_glyph_name" "', argument " "3"" of type '" "char *""'");
-    }
-    arg3 = (char *)(buf3);
-  }
-  if (swig_obj[3]) {
-    ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
-    if (!SWIG_IsOK(ecode4)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Font_unicode_to_glyph_name" "', argument " "4"" of type '" "int""'");
-    } 
-    arg4 = (int)(val4);
-  }
-  result = (PyObject *)Font_unicode_to_glyph_name(arg1,arg2,arg3,arg4);
-  resultobj = result;
-  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
-  return resultobj;
-fail:
-  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_Font_glyph_name_to_unicode(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  struct Font *arg1 = (struct Font *) 0 ;
-  char *arg2 = (char *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int res2 ;
-  char *buf2 = 0 ;
-  int alloc2 = 0 ;
-  PyObject *swig_obj[2] ;
-  PyObject *result = 0 ;
-  
-  if (!SWIG_Python_UnpackTuple(args, "Font_glyph_name_to_unicode", 2, 2, swig_obj)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Font, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_glyph_name_to_unicode" "', argument " "1"" of type '" "struct Font *""'"); 
-  }
-  arg1 = (struct Font *)(argp1);
-  res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Font_glyph_name_to_unicode" "', argument " "2"" of type '" "char const *""'");
-  }
-  arg2 = (char *)(buf2);
-  result = (PyObject *)Font_glyph_name_to_unicode(arg1,(char const *)arg2);
-  resultobj = result;
-  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  return resultobj;
-fail:
-  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  return NULL;
-}
-
-
 SWIGINTERN PyObject *_wrap_Font_glyph_advance(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Font *arg1 = (struct Font *) 0 ;
@@ -22773,6 +22749,29 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Font_isWritable(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Font *arg1 = (struct Font *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Font, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_isWritable" "', argument " "1"" of type '" "struct Font *""'"); 
+  }
+  arg1 = (struct Font *)(argp1);
+  result = (PyObject *)Font_isWritable(arg1);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Font_name(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Font *arg1 = (struct Font *) 0 ;
@@ -22859,6 +22858,52 @@ SWIGINTERN PyObject *_wrap_Font_bbox(PyObject *SWIGUNUSEDPARM(self), PyObject *a
   arg1 = (struct Font *)(argp1);
   result = (PyObject *)Font_bbox(arg1);
   resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_ascender(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Font *arg1 = (struct Font *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  float result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Font, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_ascender" "', argument " "1"" of type '" "struct Font *""'"); 
+  }
+  arg1 = (struct Font *)(argp1);
+  result = (float)Font_ascender(arg1);
+  resultobj = SWIG_From_float((float)(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Font_descender(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Font *arg1 = (struct Font *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  float result;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Font, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Font_descender" "', argument " "1"" of type '" "struct Font *""'"); 
+  }
+  arg1 = (struct Font *)(argp1);
+  result = (float)Font_descender(arg1);
+  resultobj = SWIG_From_float((float)(result));
   return resultobj;
 fail:
   return NULL;
@@ -24231,6 +24276,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Annot__getAP", _wrap_Annot__getAP, METH_O, NULL},
 	 { "Annot__setAP", _wrap_Annot__setAP, METH_VARARGS, NULL},
 	 { "Annot__get_redact_values", _wrap_Annot__get_redact_values, METH_O, NULL},
+	 { "Annot_getTextPage", _wrap_Annot_getTextPage, METH_VARARGS, NULL},
 	 { "Annot_setName", _wrap_Annot_setName, METH_VARARGS, NULL},
 	 { "Annot_setRect", _wrap_Annot_setRect, METH_VARARGS, NULL},
 	 { "Annot_setRotation", _wrap_Annot_setRotation, METH_VARARGS, NULL},
@@ -24280,8 +24326,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "new_TextPage", _wrap_new_TextPage, METH_O, NULL},
 	 { "TextPage_search", _wrap_TextPage_search, METH_VARARGS, NULL},
 	 { "TextPage__getNewBlockList", _wrap_TextPage__getNewBlockList, METH_VARARGS, NULL},
-	 { "TextPage_extractBLOCKS", _wrap_TextPage_extractBLOCKS, METH_VARARGS, NULL},
-	 { "TextPage_extractWORDS", _wrap_TextPage_extractWORDS, METH_VARARGS, NULL},
+	 { "TextPage_extractBLOCKS", _wrap_TextPage_extractBLOCKS, METH_O, NULL},
+	 { "TextPage_extractWORDS", _wrap_TextPage_extractWORDS, METH_O, NULL},
 	 { "TextPage_rect", _wrap_TextPage_rect, METH_O, NULL},
 	 { "TextPage__extractText", _wrap_TextPage__extractText, METH_VARARGS, NULL},
 	 { "TextPage_extractRect", _wrap_TextPage_extractRect, METH_VARARGS, NULL},
@@ -24301,17 +24347,18 @@ static PyMethodDef SwigMethods[] = {
 	 { "TextWriter_swiginit", TextWriter_swiginit, METH_VARARGS, NULL},
 	 { "delete_Font", _wrap_delete_Font, METH_O, NULL},
 	 { "new_Font", _wrap_new_Font, METH_VARARGS, NULL},
-	 { "Font_unicode_to_glyph_name", _wrap_Font_unicode_to_glyph_name, METH_VARARGS, NULL},
-	 { "Font_glyph_name_to_unicode", _wrap_Font_glyph_name_to_unicode, METH_VARARGS, NULL},
 	 { "Font_glyph_advance", _wrap_Font_glyph_advance, METH_VARARGS, NULL},
 	 { "Font_glyph_bbox", _wrap_Font_glyph_bbox, METH_VARARGS, NULL},
 	 { "Font_has_glyph", _wrap_Font_has_glyph, METH_VARARGS, NULL},
 	 { "Font__valid_unicodes", _wrap_Font__valid_unicodes, METH_VARARGS, NULL},
 	 { "Font_flags", _wrap_Font_flags, METH_O, NULL},
+	 { "Font_isWritable", _wrap_Font_isWritable, METH_O, NULL},
 	 { "Font_name", _wrap_Font_name, METH_O, NULL},
 	 { "Font_glyph_count", _wrap_Font_glyph_count, METH_O, NULL},
 	 { "Font_buffer", _wrap_Font_buffer, METH_O, NULL},
 	 { "Font_bbox", _wrap_Font_bbox, METH_O, NULL},
+	 { "Font_ascender", _wrap_Font_ascender, METH_O, NULL},
+	 { "Font_descender", _wrap_Font_descender, METH_O, NULL},
 	 { "Font_swigregister", Font_swigregister, METH_O, NULL},
 	 { "Font_swiginit", Font_swiginit, METH_VARARGS, NULL},
 	 { "Tools_gen_id", _wrap_Tools_gen_id, METH_O, NULL},
@@ -25217,6 +25264,7 @@ SWIG_init(void) {
   dictkey_lines = PyString_InternFromString("lines");
   dictkey_modDate = PyString_InternFromString("modDate");
   dictkey_name = PyString_InternFromString("name");
+  dictkey_number = PyString_InternFromString("number");
   dictkey_origin = PyString_InternFromString("origin");
   dictkey_size = PyString_InternFromString("size");
   dictkey_smask = PyString_InternFromString("smask");
