@@ -7102,7 +7102,7 @@ class TextWriter(object):
         if font is None:
             font = Font("helv")
         if not font.isWritable:
-            raise ValueError("Unsupported font '%s'." % font.name
+            raise ValueError("Unsupported font '%s'." % font.name)
 
         val = _fitz.TextWriter_append(self, pos, text, font, fontsize, language)
 
