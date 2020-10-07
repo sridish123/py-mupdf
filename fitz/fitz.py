@@ -85,10 +85,10 @@ except ImportError:
     fitz_fontdescriptors = {}
 
 
-VersionFitz = "1.17.0"
-VersionBind = "1.17.8"
-VersionDate = "2020-09-28 06:31:45"
-version = (VersionBind, VersionFitz, "20200928063145")
+VersionFitz = "1.18.0"
+VersionBind = "1.18.0"
+VersionDate = "2020-10-06 07:15:59"
+version = (VersionBind, VersionFitz, "20201006071559")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -118,6 +118,9 @@ PDF_ANNOT_TRAP_NET = _fitz.PDF_ANNOT_TRAP_NET
 PDF_ANNOT_WATERMARK = _fitz.PDF_ANNOT_WATERMARK
 PDF_ANNOT_3D = _fitz.PDF_ANNOT_3D
 PDF_ANNOT_UNKNOWN = _fitz.PDF_ANNOT_UNKNOWN
+PDF_REDACT_IMAGE_NONE = _fitz.PDF_REDACT_IMAGE_NONE
+PDF_REDACT_IMAGE_REMOVE = _fitz.PDF_REDACT_IMAGE_REMOVE
+PDF_REDACT_IMAGE_PIXELS = _fitz.PDF_REDACT_IMAGE_PIXELS
 PDF_ANNOT_IS_INVISIBLE = _fitz.PDF_ANNOT_IS_INVISIBLE
 PDF_ANNOT_IS_HIDDEN = _fitz.PDF_ANNOT_IS_HIDDEN
 PDF_ANNOT_IS_PRINT = _fitz.PDF_ANNOT_IS_PRINT
@@ -1584,6 +1587,8 @@ TEXT_PRESERVE_LIGATURES = 1
 TEXT_PRESERVE_WHITESPACE = 2
 TEXT_PRESERVE_IMAGES = 4
 TEXT_INHIBIT_SPACES = 8
+TEXT_DEHYPHENATE = 16
+TEXT_PRESERVE_SPANS = 32
 
 # ------------------------------------------------------------------------------
 # Simple text encoding options
@@ -3548,8 +3553,8 @@ class Document(object):
         self.stream      = None
         self.isClosed    = True
         self.FontInfos   = []
-        for gmap in self.Graftmaps:
-            self.Graftmaps[gmap] = None
+        for k in self.Graftmaps.keys():
+            self.Graftmaps[k] = None
         self.Graftmaps = {}
         self.ShownPages = {}
 
@@ -4029,7 +4034,7 @@ class Document(object):
         return _fitz.Document_save(self, filename, garbage, clean, deflate, incremental, ascii, expand, linear, pretty, encryption, permissions, owner_pw, user_pw)
 
 
-    def write(self, garbage=0, clean=0, deflate=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
+    def write(self, garbage=0, clean=0, deflate=0, ascii=0, expand=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
 
         """Write the PDF to a bytes object."""
         if self.isClosed or self.isEncrypted:
@@ -4037,10 +4042,10 @@ class Document(object):
         if self.pageCount < 1:
             raise ValueError("cannot write with zero pages")
 
-        return _fitz.Document_write(self, garbage, clean, deflate, ascii, expand, linear, pretty, encryption, permissions, owner_pw, user_pw)
+        return _fitz.Document_write(self, garbage, clean, deflate, ascii, expand, pretty, encryption, permissions, owner_pw, user_pw)
 
 
-    def insertPDF(self, docsrc, from_page=-1, to_page=-1, start_at=-1, rotate=-1, links=1, annots=1, show_progress=0, _gmap=None):
+    def insertPDF(self, docsrc, from_page=-1, to_page=-1, start_at=-1, rotate=-1, links=1, annots=1, show_progress=0, final=1, _gmap=None):
 
         """Insert a page range from another PDF.
 
@@ -4053,14 +4058,15 @@ class Document(object):
             links: (int/bool) whether to also copy links.
             annots: (int/bool) whether to also copy annotations.
             show_progress: (int) progress message interval, 0 is no messages.
+            final: (bool) indicates last insertion from this source PDF.
             _gmap: internal use only
 
         Copy sequence will reversed if from_page > to_page."""
 
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
-        if id(self) == id(docsrc):
-            raise ValueError("source and target PDF are the same object")
+        if self._graft_id == docsrc._graft_id:
+            raise ValueError("source and target cannot be same object")
         sa = start_at
         if sa < 0:
             sa = self.pageCount
@@ -4073,21 +4079,22 @@ class Document(object):
                 outname = "memory PDF"
             print("Inserting '%s' at '%s'" % (inname, outname))
 
-        # create / lookup a Graftmap to avoid duplicate objects
+        # retrieve / make a Graftmap to avoid duplicate objects
         isrt = docsrc._graft_id
-        if isrt in self.Graftmaps.keys():
-            _gmap = self.Graftmaps[isrt]
-        else:
+        _gmap = self.Graftmaps.get(isrt, None)
+        if _gmap is None:
             _gmap = Graftmap(self)
             self.Graftmaps[isrt] = _gmap
 
 
-        val = _fitz.Document_insertPDF(self, docsrc, from_page, to_page, start_at, rotate, links, annots, show_progress, _gmap)
+        val = _fitz.Document_insertPDF(self, docsrc, from_page, to_page, start_at, rotate, links, annots, show_progress, final, _gmap)
 
         self._reset_page_refs()
         if links:
             self._do_links(docsrc, from_page = from_page, to_page = to_page,
                         start_at = sa)
+        if final == 1:
+            self.Graftmaps[isrt] = None
 
         return val
 
@@ -4721,8 +4728,8 @@ class Document(object):
         if hasattr(self, "_reset_page_refs"):
             self._reset_page_refs()
         if hasattr(self, "Graftmaps"):
-            for gmap in self.Graftmaps:
-                self.Graftmaps[gmap] = None
+            for k in self.Graftmaps.keys():
+                self.Graftmaps[k] = None
         if hasattr(self, "this") and self.thisown:
             self.__swig_destroy__(self)
             self.thisown = False
@@ -5233,8 +5240,160 @@ class Page(object):
         return val
 
 
-    def _apply_redactions(self):
-        return _fitz.Page__apply_redactions(self)
+    def getDrawings(self):
+        """Get page draw paths."""
+
+        CheckParent(self)
+        val = self._getDrawings()  # read raw list from trace device
+        paths = []
+
+        def new_path():
+            """Return empty path dict to use as template."""
+            return {
+                "color": None,
+                "fill": None,
+                "width": 1.0,
+                "lineJoin": 0,
+                "lineCap": (0, 0, 0),
+                "dashes": "[] 0",
+                "closePath": False,
+                "even_odd": False,
+                "rect": Rect(),
+                "items": [],
+                "opacity": 1.0,
+            }
+
+        def is_rectangle(path):
+            """Check if path represents a rectangle.
+
+            For this, it must be exactly three connected lines, of which
+            the first and the last one must be horizontal and line two
+            must be vertical.
+            """
+            if not path["closePath"]:
+                return False
+            if [item[0] for item in path["items"]] != ["l", "l", "l"]:
+                return False
+            p1, p2 = path["items"][0][1:]  # first line
+            p3, p4 = path["items"][1][1:]  # second line
+            p5, p6 = path["items"][2][1:]  # third line
+            if p2 != p3 or p4 != p5:  # must be connected
+                return False
+            if p1.y != p2.y or p3.x != p4.x or p5.y != p6.y:
+                return False
+            return True
+
+        def check_and_merge(this, prev):
+            """Check if "this" is the "stroke" version of "prev".
+
+            If so, update "prev" with appropriate values and return True,
+            else do nothing and return False.
+            """
+            if prev is None:
+                return False
+            if this["items"] != prev["items"]:  # must have same items
+                return False
+            if this["closePath"] != prev["closePath"]:
+                return False
+            if this["color"] is not None:
+                prev["color"] = this["color"]
+            if this["width"] != 1:
+                prev["width"] = this["width"]
+            if this["dashes"] != "[] 0":
+                prev["dashes"] = this["dashes"]
+            if this["lineCap"] != (0, 0, 0):
+                prev["lineCap"] = this["lineCap"]
+            if this["lineJoin"] != 0:
+                prev["lineJoin"] = this["lineJoin"]
+            return True
+
+        for item in val:
+            if type(item) is list:
+                if item[0] in ("fill", "stroke", "clip", "clip-stroke"):
+    # this begins a new path
+                    path = new_path()
+                    ctm = Matrix(1, 1)
+                    factor = 1  # modify width and dash length
+                    current = None  # the current point
+                    for x in item[1:]:  # loop through path parms that follow
+                        if x == "non-zero":
+                            path["even_odd"] = False
+                        elif x == "even-odd":
+                            path["even_odd"] = True
+                        elif x[0] == "matrix":
+                            ctm = Matrix(x[1])
+                            if ctm.a == ctm.d:
+                                factor = ctm.a
+                        elif x[0] == "w":
+                            path["width"] = x[1] * factor
+                        elif x[0] == "lineCap":
+                            path["lineCap"] = x[1:]
+                        elif x[0] == "lineJoin":
+                            path["lineJoin"] = x[1]
+                        elif x[0] == "color":
+                            if item[0] == "fill":
+                                path["fill"] = x[1:]
+                            else:
+                                path["color"] = x[1:]
+                        elif x[0] == "dashPhase":
+                            dashPhase = x[1] * factor
+                        elif x[0] == "dashes":
+                            dashes = x[1:]
+                            l = list(map(lambda y: float(y) * factor, dashes))
+                            l = list(map(str, l))
+                            path["dashes"] = "[%s] %g" % (" ".join(l), dashPhase)
+                        elif x[0] == "alpha":
+                            path["opacity"] = round(x[1], 2)
+
+                if item[0] == "m":
+                    p = Point(item[1]) * ctm
+                    current = p
+                    path["rect"] = Rect(p, p)
+                elif item[0] == "l":
+                    p2 = Point(item[1]) * ctm
+                    path["items"].append(("l", current, p2))
+                    current = p2
+                    path["rect"] |= p2
+                elif item[0] == "c":
+                    p2 = Point(item[1]) * ctm
+                    p3 = Point(item[2]) * ctm
+                    p4 = Point(item[3]) * ctm
+                    path["items"].append(("c", current, p2, p3, p4))
+                    current = p4
+                    path["rect"] |= p2
+                    path["rect"] |= p3
+                    path["rect"] |= p4
+            elif item == "closePath":
+                path["closePath"] = True
+            elif item in ("estroke", "efill", "eclip", "eclip-stroke"):
+                if is_rectangle(path):
+                    path["items"] = [("re", path["rect"])]
+                    path["closePath"] = False
+
+                try:  # check if path is "stroke" duplicate of previous
+                    prev = paths.pop()  # get previous path in list
+                except IndexError:
+                    prev = None  # we are the first
+                if prev is None:
+                    paths.append(path)
+                elif check_and_merge(path, prev) is False:  # no duplicates
+                    paths.append(prev)  # re-append old one
+                    paths.append(path)  # append new one
+                else:
+                    paths.append(prev)  # append modified old one
+
+                path = None
+            else:
+                print("unexpected item:", item)
+
+        return paths
+
+
+    def _getDrawings(self):
+        return _fitz.Page__getDrawings(self)
+
+    def _apply_redactions(self, *args):
+        return _fitz.Page__apply_redactions(self, *args)
 
     def _makePixmap(self, doc, ctm, cs, alpha=0, annots=1, clip=None):
         return _fitz.Page__makePixmap(self, doc, ctm, cs, alpha, annots, clip)
@@ -5386,7 +5545,7 @@ class Page(object):
 
 
     def _addAnnot_FromString(self, linklist):
-        """Add Link/Annot from object source."""
+        """Add links from list of object sources."""
         CheckParent(self)
 
         return _fitz.Page__addAnnot_FromString(self, linklist)
@@ -5698,11 +5857,11 @@ class Pixmap(object):
         return _fitz.Pixmap_copyPixmap(self, src, bbox)
 
 
-    def setAlpha(self, alphavalues=None):
+    def setAlpha(self, alphavalues=None, premultiply=1):
         """Set alphas to values contained in a byte array.
         If omitted, set alphas to 255."""
 
-        return _fitz.Pixmap_setAlpha(self, alphavalues)
+        return _fitz.Pixmap_setAlpha(self, alphavalues, premultiply)
 
 
     def _getImageData(self, format):
@@ -7060,11 +7219,16 @@ class Graftmap(object):
 
     def __init__(self, doc):
         _fitz.Graftmap_swiginit(self, _fitz.new_Graftmap(doc))
+        self.thisown = True
+
+
 
     def __del__(self):
         if not type(self) is Graftmap:
             return
-        self.__swig_destroy__(self)
+        if getattr(self, "thisown", False):
+            self.__swig_destroy__(self)
+        self.thisown = False
 
 
 # Register Graftmap in _fitz:
