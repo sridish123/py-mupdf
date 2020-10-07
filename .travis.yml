@@ -8,7 +8,7 @@ cache:
 
 env:
   global:
-  - MUPDF='https://mupdf.com/downloads/archive/mupdf-1.18.0-rc1-source.tar.gz'
+  - MUPDF='https://mupdf.com/downloads/archive/mupdf-1.18.0-source.tar.gz'
   - COPYFILE_DISABLE=1
 
 jobs:
