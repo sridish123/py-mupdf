@@ -38,6 +38,7 @@ install:
 - "$PIP install cibuildwheel"
 - mkdir mupdf && wget -q $MUPDF -O - | tar zx -C mupdf --strip-components=1
 - cp fitz/_config.h mupdf/include/mupdf/fitz/config.h
+- ls *
 
 script:
 - export CIBW_SKIP="pp27-* pp35-* pp36-* pp37-* pp38-* cp33-* *i686"
