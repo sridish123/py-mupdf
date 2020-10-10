@@ -2733,6 +2733,22 @@ static swig_module_info swig_module = {swig_types, 15, 0, 0, 0, 0};
 #include <fitz.h>
 #include <pdf.h>
 #include <time.h>
+// freetype includes >> --------------------------------------------------
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#ifdef FT_FONT_FORMATS_H
+#include FT_FONT_FORMATS_H
+#else
+#include FT_XFREE86_H
+#endif
+#include FT_TRUETYPE_TABLES_H
+
+#ifndef FT_SFNT_HEAD
+#define FT_SFNT_HEAD ft_sfnt_head
+#endif
+// << freetype includes --------------------------------------------------
+
+
 char *JM_Python_str_AsChar(PyObject *str);
 
 // additional headers from MuPDF ----------------------------------------------
@@ -2741,7 +2757,7 @@ fz_pixmap *fz_scale_pixmap(fz_context *ctx, fz_pixmap *src, float x, float y, fl
 int fz_pixmap_size(fz_context *ctx, fz_pixmap *src);
 void fz_subsample_pixmap(fz_context *ctx, fz_pixmap *tile, int factor);
 void fz_copy_pixmap_rect(fz_context *ctx, fz_pixmap *dest, fz_pixmap *src, fz_irect b, const fz_default_colorspaces *default_cs);
-void jm_valid_chars(fz_context *ctx, fz_font *font, void *ptr);
+
 // end of additional MuPDF headers --------------------------------------------
 
 PyObject *JM_mupdf_warnings_store;
@@ -3486,6 +3502,27 @@ PyObject *JM_EscapeStrFromStr(const char *c)
     }
     return val;
 }
+
+
+// list of valid unicodes of a fz_font
+void JM_valid_chars(fz_context *ctx, fz_font *font, void *arr)
+{
+	FT_Face face = font->ft_face;
+	FT_ULong ucs;
+	FT_UInt gid;
+	long *table = (long *)arr;
+	fz_lock(ctx, FZ_LOCK_FREETYPE);
+	ucs = FT_Get_First_Char(face, &gid);
+	while (gid > 0)
+	{
+		if (gid < (FT_ULong)face->num_glyphs && face->num_glyphs > 0)
+			table[gid] = (long)ucs;
+		ucs = FT_Get_Next_Char(face, ucs, &gid);
+	}
+	fz_unlock(ctx, FZ_LOCK_FREETYPE);
+	return;
+}
+
 
 // redirect MuPDF warnings
 void JM_mupdf_warning(void *user, const char *message)
@@ -6998,18 +7035,16 @@ fz_buffer *JM_read_contents(fz_context * ctx, pdf_obj * pageref)
 //-----------------------------------------------------------------------------
 pdf_obj *JM_xobject_from_page(fz_context * ctx, pdf_document * pdfout, fz_page * fsrcpage, int xref, pdf_graft_map *gmap)
 {
-    fz_buffer *res = NULL;
     pdf_obj *xobj1, *resources = NULL, *o, *spageref;
-    fz_rect mediabox;
-
     fz_try(ctx) {
-        pdf_page *srcpage = pdf_page_from_fz_page(ctx, fsrcpage);
-        spageref = srcpage->obj;
-        mediabox = pdf_to_rect(ctx, pdf_dict_get_inheritable(ctx, spageref, PDF_NAME(MediaBox)));
-
         if (xref > 0) {
             xobj1 = pdf_new_indirect(ctx, pdfout, xref, 0);
         } else {
+            fz_buffer *res = NULL;
+            fz_rect mediabox;
+            pdf_page *srcpage = pdf_page_from_fz_page(ctx, fsrcpage);
+            spageref = srcpage->obj;
+            mediabox = pdf_to_rect(ctx, pdf_dict_get_inheritable(ctx, spageref, PDF_NAME(MediaBox)));
             // Deep-copy resources object of source page
             o = pdf_dict_get_inheritable(ctx, spageref, PDF_NAME(Resources));
             if (gmap) // use graftmap when possible
@@ -8378,7 +8413,7 @@ SWIGINTERN PyObject *Document_convertToPDF(struct Document *self,int from_page,i
             fz_try(gctx) {
                 int fp = from_page, tp = to_page, srcCount = fz_count_pages(gctx, fz_doc);
                 if (pdf_specifics(gctx, fz_doc))
-                    THROWMSG("use select+write or insertPDF for PDF docs instead");
+                    THROWMSG("bad document type");
                 if (fp < 0) fp = 0;
                 if (fp > srcCount - 1) fp = srcCount - 1;
                 if (tp < 0) tp = srcCount - 1;
@@ -8391,10 +8426,24 @@ SWIGINTERN PyObject *Document_convertToPDF(struct Document *self,int from_page,i
             return doc;
         }
 SWIGINTERN PyObject *Document_pageCount(struct Document *self){
-            return Py_BuildValue("i", fz_count_pages(gctx, (fz_document *) self));
+            int pc = 0;
+            fz_try(gctx) {
+                pc = fz_count_pages(gctx, (fz_document *) self);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return Py_BuildValue("i", pc);
         }
 SWIGINTERN PyObject *Document_chapterCount(struct Document *self){
-            return Py_BuildValue("i", fz_count_chapters(gctx, (fz_document *) self));
+            int pc=0;
+            fz_try(gctx) {
+                pc = fz_count_chapters(gctx, (fz_document *) self);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return Py_BuildValue("i", pc);
         }
 SWIGINTERN PyObject *Document_lastLocation(struct Document *self){
             fz_document *this_doc = (fz_document *) self;
@@ -9922,6 +9971,39 @@ SWIGINTERN PyObject *Page_getSVGimage(struct Page *self,PyObject *matrix,int tex
             }
             return text;
         }
+SWIGINTERN PyObject *Page__set_opacity(struct Page *self,char *gstate,float CA,float ca){
+            if (!gstate) Py_RETURN_NONE;
+            pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
+            fz_try(gctx) {
+                ASSERT_PDF(page);
+                pdf_obj *resources = pdf_dict_get(gctx, page->obj, PDF_NAME(Resources));
+                if (!resources) {
+                    resources = pdf_dict_put_dict(gctx, page->obj, PDF_NAME(Resources), 2);
+                }
+                pdf_obj *extg = pdf_dict_get(gctx, resources, PDF_NAME(ExtGState));
+                if (!extg) {
+                    extg = pdf_dict_put_dict(gctx, resources, PDF_NAME(ExtGState), 2);
+                }
+                int i, n = pdf_dict_len(gctx, extg);
+                for (i = 0; i < n; i++) {
+                    pdf_obj *o1 = pdf_dict_get_key(gctx, extg, i);
+                    char *name = (char *) pdf_to_name(gctx, o1);
+                    if (strcmp(name, gstate) == 0) goto finished;
+                }
+                pdf_obj *opa = pdf_new_dict(gctx, page->doc, 3);
+                pdf_dict_put_real(gctx, opa, PDF_NAME(CA), (double) CA);
+                pdf_dict_put_real(gctx, opa, PDF_NAME(ca), (double) ca);
+                pdf_dict_puts_drop(gctx, extg, gstate, opa);
+                finished:;
+            }
+            fz_always(gctx) {
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return Py_BuildValue("s", gstate);
+
+        }
 SWIGINTERN struct Annot *Page__add_caret_annot(struct Page *self,PyObject *point){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             pdf_annot *annot = NULL;
@@ -11003,7 +11085,7 @@ SWIGINTERN struct Pixmap *new_Pixmap__SWIG_3(struct Pixmap *spix,int alpha){
             fz_separations *seps = NULL;
             fz_try(gctx) {
                 if (!INRANGE(alpha, 0, 1))
-                    THROWMSG("illegal alpha value");
+                    THROWMSG("bad alpha value");
                 fz_colorspace *cs = fz_pixmap_colorspace(gctx, src_pix);
                 if (!cs && !alpha)
                     THROWMSG("cannot drop alpha for 'NULL' colorspace");
@@ -11749,8 +11831,11 @@ SWIGINTERN PyObject *Annot__get_redact_values(struct Annot *self){
             pdf_obj *obj = NULL;
             const char *text = NULL;
             fz_try(gctx) {
-                if (pdf_dict_gets(gctx, annot->obj, "RO")) {
+                obj = pdf_dict_gets(gctx, annot->obj, "RO");
+                if (obj) {
                     JM_Warning("Ignoring redaction key '/RO'.");
+                    int xref = pdf_to_num(gctx, obj);
+                    DICT_SETITEM_DROP(values, dictkey_xref, Py_BuildValue("i", xref));
                 }
                 obj = pdf_dict_gets(gctx, annot->obj, "OverlayText");
                 if (obj) {
@@ -12907,7 +12992,7 @@ SWIGINTERN void Font__valid_unicodes(struct Font *self,PyObject *arr){
             fz_font *font = (fz_font *) self;
             PyObject *temp = PySequence_ITEM(arr, 0);
             void *ptr = PyLong_AsVoidPtr(temp);
-            jm_valid_chars(gctx, font, ptr);
+            JM_valid_chars(gctx, font, ptr);
             Py_DECREF(temp);
         }
 SWIGINTERN PyObject *Font_flags(struct Font *self){
@@ -13876,7 +13961,13 @@ SWIGINTERN PyObject *_wrap_Document_pageCount(PyObject *SWIGUNUSEDPARM(self), Py
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_pageCount" "', argument " "1"" of type '" "struct Document *""'"); 
   }
   arg1 = (struct Document *)(argp1);
-  result = (PyObject *)Document_pageCount(arg1);
+  {
+    result = (PyObject *)Document_pageCount(arg1);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
   resultobj = result;
   return resultobj;
 fail:
@@ -13899,7 +13990,13 @@ SWIGINTERN PyObject *_wrap_Document_chapterCount(PyObject *SWIGUNUSEDPARM(self),
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_chapterCount" "', argument " "1"" of type '" "struct Document *""'"); 
   }
   arg1 = (struct Document *)(argp1);
-  result = (PyObject *)Document_chapterCount(arg1);
+  {
+    result = (PyObject *)Document_chapterCount(arg1);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
   resultobj = result;
   return resultobj;
 fail:
@@ -16674,6 +16771,67 @@ SWIGINTERN PyObject *_wrap_Page_getSVGimage(PyObject *SWIGUNUSEDPARM(self), PyOb
   resultobj = result;
   return resultobj;
 fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Page__set_opacity(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Page *arg1 = (struct Page *) 0 ;
+  char *arg2 = (char *) NULL ;
+  float arg3 = (float) 1 ;
+  float arg4 = (float) 1 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  float val3 ;
+  int ecode3 = 0 ;
+  float val4 ;
+  int ecode4 = 0 ;
+  PyObject *swig_obj[4] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Page__set_opacity", 1, 4, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__set_opacity" "', argument " "1"" of type '" "struct Page *""'"); 
+  }
+  arg1 = (struct Page *)(argp1);
+  if (swig_obj[1]) {
+    res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Page__set_opacity" "', argument " "2"" of type '" "char *""'");
+    }
+    arg2 = (char *)(buf2);
+  }
+  if (swig_obj[2]) {
+    ecode3 = SWIG_AsVal_float(swig_obj[2], &val3);
+    if (!SWIG_IsOK(ecode3)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Page__set_opacity" "', argument " "3"" of type '" "float""'");
+    } 
+    arg3 = (float)(val3);
+  }
+  if (swig_obj[3]) {
+    ecode4 = SWIG_AsVal_float(swig_obj[3], &val4);
+    if (!SWIG_IsOK(ecode4)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Page__set_opacity" "', argument " "4"" of type '" "float""'");
+    } 
+    arg4 = (float)(val4);
+  }
+  {
+    result = (PyObject *)Page__set_opacity(arg1,arg2,arg3,arg4);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
   return NULL;
 }
 
@@ -24480,6 +24638,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page_language", _wrap_Page_language, METH_O, NULL},
 	 { "Page_setLanguage", _wrap_Page_setLanguage, METH_VARARGS, NULL},
 	 { "Page_getSVGimage", _wrap_Page_getSVGimage, METH_VARARGS, NULL},
+	 { "Page__set_opacity", _wrap_Page__set_opacity, METH_VARARGS, NULL},
 	 { "Page__add_caret_annot", _wrap_Page__add_caret_annot, METH_VARARGS, NULL},
 	 { "Page__add_redact_annot", _wrap_Page__add_redact_annot, METH_VARARGS, NULL},
 	 { "Page__add_line_annot", _wrap_Page__add_line_annot, METH_VARARGS, NULL},

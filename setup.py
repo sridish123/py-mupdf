@@ -4,10 +4,11 @@ import sys, os, re
 DEFAULT = ["mupdf", "mupdf-third"]
 ARCH_LINUX = DEFAULT + ["jbig2dec", "openjp2", "jpeg", "freetype"]
 OPENSUSE = ARCH_LINUX + ["harfbuzz", "png16"]
-FEDORA = ARCH_LINUX + ["harfbuzz"]
+FEDORA = ARCH_LINUX + ["harfbuzz", "gumbo"]
 LIBRARIES = {
     "default": DEFAULT,
     "arch": ARCH_LINUX,
+    "manjaro": ARCH_LINUX,
     "opensuse": OPENSUSE,
     "fedora": FEDORA,
 }
@@ -36,13 +37,14 @@ def load_libraries():
 
 
 # check the platform
-if sys.platform.startswith("linux"):
+if sys.platform.startswith("linux") or "gnu" in sys.platform:
     module = Extension(
         "fitz._fitz",  # name of the module
         ["fitz/fitz_wrap.c"],  # C source file
         include_dirs=[  # we need the path of the MuPDF headers
             "/usr/include/mupdf",
             "/usr/local/include/mupdf",
+            "/usr/thirdparty/freetype/include",
         ],
         libraries=load_libraries(),
     )
@@ -99,7 +101,7 @@ long_desc = "\n".join(long_dtab)
 
 setup(
     name="PyMuPDF",
-    version="1.18.0",
+    version="1.18.1",
     description="Python bindings for the PDF rendering library MuPDF",
     long_description=long_desc,
     classifiers=classifier,

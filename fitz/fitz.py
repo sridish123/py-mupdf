@@ -86,9 +86,9 @@ except ImportError:
 
 
 VersionFitz = "1.18.0"
-VersionBind = "1.18.0"
-VersionDate = "2020-10-06 07:15:59"
-version = (VersionBind, VersionFitz, "20201006071559")
+VersionBind = "1.18.1"
+VersionDate = "2020-10-09 21:04:57"
+version = (VersionBind, VersionFitz, "20201009210457")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -413,7 +413,7 @@ class Matrix(object):
             self.a, self.b, self.c, self.d, self.e, self.f = 1.0, \
                 float(args[1]), float(args[0]), 1.0, 0.0, 0.0
             return None
-        raise ValueError("illegal Matrix constructor")
+        raise ValueError("bad Matrix constructor")
 
     def invert(self, src=None):
         """Calculate the inverted matrix. Return 0 if successful and replace
@@ -4858,6 +4858,22 @@ class Page(object):
         return _fitz.Page_getSVGimage(self, matrix, text_as_path)
 
 
+    def _set_opacity(self, gstate=None, CA=1, ca=1):
+
+        if min(CA, ca) >= 1:
+            return
+        tCA = int(round(max(CA , 0) * 100))
+        if tCA >= 100:
+            tCA = 99
+        tca = int(round(max(ca, 0) * 100))
+        if tca >= 100:
+            tca = 99
+        gstate = "fitzca%02i%02i" % (tCA, tca)
+
+
+        return _fitz.Page__set_opacity(self, gstate, CA, ca)
+
+
     def _add_caret_annot(self, point):
         return _fitz.Page__add_caret_annot(self, point)
 
@@ -5322,8 +5338,8 @@ class Page(object):
                             path["even_odd"] = True
                         elif x[0] == "matrix":
                             ctm = Matrix(x[1])
-                            if ctm.a == ctm.d:
-                                factor = ctm.a
+                            if abs(ctm.a) == abs(ctm.d):
+                                factor = abs(ctm.a)
                         elif x[0] == "w":
                             path["width"] = x[1] * factor
                         elif x[0] == "lineCap":
@@ -7439,7 +7455,7 @@ class Font(object):
         cp = array("l", (0,) * gc)
         arr = cp.buffer_info()
         self._valid_unicodes(arr)
-        return array("l", sorted(set(cp)[1:]))
+        return array("l", sorted(set(cp))[1:])
 
 
     def _valid_unicodes(self, arr):
