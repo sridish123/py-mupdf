@@ -44,7 +44,7 @@ if sys.platform.startswith("linux") or "gnu" in sys.platform:
         include_dirs=[  # we need the path of the MuPDF headers
             "/usr/include/mupdf",
             "/usr/local/include/mupdf",
-            "/usr/thirdparty/freetype/include",
+            "/mupdf/thirdparty/freetype/include",
         ],
         libraries=load_libraries(),
     )
