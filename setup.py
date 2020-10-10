@@ -44,7 +44,7 @@ if sys.platform.startswith("linux") or "gnu" in sys.platform:
         include_dirs=[  # we need the path of the MuPDF headers
             "/usr/include/mupdf",
             "/usr/local/include/mupdf",
-            "/mupdf/thirdparty/freetype/include",
+            "mupdf/thirdparty/freetype/include",
         ],
         libraries=load_libraries(),
     )
@@ -53,7 +53,11 @@ elif sys.platform.startswith(("darwin", "freebsd")):
         "fitz._fitz",  # name of the module
         ["fitz/fitz_wrap.c"],  # C source file
         # directories containing mupdf's header files
-        include_dirs=["/usr/local/include/mupdf", "/usr/local/include"],
+        include_dirs=[
+            "/usr/local/include/mupdf",
+            "/usr/local/include",
+            "mupdf/thirdparty/freetype/include",
+        ],
         # libraries should already be linked here by brew
         library_dirs=["/usr/local/lib"],
         # library_dirs=['/usr/local/Cellar/mupdf-tools/1.8/lib/',
