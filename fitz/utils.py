@@ -281,7 +281,7 @@ def insertImage(
         raise ValueError("pixmap must be a Pixmap")
     if mask and not stream:
         raise ValueError("mask requires stream")
-    if type(mask) not in (None, bytes, bytearray, io.BytesIO):
+    if mask is not None and type(mask) not in (bytes, bytearray, io.BytesIO):
         raise ValueError("mask must be bytes-like or BytesIO")
     while rotate < 0:
         rotate += 360
