@@ -111,12 +111,14 @@ PDF_ANNOT_POPUP = _fitz.PDF_ANNOT_POPUP
 PDF_ANNOT_FILE_ATTACHMENT = _fitz.PDF_ANNOT_FILE_ATTACHMENT
 PDF_ANNOT_SOUND = _fitz.PDF_ANNOT_SOUND
 PDF_ANNOT_MOVIE = _fitz.PDF_ANNOT_MOVIE
+PDF_ANNOT_RICH_MEDIA = _fitz.PDF_ANNOT_RICH_MEDIA
 PDF_ANNOT_WIDGET = _fitz.PDF_ANNOT_WIDGET
 PDF_ANNOT_SCREEN = _fitz.PDF_ANNOT_SCREEN
 PDF_ANNOT_PRINTER_MARK = _fitz.PDF_ANNOT_PRINTER_MARK
 PDF_ANNOT_TRAP_NET = _fitz.PDF_ANNOT_TRAP_NET
 PDF_ANNOT_WATERMARK = _fitz.PDF_ANNOT_WATERMARK
 PDF_ANNOT_3D = _fitz.PDF_ANNOT_3D
+PDF_ANNOT_PROJECTION = _fitz.PDF_ANNOT_PROJECTION
 PDF_ANNOT_UNKNOWN = _fitz.PDF_ANNOT_UNKNOWN
 PDF_REDACT_IMAGE_NONE = _fitz.PDF_REDACT_IMAGE_NONE
 PDF_REDACT_IMAGE_REMOVE = _fitz.PDF_REDACT_IMAGE_REMOVE
@@ -5580,8 +5582,8 @@ class Page(object):
     def _showPDFpage(self, fz_srcpage, overlay=1, matrix=None, xref=0, clip=None, graftmap=None, _imgname=None):
         return _fitz.Page__showPDFpage(self, fz_srcpage, overlay, matrix, xref, clip, graftmap, _imgname)
 
-    def _insertImage(self, filename=None, pixmap=None, stream=None, overlay=1, matrix=None, _imgname=None, _imgpointer=None):
-        return _fitz.Page__insertImage(self, filename, pixmap, stream, overlay, matrix, _imgname, _imgpointer)
+    def _insertImage(self, filename=None, pixmap=None, stream=None, imask=None, overlay=1, matrix=None, _imgname=None, _imgpointer=None):
+        return _fitz.Page__insertImage(self, filename, pixmap, stream, imask, overlay, matrix, _imgname, _imgpointer)
 
     def refresh(self):
         """Refresh page after link/annot/widget updates."""
@@ -6784,6 +6786,13 @@ class Annot(object):
         CheckParent(self)
 
         return _fitz.Annot_fileGet(self)
+
+
+    def soundGet(self):
+        """Retrieve sound stream."""
+        CheckParent(self)
+
+        return _fitz.Annot_soundGet(self)
 
 
     def fileUpd(self, buffer=None, filename=None, ufilename=None, desc=None):

@@ -1,5 +1,7 @@
-from distutils.core import setup, Extension
-import sys, os, re
+import os
+import re
+import sys
+from distutils.core import Extension, setup
 
 DEFAULT = ["mupdf", "mupdf-third"]
 ARCH_LINUX = DEFAULT + ["jbig2dec", "openjp2", "jpeg", "freetype"]
@@ -78,6 +80,7 @@ else:
         include_dirs=[  # we need the path of the MuPDF's headers
             "./mupdf/include",
             "./mupdf/include/mupdf",
+            "./mupdf/thirdparty/freetype/include",
         ],
         libraries=[  # these are needed in Windows
             "libmupdf",

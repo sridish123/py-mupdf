@@ -193,6 +193,7 @@ def insertImage(
     filename=None,
     pixmap=None,
     stream=None,
+    mask=None,
     rotate=0,
     keep_proportion=True,
     overlay=True,
@@ -206,7 +207,8 @@ def insertImage(
         filename: (str) name of an image file
         pixmap: (obj) a Pixmap object
         stream: (bytes) an image in memory
-        rotate: (int) degrees (multiple of 90)
+        mask: (bytes) enforce this image mask
+        rotate: (int) degrees (int multiple of 90)
         keep_proportion: (bool) whether to maintain aspect ratio
         overlay: (bool) put in foreground
     """
@@ -277,7 +279,10 @@ def insertImage(
         raise ValueError("stream must be bytes-like or BytesIO")
     elif pixmap and type(pixmap) is not Pixmap:
         raise ValueError("pixmap must be a Pixmap")
-
+    if mask and not stream:
+        raise ValueError("mask requires stream")
+    if type(mask) not in (None, bytes, bytearray, io.BytesIO):
+        raise ValueError("mask must be bytes-like or BytesIO")
     while rotate < 0:
         rotate += 360
     while rotate >= 360:
@@ -332,9 +337,9 @@ def insertImage(
 
     matrix = calc_matrix(fw, fh, clip, rotate=rotate)  # calculate matrix
 
-    # Create a unique image reference name. First make existing names list.
-    ilst = [i[7] for i in doc.getPageImageList(page.number)]  # existing names
-    n = "fzImg"  # 'fitz image'
+    # Create a unique image reference name.
+    ilst = [i[7] for i in doc.getPageImageList(page.number)]
+    n = "Im"  # 'fitz image'
     i = 0
     _imgname = n + "0"  # first name candidate
     while _imgname in ilst:
@@ -345,6 +350,7 @@ def insertImage(
         filename=filename,  # image in file
         pixmap=pixmap,  # image in pixmap
         stream=stream,  # image in memory
+        imask=mask,
         matrix=matrix,  # generated matrix
         overlay=overlay,
         _imgname=_imgname,  # generated PDF resource name

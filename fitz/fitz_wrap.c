@@ -2801,12 +2801,14 @@ struct DeviceWrapper {
 #define PDF_ANNOT_FILE_ATTACHMENT 17
 #define PDF_ANNOT_SOUND 18
 #define PDF_ANNOT_MOVIE 19
-#define PDF_ANNOT_WIDGET 20
-#define PDF_ANNOT_SCREEN 21
-#define PDF_ANNOT_PRINTER_MARK 22
-#define PDF_ANNOT_TRAP_NET 23
-#define PDF_ANNOT_WATERMARK 24
-#define PDF_ANNOT_3D 25
+#define PDF_ANNOT_RICH_MEDIA 20
+#define PDF_ANNOT_WIDGET 21
+#define PDF_ANNOT_SCREEN 22
+#define PDF_ANNOT_PRINTER_MARK 23
+#define PDF_ANNOT_TRAP_NET 24
+#define PDF_ANNOT_WATERMARK 25
+#define PDF_ANNOT_3D 26
+#define PDF_ANNOT_PROJECTION 27
 #define PDF_ANNOT_UNKNOWN -1
 
 //------------------------
@@ -4726,7 +4728,6 @@ JM_pixmap_from_page(fz_context *ctx,
     }
     return pix;
 }
-
 
 
 //----------------------------------------------------------------------------
@@ -8426,24 +8427,24 @@ SWIGINTERN PyObject *Document_convertToPDF(struct Document *self,int from_page,i
             return doc;
         }
 SWIGINTERN PyObject *Document_pageCount(struct Document *self){
-            int pc = 0;
+            PyObject *ret;
             fz_try(gctx) {
-                pc = fz_count_pages(gctx, (fz_document *) self);
+                ret = Py_BuildValue("i", fz_count_pages(gctx, (fz_document *) self));
             }
             fz_catch(gctx) {
                 return NULL;
             }
-            return Py_BuildValue("i", pc);
+            return ret;
         }
 SWIGINTERN PyObject *Document_chapterCount(struct Document *self){
-            int pc=0;
+            PyObject *ret;
             fz_try(gctx) {
-                pc = fz_count_chapters(gctx, (fz_document *) self);
+                ret = Py_BuildValue("i", fz_count_chapters(gctx, (fz_document *) self));
             }
             fz_catch(gctx) {
                 return NULL;
             }
-            return Py_BuildValue("i", pc);
+            return ret;
         }
 SWIGINTERN PyObject *Document_lastLocation(struct Document *self){
             fz_document *this_doc = (fz_document *) self;
@@ -8457,9 +8458,9 @@ SWIGINTERN PyObject *Document_lastLocation(struct Document *self){
             return Py_BuildValue("ii", last_loc.chapter, last_loc.page);
         }
 SWIGINTERN PyObject *Document_chapterPageCount(struct Document *self,int chapter){
-            int chapters = fz_count_chapters(gctx, (fz_document *) self);
             int pages = 0;
             fz_try(gctx) {
+                int chapters = fz_count_chapters(gctx, (fz_document *) self);
                 if (chapter < 0 || chapter >= chapters)
                     THROWMSG("bad chapter number");
                 pages = fz_count_chapter_pages(gctx, (fz_document *) self, chapter);
@@ -10753,7 +10754,7 @@ SWIGINTERN PyObject *Page__showPDFpage(struct Page *self,struct Page *fz_srcpage
             }
             return Py_BuildValue("i", rc_xref);
         }
-SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,struct Pixmap *pixmap,PyObject *stream,int overlay,PyObject *matrix,char const *_imgname,PyObject *_imgpointer){
+SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,struct Pixmap *pixmap,PyObject *stream,PyObject *imask,int overlay,PyObject *matrix,char const *_imgname,PyObject *_imgpointer){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             pdf_document *pdf;
             fz_pixmap *pm = NULL;
@@ -10761,10 +10762,11 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
             fz_image *mask = NULL;
             fz_separations *seps = NULL;
             pdf_obj *resources, *xobject, *ref;
-            fz_buffer *nres = NULL,  *imgbuf = NULL;
+            fz_buffer *nres = NULL,  *imgbuf = NULL, *maskbuf = NULL;
             fz_matrix mat = JM_matrix_from_py(matrix); // pre-calculated
+            fz_compressed_buffer *cbuf1 = NULL, *cbuf2 = NULL;
 
-            const char *template = " q %g %g %g %g %g %g cm /%s Do Q ";
+            const char *template = "\nq\n%g %g %g %g %g %g cm\n/%s Do\nQ\n";
             fz_image *zimg = NULL, *image = NULL;
             fz_try(gctx) {
                 //-------------------------------------------------------------
@@ -10780,22 +10782,34 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                     } else {  // fz_image pointer has been handed in
                         image = (fz_image *)PyLong_AsVoidPtr(_imgpointer);
                     }
-
-                    // test for alpha (which would require making an SMask)
-                    pix = fz_get_pixmap_from_image(gctx, image, NULL, NULL, 0, 0);
-                    int xres, yres;
+                    int xres, yres, w = image->w, h = image->h, bpc = image->bpc;
+                    fz_colorspace *colorspace = image->colorspace;
                     fz_image_resolution(image, &xres, &yres);
-                    pix->xres = xres;
-                    pix->yres = yres;
-                    if (pix->alpha == 1) {  // have alpha: create an SMask
-                        pm = fz_convert_pixmap(gctx, pix, NULL, NULL, NULL, fz_default_color_params, 1);
-                        pm->alpha = 0;
-                        pm->colorspace = fz_keep_colorspace(gctx, fz_device_gray(gctx));
-                        mask = fz_new_image_from_pixmap(gctx, pm, NULL);
-                        zimg = fz_new_image_from_pixmap(gctx, pix, mask);
+                    if (EXISTS(imask)) {
+                        cbuf1 = fz_compressed_image_buffer(gctx, image);
+                        if (!cbuf1) THROWMSG("cannot mask uncompressed image");
+                        imgbuf = fz_new_buffer(gctx, fz_image_size(gctx, image));
+                        fz_append_buffer(gctx, imgbuf, cbuf1->buffer);
                         fz_drop_image(gctx, image);
-                        image = zimg;
-                        zimg = NULL;
+                        maskbuf = JM_BufferFromBytes(gctx, imask);
+                        mask = fz_new_image_from_buffer(gctx, maskbuf);
+                        image = fz_new_image_from_compressed_buffer(gctx, w, h,
+                                    bpc, colorspace, xres, yres, 1, 0, NULL,
+                                    NULL, imgbuf, mask);
+                    } else {
+                        pix = fz_get_pixmap_from_image(gctx, image, NULL, NULL, 0, 0);
+                        pix->xres = xres;
+                        pix->yres = yres;
+                        if (pix->alpha == 1) {  // have alpha: create an SMask
+                            pm = fz_convert_pixmap(gctx, pix, NULL, NULL, NULL, fz_default_color_params, 1);
+                            pm->alpha = 0;
+                            pm->colorspace = fz_keep_colorspace(gctx, fz_device_gray(gctx));
+                            mask = fz_new_image_from_pixmap(gctx, pm, NULL);
+                            zimg = fz_new_image_from_pixmap(gctx, pix, mask);
+                            fz_drop_image(gctx, image);
+                            image = zimg;
+                            zimg = NULL;
+                        }
                     }
                 } else {  // pixmap specified
                     fz_pixmap *arg_pix = (fz_pixmap *) pixmap;
@@ -10833,13 +10847,17 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                                  _imgname);
                 JM_insert_contents(gctx, pdf, page->obj, nres, overlay);
                 fz_drop_buffer(gctx, nres);
+                nres = NULL;
             }
             fz_always(gctx) {
                 fz_drop_image(gctx, image);
                 fz_drop_image(gctx, mask);
+                fz_drop_image(gctx, zimg);
                 fz_drop_pixmap(gctx, pix);
                 fz_drop_pixmap(gctx, pm);
                 fz_drop_buffer(gctx, imgbuf);
+                fz_drop_buffer(gctx, maskbuf);
+                fz_drop_buffer(gctx, nres);
             }
             fz_catch(gctx) {
                 return NULL;
@@ -12080,7 +12098,7 @@ SWIGINTERN void Annot_setColors(struct Annot *self,PyObject *colors,PyObject *fi
                     pdf_set_annot_color(gctx, annot, n, col);
                 }
                 fz_catch(gctx) {
-                    JM_Warning("could not set stroke color for this annot type");
+                    JM_Warning("annot type has no stroke color");
                 }
             }
             n = 0;
@@ -12090,7 +12108,7 @@ SWIGINTERN void Annot_setColors(struct Annot *self,PyObject *colors,PyObject *fi
                     fz_try(gctx)
                         pdf_set_annot_interior_color(gctx, annot, n, col);
                     fz_catch(gctx)
-                        JM_Warning("cannot set fill color for this annot type");
+                        JM_Warning("annot type has no fill color");
                 } else {
                     pdf_obj *arr = pdf_new_array(gctx, annot->page->doc, n);
                     for (i = 0; i < n; i++) {
@@ -12161,7 +12179,7 @@ SWIGINTERN PyObject *Annot_fileInfo(struct Annot *self){
             fz_try(gctx) {
                 int type = (int) pdf_annot_type(gctx, annot);
                 if (type != PDF_ANNOT_FILE_ATTACHMENT)
-                    THROWMSG("not a file attachment annot");
+                    THROWMSG("bad annot type");
                 stream = pdf_dict_getl(gctx, annot->obj, PDF_NAME(FS),
                                    PDF_NAME(EF), PDF_NAME(F), NULL);
                 if (!stream) THROWMSG("bad PDF: file entry not found");
@@ -12205,7 +12223,7 @@ SWIGINTERN PyObject *Annot_fileGet(struct Annot *self){
             fz_try(gctx) {
                 int type = (int) pdf_annot_type(gctx, annot);
                 if (type != PDF_ANNOT_FILE_ATTACHMENT)
-                    THROWMSG("not a file attachment annot");
+                    THROWMSG("bad annot type");
                 stream = pdf_dict_getl(gctx, annot->obj, PDF_NAME(FS),
                                    PDF_NAME(EF), PDF_NAME(F), NULL);
                 if (!stream) THROWMSG("bad PDF: file entry not found");
@@ -12216,6 +12234,60 @@ SWIGINTERN PyObject *Annot_fileGet(struct Annot *self){
                 fz_drop_buffer(gctx, buf);
             }
             fz_catch(gctx) {
+                return NULL;
+            }
+            return res;
+        }
+SWIGINTERN PyObject *Annot_soundGet(struct Annot *self){
+            PyObject *res = NULL;
+            PyObject *stream = NULL;
+            fz_buffer *buf = NULL;
+            pdf_obj *obj = NULL;
+            pdf_annot *annot = (pdf_annot *) self;
+            fz_var(buf);
+            fz_try(gctx) {
+                int type = (int) pdf_annot_type(gctx, annot);
+                pdf_obj *sound = pdf_dict_get(gctx, annot->obj, PDF_NAME(Sound));
+                if (type != PDF_ANNOT_SOUND || !sound)
+                    THROWMSG("bad annot type");
+                if (pdf_dict_get(gctx, sound, PDF_NAME(F))) {
+                    THROWMSG("unsupported sound stream");
+                }
+                res = PyDict_New();
+                obj = pdf_dict_get(gctx, sound, PDF_NAME(R));
+                if (obj) {
+                    DICT_SETITEMSTR_DROP(res, "rate",
+                            Py_BuildValue("f", pdf_to_real(gctx, obj)));
+                }
+                obj = pdf_dict_get(gctx, sound, PDF_NAME(C));
+                if (obj) {
+                    DICT_SETITEMSTR_DROP(res, "channels",
+                            Py_BuildValue("i", pdf_to_int(gctx, obj)));
+                }
+                obj = pdf_dict_get(gctx, sound, PDF_NAME(B));
+                if (obj) {
+                    DICT_SETITEMSTR_DROP(res, "bps",
+                            Py_BuildValue("i", pdf_to_int(gctx, obj)));
+                }
+                obj = pdf_dict_get(gctx, sound, PDF_NAME(E));
+                if (obj) {
+                    DICT_SETITEMSTR_DROP(res, "encoding",
+                            Py_BuildValue("s", pdf_to_name(gctx, obj)));
+                }
+                obj = pdf_dict_gets(gctx, sound, "CO");
+                if (obj) {
+                    DICT_SETITEMSTR_DROP(res, "compression",
+                            Py_BuildValue("s", pdf_to_name(gctx, obj)));
+                }
+                buf = pdf_load_stream(gctx, sound);
+                stream = JM_BinFromBuffer(gctx, buf);
+                DICT_SETITEMSTR_DROP(res, "stream", stream);
+            }
+            fz_always(gctx) {
+                fz_drop_buffer(gctx, buf);
+            }
+            fz_catch(gctx) {
+                Py_CLEAR(res);
                 return NULL;
             }
             return res;
@@ -18164,10 +18236,11 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   char *arg2 = (char *) NULL ;
   struct Pixmap *arg3 = (struct Pixmap *) NULL ;
   PyObject *arg4 = (PyObject *) NULL ;
-  int arg5 = (int) 1 ;
-  PyObject *arg6 = (PyObject *) NULL ;
-  char *arg7 = (char *) NULL ;
-  PyObject *arg8 = (PyObject *) NULL ;
+  PyObject *arg5 = (PyObject *) NULL ;
+  int arg6 = (int) 1 ;
+  PyObject *arg7 = (PyObject *) NULL ;
+  char *arg8 = (char *) NULL ;
+  PyObject *arg9 = (PyObject *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res2 ;
@@ -18175,15 +18248,15 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   int alloc2 = 0 ;
   void *argp3 = 0 ;
   int res3 = 0 ;
-  int val5 ;
-  int ecode5 = 0 ;
-  int res7 ;
-  char *buf7 = 0 ;
-  int alloc7 = 0 ;
-  PyObject *swig_obj[8] ;
+  int val6 ;
+  int ecode6 = 0 ;
+  int res8 ;
+  char *buf8 = 0 ;
+  int alloc8 = 0 ;
+  PyObject *swig_obj[9] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Page__insertImage", 1, 8, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Page__insertImage", 1, 9, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__insertImage" "', argument " "1"" of type '" "struct Page *""'"); 
@@ -18207,27 +18280,30 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
     arg4 = swig_obj[3];
   }
   if (swig_obj[4]) {
-    ecode5 = SWIG_AsVal_int(swig_obj[4], &val5);
-    if (!SWIG_IsOK(ecode5)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "Page__insertImage" "', argument " "5"" of type '" "int""'");
-    } 
-    arg5 = (int)(val5);
+    arg5 = swig_obj[4];
   }
   if (swig_obj[5]) {
-    arg6 = swig_obj[5];
+    ecode6 = SWIG_AsVal_int(swig_obj[5], &val6);
+    if (!SWIG_IsOK(ecode6)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "Page__insertImage" "', argument " "6"" of type '" "int""'");
+    } 
+    arg6 = (int)(val6);
   }
   if (swig_obj[6]) {
-    res7 = SWIG_AsCharPtrAndSize(swig_obj[6], &buf7, NULL, &alloc7);
-    if (!SWIG_IsOK(res7)) {
-      SWIG_exception_fail(SWIG_ArgError(res7), "in method '" "Page__insertImage" "', argument " "7"" of type '" "char const *""'");
-    }
-    arg7 = (char *)(buf7);
+    arg7 = swig_obj[6];
   }
   if (swig_obj[7]) {
-    arg8 = swig_obj[7];
+    res8 = SWIG_AsCharPtrAndSize(swig_obj[7], &buf8, NULL, &alloc8);
+    if (!SWIG_IsOK(res8)) {
+      SWIG_exception_fail(SWIG_ArgError(res8), "in method '" "Page__insertImage" "', argument " "8"" of type '" "char const *""'");
+    }
+    arg8 = (char *)(buf8);
+  }
+  if (swig_obj[8]) {
+    arg9 = swig_obj[8];
   }
   {
-    result = (PyObject *)Page__insertImage(arg1,(char const *)arg2,arg3,arg4,arg5,arg6,(char const *)arg7,arg8);
+    result = (PyObject *)Page__insertImage(arg1,(char const *)arg2,arg3,arg4,arg5,arg6,arg7,(char const *)arg8,arg9);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -18235,11 +18311,11 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   }
   resultobj = result;
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  if (alloc7 == SWIG_NEWOBJ) free((char*)buf7);
+  if (alloc8 == SWIG_NEWOBJ) free((char*)buf8);
   return resultobj;
 fail:
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  if (alloc7 == SWIG_NEWOBJ) free((char*)buf7);
+  if (alloc8 == SWIG_NEWOBJ) free((char*)buf8);
   return NULL;
 }
 
@@ -21264,6 +21340,35 @@ SWIGINTERN PyObject *_wrap_Annot_fileGet(PyObject *SWIGUNUSEDPARM(self), PyObjec
   arg1 = (struct Annot *)(argp1);
   {
     result = (PyObject *)Annot_fileGet(arg1);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Annot_soundGet(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Annot *arg1 = (struct Annot *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_soundGet" "', argument " "1"" of type '" "struct Annot *""'"); 
+  }
+  arg1 = (struct Annot *)(argp1);
+  {
+    result = (PyObject *)Annot_soundGet(arg1);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -24761,6 +24866,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Annot_setOpacity", _wrap_Annot_setOpacity, METH_VARARGS, NULL},
 	 { "Annot_fileInfo", _wrap_Annot_fileInfo, METH_O, NULL},
 	 { "Annot_fileGet", _wrap_Annot_fileGet, METH_O, NULL},
+	 { "Annot_soundGet", _wrap_Annot_soundGet, METH_O, NULL},
 	 { "Annot_fileUpd", _wrap_Annot_fileUpd, METH_VARARGS, NULL},
 	 { "Annot_info", _wrap_Annot_info, METH_O, NULL},
 	 { "Annot_setInfo", _wrap_Annot_setInfo, METH_VARARGS, NULL},
@@ -25772,12 +25878,14 @@ SWIG_init(void) {
   SWIG_Python_SetConstant(d, "PDF_ANNOT_FILE_ATTACHMENT",SWIG_From_int((int)(17)));
   SWIG_Python_SetConstant(d, "PDF_ANNOT_SOUND",SWIG_From_int((int)(18)));
   SWIG_Python_SetConstant(d, "PDF_ANNOT_MOVIE",SWIG_From_int((int)(19)));
-  SWIG_Python_SetConstant(d, "PDF_ANNOT_WIDGET",SWIG_From_int((int)(20)));
-  SWIG_Python_SetConstant(d, "PDF_ANNOT_SCREEN",SWIG_From_int((int)(21)));
-  SWIG_Python_SetConstant(d, "PDF_ANNOT_PRINTER_MARK",SWIG_From_int((int)(22)));
-  SWIG_Python_SetConstant(d, "PDF_ANNOT_TRAP_NET",SWIG_From_int((int)(23)));
-  SWIG_Python_SetConstant(d, "PDF_ANNOT_WATERMARK",SWIG_From_int((int)(24)));
-  SWIG_Python_SetConstant(d, "PDF_ANNOT_3D",SWIG_From_int((int)(25)));
+  SWIG_Python_SetConstant(d, "PDF_ANNOT_RICH_MEDIA",SWIG_From_int((int)(20)));
+  SWIG_Python_SetConstant(d, "PDF_ANNOT_WIDGET",SWIG_From_int((int)(21)));
+  SWIG_Python_SetConstant(d, "PDF_ANNOT_SCREEN",SWIG_From_int((int)(22)));
+  SWIG_Python_SetConstant(d, "PDF_ANNOT_PRINTER_MARK",SWIG_From_int((int)(23)));
+  SWIG_Python_SetConstant(d, "PDF_ANNOT_TRAP_NET",SWIG_From_int((int)(24)));
+  SWIG_Python_SetConstant(d, "PDF_ANNOT_WATERMARK",SWIG_From_int((int)(25)));
+  SWIG_Python_SetConstant(d, "PDF_ANNOT_3D",SWIG_From_int((int)(26)));
+  SWIG_Python_SetConstant(d, "PDF_ANNOT_PROJECTION",SWIG_From_int((int)(27)));
   SWIG_Python_SetConstant(d, "PDF_ANNOT_UNKNOWN",SWIG_From_int((int)(-1)));
   SWIG_Python_SetConstant(d, "PDF_REDACT_IMAGE_NONE",SWIG_From_int((int)(0)));
   SWIG_Python_SetConstant(d, "PDF_REDACT_IMAGE_REMOVE",SWIG_From_int((int)(1)));

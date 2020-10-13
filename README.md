@@ -2,7 +2,7 @@
 
 ![logo](https://github.com/pymupdf/PyMuPDF/blob/master/demo/pymupdf.jpg)
 
-Release date: October 7, 2020
+Release date: October 13, 2020
 
 **Travis-CI:** [![Build Status](https://travis-ci.org/JorjMcKie/py-mupdf.svg?branch=master)](https://travis-ci.org/JorjMcKie/py-mupdf)
 
@@ -59,32 +59,24 @@ Our **documentation**, written using Sphinx, is available in various formats fro
 
 # Installation
 
-For the major **Windows** and (thanks to our user **@jbarlow83**!) **Mac OSX** or **Linux** versions we provide wheels in the [download section of PyPI](https://pypi.org/project/PyMuPDF/#files). This includes Python 2.7 and versions Python 3.5 through 3.9.
+For Windows, Linux and Mac OSX platforms, there are wheels in the [download](https://pypi.org/project/PyMuPDF/#files) section of PyPI. This includes Python 64bit versions 3.6 through 3.9. For Windows only, 32bit versions are available too.
 
-> Starting January 2021, wheels for Python version 2 will no longer be built. You will need to build PyMuPDF for Python 2 from sources as explained below.
-> Similarly for Python 3.5: it has reached its end of life on 2020-09-13 and will therefore also no longer be serviced with wheels in 2021.
+> Wheels for **Python versions 2.7 and 3.5** will only be produced until the end of this year 2020. After that, you will need to build PyMuPDF from sources as explained below.
+> Starting immediately, we **_defer uploading Python 2.7 / 3.5 wheels_** until explicitely requested. Please submit an issue.
 
-For other Python versions or operating systems you need to generate PyMuPDF yourself as follows. This should work for all platforms which support Python and MuPDF. In any case you need the development version of Python.
+If your platform is not supported with one of our wheels, you need to generate PyMuPDF yourself as follows. This requires the development version of Python.
 
-Before building PyMuPDF from sources, you must build MuPDF. This process depends very much on your system. For most platforms, the MuPDF source contains prepared procedures for achieving this. Please observe the following general steps:
+Before you can do that, you must first build MuPDF. For most platforms, the MuPDF sources contain prepared procedures for achieving this. Please observe the following general steps:
 
-* Be sure to download the official MuPDF source release from [here](https://mupdf.com/downloads/archive).
+* Be sure to download the **_official MuPDF source release_** from [here](https://mupdf.com/downloads/archive). Do not use MuPDF's [GitHub repo](https://github.com/ArtifexSoftware/mupdf). It contains their development source for future versions.
 
-* Do **not use** MuPDF's [GitHub repo](https://github.com/ArtifexSoftware/mupdf). It contains their current **development source**, which is **not compatible** with this PyMuPDF version.
-
-* This repo's `fitz` folder contains one or more files whose names start with a single underscore `"_"`. These files contain configuration data and hotfixes. Each one must be copy-renamed to its correct target location **inside the MuPDF source** that you have downloaded, **before you generate MuPDF**. Currently, these files are:
-  - fitz configuration file `_config.h` copy-replace to: `mupdf/include/mupdf/fitz/config.h`. It contains configuration data like e.g. which fonts to support.
-  - font support file `_pdf-font-add.c` copy-replace to: `mupdf/source/pdf/pdf-font-add.c`.
-  - fax compression file `_encode-fax.c` copy-replace to: `mupdf/source/fitz/encode-fax.c`.
-  - CLI subtool `_murun.c` copy-replace to: `mupdf/source/tools/murun.c`.
-  - PDF page cleaning `_pdf_clean.c` copy-replace to: `mupdf/source/pdf/pdf_clean.c`.
-  - PDF page header `_pdf_page.h` copy-replace to: `mupdf/include/mupdf/pdf/page.h`.
+* This repo's [fitz](https://github.com/pymupdf/PyMuPDF/tree/master/fitz) folder contains one or more files whose names start with a single underscore `"_"`. These files contain configuration data and potentially other fixes. Copy-rename each of them to their correct target location within the downloaded MuPDF source. Currently, these files are:
+  - **Optional:** fitz configuration file `_config.h` copy-replace to: `mupdf/include/mupdf/fitz/config.h`. It contains configuration data like e.g. which fonts to support. If omitting this change, the binary extension module will be over 30 MB (compared to around 11 MB). Does not impact functionality.
 
   - Now MuPDF can be generated.
 
-* Since PyMuPDF v1.14.17, the sources provided in this repository **no longer contain** the interface files ``fitz.py`` and ``fitz.wrap.c`` - they are instead generated **"on the fly"** by ``setup.py`` using the interface generator [SWIG](http://www.swig.org/). So you need SWIG being installed on your system. Please refer to issue #312 for some background.
-    - PyMuPDF wheels have been generated using **SWIG v4.0.1**.
-
+* Since PyMuPDF v1.14.17, the sources provided in this repository **no longer contain** the interface files ``fitz.py`` and ``fitz.wrap.c`` - they are instead generated **"on the fly"** by ``setup.py`` using the interface generator [SWIG](http://www.swig.org/). So you need SWIG on your system. Please refer to issue #312 for some background.
+    - PyMuPDF wheels are being generated using **SWIG v4.0.1**.
 
 * If you do **not use SWIG**, please download the **sources from PyPI** - they continue to contain those generated files, so installation should work like any other Python extension generation on your system.
 
