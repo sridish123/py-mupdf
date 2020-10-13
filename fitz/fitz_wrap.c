@@ -10788,14 +10788,14 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                     if (EXISTS(imask)) {
                         cbuf1 = fz_compressed_image_buffer(gctx, image);
                         if (!cbuf1) THROWMSG("cannot mask uncompressed image");
-                        imgbuf = fz_new_buffer(gctx, fz_image_size(gctx, image));
-                        fz_append_buffer(gctx, imgbuf, cbuf1->buffer);
-                        fz_drop_image(gctx, image);
                         maskbuf = JM_BufferFromBytes(gctx, imask);
                         mask = fz_new_image_from_buffer(gctx, maskbuf);
-                        image = fz_new_image_from_compressed_buffer(gctx, w, h,
+                        zimg = fz_new_image_from_compressed_buffer(gctx, w, h,
                                     bpc, colorspace, xres, yres, 1, 0, NULL,
-                                    NULL, imgbuf, mask);
+                                    NULL, cbuf1, mask);
+                        fz_drop_image(gctx, image);
+                        image = zimg;
+                        zimg = NULL;
                     } else {
                         pix = fz_get_pixmap_from_image(gctx, image, NULL, NULL, 0, 0);
                         pix->xres = xres;
