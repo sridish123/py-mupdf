@@ -7400,7 +7400,10 @@ void JM_scan_resources(fz_context *ctx, pdf_document *pdf, pdf_obj *rsrc,
 {
     pdf_obj *font, *xobj, *subrsrc;
     int i, n, sxref;
-    if (pdf_mark_obj(ctx, rsrc)) return;  // cyclic dependencies!
+    if (pdf_mark_obj(ctx, rsrc)) {
+        fz_warn(ctx, "cyclic dependencies detected - consider page cleaning");
+        return;  // cyclic dependencies!
+    }
 
     fz_try(ctx) {
 
@@ -7434,6 +7437,7 @@ void JM_scan_resources(fz_context *ctx, pdf_document *pdf, pdf_obj *rsrc,
                 } else {
                     Py_DECREF(sxref_t);
                     PyErr_Clear();
+                    fz_warn(ctx, "cyclic dependencies detected - consider page cleaning");
                     goto finished;
                 }
             }
