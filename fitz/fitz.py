@@ -87,8 +87,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.1"
-VersionDate = "2020-10-09 21:04:57"
-version = (VersionBind, VersionFitz, "20201009210457")
+VersionDate = "2020-10-18 09:50:36"
+version = (VersionBind, VersionFitz, "20201018095036")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -4817,7 +4817,7 @@ class Page(object):
         return _fitz.Page_run(self, dw, m)
 
 
-    def _get_text_page(self, clip, flags=0):
+    def _get_text_page(self, clip=None, flags=0):
         val = _fitz.Page__get_text_page(self, clip, flags)
         val.thisown = True
 
@@ -7177,9 +7177,6 @@ class TextPage(object):
 
     def _extractText(self, format):
         return _fitz.TextPage__extractText(self, format)
-
-    def extractRect(self, rect):
-        return _fitz.TextPage_extractRect(self, rect)
 
     def extractSelection(self, pointa, pointb):
         return _fitz.TextPage_extractSelection(self, pointa, pointb)
