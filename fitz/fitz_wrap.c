@@ -7213,6 +7213,23 @@ JM_image_reporter(fz_context *ctx, pdf_page *page)
 
 
 
+
+//----------------------------------------------------------------------------
+// Store ID in PDF trailer
+//----------------------------------------------------------------------------
+void JM_new_identity(fz_context *ctx, pdf_document *pdf)
+{
+    unsigned char rnd[16];
+    pdf_obj *id;
+
+    fz_memrnd(ctx, rnd, nelem(rnd));
+
+    id = pdf_dict_put_array(ctx, pdf_trailer(ctx, pdf), PDF_NAME(ID), 2);
+    pdf_array_push_drop(ctx, id, pdf_new_string(ctx, (char *) rnd + 0, nelem(rnd)));
+    pdf_array_push_drop(ctx, id, pdf_new_string(ctx, (char *) rnd + 0, nelem(rnd)));
+}
+
+
 //-----------------------------------------------------------------------------
 // Store info of a font in Python list
 //-----------------------------------------------------------------------------
@@ -7370,12 +7387,10 @@ int JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
         if (o) {
             if (m) {
                 bbox = fz_transform_rect(pdf_to_rect(ctx, o), pdf_to_matrix(ctx, m));
-            }
-            else {
+            } else {
                 bbox = pdf_to_rect(ctx, o);
             }
-        }
-        else {
+        } else {
             bbox = fz_infinite_rect;
         }
         int xref = pdf_to_num(ctx, imagedict);
@@ -7384,8 +7399,7 @@ int JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
         PyTuple_SET_ITEM(entry, 0, Py_BuildValue("i", xref));
         PyTuple_SET_ITEM(entry, 1, Py_BuildValue("s", pdf_to_name(ctx, refname)));
         PyTuple_SET_ITEM(entry, 2, Py_BuildValue("i", stream_xref));
-        PyTuple_SET_ITEM(entry, 3, Py_BuildValue("ffff",
-                                   bbox.x0, bbox.y0, bbox.x1, bbox.y1));
+        PyTuple_SET_ITEM(entry, 3, JM_py_from_rect(bbox));
         LIST_APPEND_DROP(imagelist, entry);
     }
     return rc;
@@ -7401,8 +7415,8 @@ void JM_scan_resources(fz_context *ctx, pdf_document *pdf, pdf_obj *rsrc,
     pdf_obj *font, *xobj, *subrsrc;
     int i, n, sxref;
     if (pdf_mark_obj(ctx, rsrc)) {
-        fz_warn(ctx, "cyclic dependencies detected - consider page cleaning");
-        return;  // cyclic dependencies!
+        fz_warn(ctx, "Circular dependencies! Consider page cleaning.");
+        return;  // Circular dependencies!
     }
 
     fz_try(ctx) {
@@ -7416,10 +7430,11 @@ void JM_scan_resources(fz_context *ctx, pdf_document *pdf, pdf_obj *rsrc,
             JM_gather_images(ctx, pdf, xobj, liste, stream_xref);
         } else if (what == 3) {  // look up form xobjects
             JM_gather_forms(ctx, pdf, xobj, liste, stream_xref);
-        } else {
+        } else {  // should never happen
             goto finished;
         }
 
+        // check if we need to recurse into Form XObjects
         n = pdf_dict_len(ctx, xobj);
         for (i = 0; i < n; i++) {
             pdf_obj *obj = pdf_dict_get_val(ctx, xobj, i);
@@ -7437,7 +7452,7 @@ void JM_scan_resources(fz_context *ctx, pdf_document *pdf, pdf_obj *rsrc,
                 } else {
                     Py_DECREF(sxref_t);
                     PyErr_Clear();
-                    fz_warn(ctx, "cyclic dependencies detected - consider page cleaning");
+                    fz_warn(ctx, "Circular dependencies! Consider page cleaning.");
                     goto finished;
                 }
             }
@@ -8016,6 +8031,7 @@ SWIGINTERN struct Document *new_Document(char const *filename,PyObject *stream,c
                         }
                     } else {
                         pdf_document *pdf = pdf_create_document(gctx);
+                        JM_new_identity(gctx, pdf);
                         pdf->dirty = 1;
                         doc = (fz_document *) pdf;
                     }
@@ -8792,13 +8808,10 @@ SWIGINTERN PyObject *Document_save(struct Document *self,char *filename,int garb
             opts.do_sanitize        = clean;
             opts.do_encrypt         = encryption;
             opts.permissions        = permissions;
-            if (owner_pw)
-            {
+            if (owner_pw) {
                 memcpy(&opts.opwd_utf8, owner_pw, strlen(owner_pw)+1);
             }
-
-            if (user_pw)
-            {
+            if (user_pw) {
                 memcpy(&opts.upwd_utf8, user_pw, strlen(user_pw)+1);
             }
 
@@ -8806,6 +8819,7 @@ SWIGINTERN PyObject *Document_save(struct Document *self,char *filename,int garb
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 JM_embedded_clean(gctx, pdf);
+                pdf_obj *id = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(ID));
                 pdf_save_document(gctx, pdf, filename, &opts);
                 pdf->dirty = 0;
             }
@@ -8835,7 +8849,6 @@ SWIGINTERN PyObject *Document_write(struct Document *self,int garbage,int clean,
             if (owner_pw) {
                 memcpy(&opts.opwd_utf8, owner_pw, strlen(owner_pw)+1);
             }
-
             if (user_pw) {
                 memcpy(&opts.upwd_utf8, user_pw, strlen(user_pw)+1);
             }
@@ -9205,7 +9218,7 @@ SWIGINTERN PyObject *Document_extractImage(struct Document *self,int xref){
                 }
                 if (JM_is_jbig2_image(gctx, obj)) {
                     img_type = FZ_IMAGE_JBIG2;
-                    ext = "jbig2";
+                    ext = "jb2";
                 }
                 res = pdf_load_raw_stream(gctx, obj);
                 if (img_type == FZ_IMAGE_UNKNOWN) {
@@ -9214,7 +9227,6 @@ SWIGINTERN PyObject *Document_extractImage(struct Document *self,int xref){
                     img_type = fz_recognize_image_format(gctx, c);
                     ext = JM_image_extension(img_type);
                 }
-                PySys_WriteStdout("xref %i image type %s\n", xref, ext);
                 if (img_type == FZ_IMAGE_UNKNOWN) {
                     fz_drop_buffer(gctx, res);
                     res = NULL;
@@ -9490,14 +9502,13 @@ SWIGINTERN PyObject *Document__getXrefLength(struct Document *self){
             return Py_BuildValue("i", xreflen);
         }
 SWIGINTERN PyObject *Document__getXmlMetadataXref(struct Document *self){
-            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
-            pdf_obj *xml;
             int xref = 0;
             fz_try(gctx) {
+                pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
                 ASSERT_PDF(pdf);
                 pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
-                if (!root) THROWMSG("could not load root object");
-                xml = pdf_dict_gets(gctx, root, "Metadata");
+                if (!root) THROWMSG("PDF has no root");
+                pdf_obj *xml = pdf_dict_get(gctx, root, PDF_NAME(Metadata));
                 if (xml) xref = pdf_to_num(gctx, xml);
             }
             fz_catch(gctx) {;}
@@ -9508,7 +9519,34 @@ SWIGINTERN PyObject *Document__delXmlMetadata(struct Document *self){
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
-                if (root) pdf_dict_dels(gctx, root, "Metadata");
+                if (root) pdf_dict_del(gctx, root, PDF_NAME(Metadata));
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            pdf->dirty = 1;
+            return_none;
+        }
+SWIGINTERN PyObject *Document_setXmlMetadata(struct Document *self,char *metadata){
+            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+            fz_buffer *res = NULL;
+            fz_try(gctx) {
+                ASSERT_PDF(pdf);
+                pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
+                if (!root) THROWMSG("PDF has no root");
+                res = fz_new_buffer_from_copied_data(gctx, (const unsigned char *) metadata, strlen(metadata));
+                pdf_obj *xml = pdf_dict_get(gctx, root, PDF_NAME(Metadata));
+                if (xml) {
+                    JM_update_stream(gctx, pdf, xml, res, 0);
+                } else {
+                    xml = pdf_add_stream(gctx, pdf, res, NULL, 0);
+                    pdf_dict_put(gctx, xml, PDF_NAME(Type), PDF_NAME(Metadata));
+                    pdf_dict_put(gctx, xml, PDF_NAME(Subtype), PDF_NAME(XML));
+                    pdf_dict_put_drop(gctx, root, PDF_NAME(Metadata), xml);
+                }
+            }
+            fz_always(gctx) {
+                fz_drop_buffer(gctx, res);
             }
             fz_catch(gctx) {
                 return NULL;
@@ -16046,6 +16084,45 @@ SWIGINTERN PyObject *_wrap_Document__delXmlMetadata(PyObject *SWIGUNUSEDPARM(sel
   resultobj = result;
   return resultobj;
 fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Document_setXmlMetadata(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  char *arg2 = (char *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document_setXmlMetadata", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_setXmlMetadata" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Document_setXmlMetadata" "', argument " "2"" of type '" "char *""'");
+  }
+  arg2 = (char *)(buf2);
+  {
+    result = (PyObject *)Document_setXmlMetadata(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
   return NULL;
 }
 
@@ -24723,6 +24800,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document__getXrefLength", _wrap_Document__getXrefLength, METH_O, NULL},
 	 { "Document__getXmlMetadataXref", _wrap_Document__getXmlMetadataXref, METH_O, NULL},
 	 { "Document__delXmlMetadata", _wrap_Document__delXmlMetadata, METH_O, NULL},
+	 { "Document_setXmlMetadata", _wrap_Document_setXmlMetadata, METH_VARARGS, NULL},
 	 { "Document__getXrefString", _wrap_Document__getXrefString, METH_VARARGS, NULL},
 	 { "Document__getTrailerString", _wrap_Document__getTrailerString, METH_VARARGS, NULL},
 	 { "Document__getXrefStreamRaw", _wrap_Document__getXrefStreamRaw, METH_VARARGS, NULL},

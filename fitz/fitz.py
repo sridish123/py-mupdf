@@ -86,9 +86,9 @@ except ImportError:
 
 
 VersionFitz = "1.18.0"
-VersionBind = "1.18.1"
-VersionDate = "2020-10-18 09:50:36"
-version = (VersionBind, VersionFitz, "20201018095036")
+VersionBind = "1.18.2"
+VersionDate = "2020-10-23 09:17:55"
+version = (VersionBind, VersionFitz, "20201023091755")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -2783,30 +2783,27 @@ def get_highlight_selection(page, start=None, stop=None, clip=None):
     clip = Rect(clip)
     if start is None:
         start = clip.tl
-    start = Point(start)
     if stop is None:
         stop = clip.br
-    stop = Point(stop)
-
+    clip.y0 = start.y
+    clip.y1 = stop.y
 # extract text of page (no images)
     blocks = page.getText(
-        "dict", flags=TEXT_PRESERVE_LIGATURES + TEXT_PRESERVE_WHITESPACE
+        "dict", flags=TEXT_PRESERVE_WHITESPACE
     )["blocks"]
     rectangles = []  # we will be returning this
     lines = []  # intermediate bbox store
     for b in blocks:
         for line in b["lines"]:
-            bbox = Rect(line["bbox"]) & clip  # line bbox intersection
-            if bbox.isEmpty:  # do not output empty rectangles
+            bbox = clip & line["bbox"]  # line bbox intersection
+            if bbox.isEmpty:  # completely outside clip
                 continue
-            if bbox.y0 < start.y or bbox.y1 > stop.y:
-                continue  # line above or below the selection points
             lines.append(bbox)
 
     if lines == []:  # we did not select anything
         return rectangles
 
-    lines.sort(key=lambda bbox: bbox.y0)  # sort result by vertical positions
+    lines.sort(key=lambda bbox: bbox.y1)  # sort result by vertical positions
 
     bboxf = lines[0]  # potentially cut off left part of first line
     if bboxf.y0 - start.y <= 0.1 * bboxf.height:  # close enough to the top?
@@ -4305,6 +4302,14 @@ class Document(object):
             raise ValueError("document closed or encrypted")
 
         return _fitz.Document__delXmlMetadata(self)
+
+
+    def setXmlMetadata(self, metadata):
+        """Put XML metadata."""
+        if self.isClosed or self.isEncrypted:
+            raise ValueError("document closed or encrypted")
+
+        return _fitz.Document_setXmlMetadata(self, metadata)
 
 
     def _getXrefString(self, xref, compressed=0, ascii=0):
