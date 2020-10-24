@@ -7217,16 +7217,17 @@ JM_image_reporter(fz_context *ctx, pdf_page *page)
 //----------------------------------------------------------------------------
 // Store ID in PDF trailer
 //----------------------------------------------------------------------------
-void JM_new_identity(fz_context *ctx, pdf_document *pdf)
+void JM_ensure_identity(fz_context *ctx, pdf_document *pdf)
 {
     unsigned char rnd[16];
     pdf_obj *id;
-
-    fz_memrnd(ctx, rnd, nelem(rnd));
-
-    id = pdf_dict_put_array(ctx, pdf_trailer(ctx, pdf), PDF_NAME(ID), 2);
-    pdf_array_push_drop(ctx, id, pdf_new_string(ctx, (char *) rnd + 0, nelem(rnd)));
-    pdf_array_push_drop(ctx, id, pdf_new_string(ctx, (char *) rnd + 0, nelem(rnd)));
+    id = pdf_dict_get(ctx, pdf_trailer(ctx, pdf), PDF_NAME(ID));
+    if (!id) {
+        fz_memrnd(ctx, rnd, nelem(rnd));
+        id = pdf_dict_put_array(ctx, pdf_trailer(ctx, pdf), PDF_NAME(ID), 2);
+        pdf_array_push_drop(ctx, id, pdf_new_string(ctx, (char *) rnd + 0, nelem(rnd)));
+        pdf_array_push_drop(ctx, id, pdf_new_string(ctx, (char *) rnd + 0, nelem(rnd)));
+    }
 }
 
 
@@ -8031,7 +8032,6 @@ SWIGINTERN struct Document *new_Document(char const *filename,PyObject *stream,c
                         }
                     } else {
                         pdf_document *pdf = pdf_create_document(gctx);
-                        JM_new_identity(gctx, pdf);
                         pdf->dirty = 1;
                         doc = (fz_document *) pdf;
                     }
@@ -8790,6 +8790,11 @@ SWIGINTERN PyObject *Document_can_save_incrementally(struct Document *self){
             if (!pdf) Py_RETURN_FALSE; // gracefully handle non-PDF
             return JM_BOOL(pdf_can_be_saved_incrementally(gctx, pdf));
         }
+SWIGINTERN PyObject *Document_isRepaired(struct Document *self){
+            pdf_document *pdf = pdf_document_from_fz_document(gctx, (fz_document *) self);
+            if (!pdf) Py_RETURN_FALSE; // gracefully handle non-PDF
+            return JM_BOOL(pdf_was_repaired(gctx, pdf));
+        }
 SWIGINTERN PyObject *Document_authenticate(struct Document *self,char *password){
             return Py_BuildValue("i", fz_authenticate_password(gctx, (fz_document *) self, (const char *) password));
         }
@@ -8819,7 +8824,7 @@ SWIGINTERN PyObject *Document_save(struct Document *self,char *filename,int garb
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 JM_embedded_clean(gctx, pdf);
-                pdf_obj *id = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(ID));
+                JM_ensure_identity(gctx, pdf);
                 pdf_save_document(gctx, pdf, filename, &opts);
                 pdf->dirty = 0;
             }
@@ -8862,6 +8867,7 @@ SWIGINTERN PyObject *Document_write(struct Document *self,int garbage,int clean,
                 if (pdf_count_pages(gctx, pdf) < 1)
                     THROWMSG("cannot save with zero pages");
                 JM_embedded_clean(gctx, pdf);
+                JM_ensure_identity(gctx, pdf);
                 res = fz_new_buffer(gctx, 8192);
                 out = fz_new_output_with_buffer(gctx, res);
                 pdf_write_document(gctx, pdf, out, &opts);
@@ -14829,6 +14835,29 @@ SWIGINTERN PyObject *_wrap_Document_can_save_incrementally(PyObject *SWIGUNUSEDP
   }
   arg1 = (struct Document *)(argp1);
   result = (PyObject *)Document_can_save_incrementally(arg1);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Document_isRepaired(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_isRepaired" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  result = (PyObject *)Document_isRepaired(arg1);
   resultobj = result;
   return resultobj;
 fail:
@@ -24773,6 +24802,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document__hasXrefOldStyle", _wrap_Document__hasXrefOldStyle, METH_O, NULL},
 	 { "Document_isDirty", _wrap_Document_isDirty, METH_O, NULL},
 	 { "Document_can_save_incrementally", _wrap_Document_can_save_incrementally, METH_O, NULL},
+	 { "Document_isRepaired", _wrap_Document_isRepaired, METH_O, NULL},
 	 { "Document_authenticate", _wrap_Document_authenticate, METH_VARARGS, NULL},
 	 { "Document_save", _wrap_Document_save, METH_VARARGS, NULL},
 	 { "Document_write", _wrap_Document_write, METH_VARARGS, NULL},

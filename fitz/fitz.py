@@ -3993,6 +3993,15 @@ class Document(object):
 
         return _fitz.Document_can_save_incrementally(self)
 
+    @property
+
+    def isRepaired(self):
+        """Check whether PDF was repaired."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_isRepaired(self)
+
 
     def authenticate(self, password):
         """Decrypt document."""
