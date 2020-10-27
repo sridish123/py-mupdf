@@ -3,10 +3,24 @@ import re
 import sys
 from distutils.core import Extension, setup
 
-DEFAULT = ["mupdf", "mupdf-third"]
-ARCH_LINUX = DEFAULT + ["jbig2dec", "openjp2", "jpeg", "freetype"]
-OPENSUSE = ARCH_LINUX + ["harfbuzz", "png16"]
-FEDORA = ARCH_LINUX + ["harfbuzz", "gumbo"]
+DEFAULT = [
+    "mupdf",
+    "mupdf-third",
+]
+ARCH_LINUX = DEFAULT + [
+    "jbig2dec",
+    "openjp2",
+    "jpeg",
+    "freetype",
+    "gumbo",
+]
+OPENSUSE = ARCH_LINUX + [
+    "harfbuzz",
+    "png16",
+]
+FEDORA = ARCH_LINUX + [
+    "harfbuzz",
+]
 LIBRARIES = {
     "default": DEFAULT,
     "arch": ARCH_LINUX,
@@ -46,7 +60,7 @@ if sys.platform.startswith("linux") or "gnu" in sys.platform:
         include_dirs=[  # we need the path of the MuPDF headers
             "/usr/include/mupdf",
             "/usr/local/include/mupdf",
-            "mupdf/thirdparty/freetype/include",
+            "/usr/include/freetype2",
         ],
         libraries=load_libraries(),
     )
@@ -58,7 +72,7 @@ elif sys.platform.startswith(("darwin", "freebsd")):
         include_dirs=[
             "/usr/local/include/mupdf",
             "/usr/local/include",
-            "mupdf/thirdparty/freetype/include",
+            "/usr/include/freetype2",
         ],
         # libraries should already be linked here by brew
         library_dirs=["/usr/local/lib"],
@@ -72,9 +86,9 @@ elif sys.platform.startswith(("darwin", "freebsd")):
     )
 
 else:
-    # ===============================================================================
+    # =======================================================================
     # Build / set up PyMuPDF under Windows
-    # ===============================================================================
+    # =======================================================================
     module = Extension(
         "fitz._fitz",
         include_dirs=[  # we need the path of the MuPDF's headers

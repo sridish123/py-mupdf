@@ -2787,53 +2787,46 @@ def get_highlight_selection(page, start=None, stop=None, clip=None):
         stop = clip.br
     clip.y0 = start.y
     clip.y1 = stop.y
-# extract text of page (no images)
+    if clip.isEmpty or clip.isInfinite:
+        return []
+
+# extract text of page, clip only, no images, expand ligatures
     blocks = page.getText(
-        "dict", flags=TEXT_PRESERVE_WHITESPACE
+        "dict", flags=0, clip=clip,
     )["blocks"]
-    rectangles = []  # we will be returning this
-    lines = []  # intermediate bbox store
+
+    lines = []  # will return this list of rectangles
     for b in blocks:
         for line in b["lines"]:
-            bbox = clip & line["bbox"]  # line bbox intersection
-            if bbox.isEmpty:  # completely outside clip
-                continue
-            lines.append(bbox)
+            lines.append(Rect(line["bbox"]))
 
-    if lines == []:  # we did not select anything
-        return rectangles
+    if lines == []:  # did not select anything
+        return lines
 
-    lines.sort(key=lambda bbox: bbox.y1)  # sort result by vertical positions
+    lines.sort(key=lambda bbox: bbox.y1)  # sort by vertical positions
 
-    bboxf = lines[0]  # potentially cut off left part of first line
-    if bboxf.y0 - start.y <= 0.1 * bboxf.height:  # close enough to the top?
+# cut off prefix from first line if start point is close to its top
+    bboxf = lines.pop(0)
+    if bboxf.y0 - start.y <= 0.1 * bboxf.height:  # close enough?
         r = Rect(start.x, bboxf.y0, bboxf.br)  # intersection rectangle
-        if r.isEmpty or r.isInfinite:
-            bboxf = Rect()  # first line will be skipped
-        else:
-            bboxf &= r
-
-    if len(lines) > 1:  # if we selected 2 or more lines
-        if not bboxf.isEmpty:
-            rectangles.append(bboxf)  # output bbox of first line
-        bboxl = lines[-1]  # and read last line
+        if not (r.isEmpty or r.isInfinite):
+            lines.insert(0, r)  # insert again if not empty
     else:
-        bboxl = bboxf  # further restrict the only line selected
+        lines.insert(0, bboxf)  # insert again
 
-    if stop.y - bboxl.y1 <= 0.1 * bboxl.height:  # close enough to bottom?
+    if lines == []:  # the list might have been emptied
+        return lines
+
+# cut off suffix from last line if stop point is close to its bottom
+    bboxl = lines.pop()
+    if stop.y - bboxl.y1 <= 0.1 * bboxl.height:  # close enough?
         r = Rect(bboxl.tl, stop.x, bboxl.y1)  # intersection rectangle
-        if r.isEmpty or r.isInfinite:  # last line will be skipped
-            bboxl = Rect()
-        else:
-            bboxl &= r
+        if not (r.isEmpty or r.isInfinite):
+            lines.append(r)  # append if not empty
+    else:
+        lines.append(bboxl)  # append again
 
-    if not bboxl.isEmpty:
-        rectangles.append(bboxl)
-
-    for bbox in lines[1:-1]:  # now add remaining line bboxes
-        rectangles.append(bbox)
-
-    return rectangles
+    return lines
 
 
 def annot_preprocess(page):
@@ -4295,6 +4288,14 @@ class Document(object):
             raise ValueError("document closed")
 
         return _fitz.Document__getXrefLength(self)
+
+
+    def getXmlMetadata(self):
+        """Get document XML metadata."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_getXmlMetadata(self)
 
 
     def _getXmlMetadataXref(self):
@@ -7138,21 +7139,32 @@ class TextPage(object):
 
 
 
-    def search(self, needle, hit_max=16, quads=1):
-        """Locate up to 'hit_max' 'needle' occurrences returning rects or quads."""
+    def search(self, needle, hit_max=0, quads=1):
+        """Locate 'needle' returning rects or quads."""
 
         val = _fitz.TextPage_search(self, needle, hit_max, quads)
 
         if not val:
             return val
-        newval = []
-        for v in val:
-            q = Quad(v)
+        items = len(val)
+        for i in range(items):  # change entries to quads or rects
+            q = Quad(val[i])
             if quads:
-                newval.append(q)
+                val[i] = q
             else:
-                newval.append(q.rect)
-        val = newval
+                val[i] = q.rect
+        if quads:
+            return val
+        i = 0  # join overlapping rects on the same line
+        while i < items - 1:
+            v1 = val[i]
+            v2 = val[i + 1]
+            if v1.y1 != v2.y1 or (v1 & v2).isEmpty:
+                i += 1
+                continue  # no overlap on same line
+            val[i] = v1 | v2  # join rectangles
+            del val[i + 1]  # remove v2
+            items -= 1  # reduce item count
 
 
         return val
@@ -7161,7 +7173,7 @@ class TextPage(object):
     def _getNewBlockList(self, page_dict, raw):
         return _fitz.TextPage__getNewBlockList(self, page_dict, raw)
 
-    def _textpage_dict(self, raw = False):
+    def _textpage_dict(self, raw=False):
         page_dict = {"width": self.rect.width, "height": self.rect.height}
         self._getNewBlockList(page_dict, raw)
         return page_dict
@@ -7199,6 +7211,7 @@ class TextPage(object):
         """Return simple, bare text on the page."""
         return self._extractText(0)
 
+
     def extractHTML(self):
         """Return page content as a HTML string."""
         return self._extractText(1)
@@ -7219,7 +7232,24 @@ class TextPage(object):
                         return base64.b64encode(s).decode()
 
         val = json.dumps(val, separators=(",", ":"), cls=b64encode, indent=1)
+        return val
 
+    def extractRAWJSON(self):
+        """Return 'extractRAWDICT' converted to JSON format."""
+        import base64, json
+        val = self._textpage_dict(raw=True)
+
+        class b64encode(json.JSONEncoder):
+            def default(self,s):
+                if not fitz_py2 and type(s) is bytes:
+                    return base64.b64encode(s).decode()
+                if type(s) is bytearray:
+                    if fitz_py2:
+                        return base64.b64encode(s)
+                    else:
+                        return base64.b64encode(s).decode()
+
+        val = json.dumps(val, separators=(",", ":"), cls=b64encode, indent=1)
         return val
 
     def extractXML(self):

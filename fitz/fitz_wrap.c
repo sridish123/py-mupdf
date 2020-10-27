@@ -5259,6 +5259,238 @@ JM_char_bbox(fz_stext_char *ch)
 }
 
 
+//-------------------------------------------
+// make a buffer from an stext_page's text
+//-------------------------------------------
+fz_buffer *
+JM_new_buffer_from_stext_page(fz_context *ctx, fz_stext_page *page)
+{
+    fz_stext_block *block;
+    fz_stext_line *line;
+    fz_stext_char *ch;
+    fz_rect rect = page->mediabox;
+    fz_buffer *buf = NULL;
+
+    fz_try(ctx)
+    {
+        buf = fz_new_buffer(ctx, 256);
+        for (block = page->first_block; block; block = block->next)
+        {
+            if (!fz_is_empty_rect(fz_intersect_rect(block->bbox, rect)) &&
+            block->type == FZ_STEXT_BLOCK_TEXT)
+            {
+                for (line = block->u.t.first_line; line; line = line->next)
+                {
+                    if (fz_is_empty_rect(fz_intersect_rect(line->bbox, rect))) continue;
+                    for (ch = line->first_char; ch; ch = ch->next) {
+                        if (!fz_contains_rect(rect, JM_char_bbox(ch))) continue;
+                        fz_append_rune(ctx, buf, ch->c);
+                    }
+                    fz_append_byte(ctx, buf, '\n');
+                }
+                fz_append_byte(ctx, buf, '\n');
+            }
+        }
+    }
+    fz_catch(ctx) {
+        fz_drop_buffer(ctx, buf);
+        fz_rethrow(ctx);
+    }
+    return buf;
+}
+
+
+static float hdist(fz_point *dir, fz_point *a, fz_point *b)
+{
+    float dx = b->x - a->x;
+    float dy = b->y - a->y;
+    return fz_abs(dx * dir->x + dy * dir->y);
+}
+
+
+static float vdist(fz_point *dir, fz_point *a, fz_point *b)
+{
+    float dx = b->x - a->x;
+    float dy = b->y - a->y;
+    return fz_abs(dx * dir->y + dy * dir->x);
+}
+
+
+struct highlight
+{
+    Py_ssize_t len;
+    PyObject *quads;
+    float hfuzz, vfuzz;
+};
+
+
+static void on_highlight_char(fz_context *ctx, void *arg, fz_stext_line *line, fz_stext_char *ch)
+{
+    struct highlight *hits = arg;
+    float vfuzz = ch->size * hits->vfuzz;
+    float hfuzz = ch->size * hits->hfuzz;
+
+    if (hits->len > 0) {
+        PyObject *quad = PySequence_ITEM(hits->quads, hits->len - 1);
+        fz_quad end = JM_quad_from_py(quad);
+        Py_DECREF(quad);
+        if (hdist(&line->dir, &end.lr, &ch->quad.ll) < hfuzz
+            && vdist(&line->dir, &end.lr, &ch->quad.ll) < vfuzz
+            && hdist(&line->dir, &end.ur, &ch->quad.ul) < hfuzz
+            && vdist(&line->dir, &end.ur, &ch->quad.ul) < vfuzz)
+        {
+            end.ur = ch->quad.ur;
+            end.lr = ch->quad.lr;
+            quad = JM_py_from_quad(end);
+            PyList_SetItem(hits->quads, hits->len - 1, quad);
+            return;
+        }
+    }
+    LIST_APPEND_DROP(hits->quads, JM_py_from_quad(ch->quad));
+    hits->len++;
+}
+
+
+static inline int canon(int c)
+{
+	/* TODO: proper unicode case folding */
+	/* TODO: character equivalence (a matches ä, etc) */
+	if (c == 0xA0 || c == 0x2028 || c == 0x2029)
+		return ' ';
+	if (c == '\r' || c == '\n' || c == '\t')
+		return ' ';
+	if (c >= 'A' && c <= 'Z')
+		return c - 'A' + 'a';
+	return c;
+}
+
+
+static inline int chartocanon(int *c, const char *s)
+{
+	int n = fz_chartorune(c, s);
+	*c = canon(*c);
+	return n;
+}
+
+
+static const char *match_string(const char *h, const char *n)
+{
+	int hc, nc;
+	const char *e = h;
+	h += chartocanon(&hc, h);
+	n += chartocanon(&nc, n);
+	while (hc == nc)
+	{
+		e = h;
+		if (hc == ' ')
+			do
+				h += chartocanon(&hc, h);
+			while (hc == ' ');
+		else
+			h += chartocanon(&hc, h);
+		if (nc == ' ')
+			do
+				n += chartocanon(&nc, n);
+			while (nc == ' ');
+		else
+			n += chartocanon(&nc, n);
+	}
+	return nc == 0 ? e : NULL;
+}
+
+
+static const char *find_string(const char *s, const char *needle, const char **endp)
+{
+    const char *end;
+    while (*s)
+    {
+        end = match_string(s, needle);
+        if (end)
+            return *endp = end, s;
+        ++s;
+    }
+    return *endp = NULL, NULL;
+}
+
+
+PyObject *
+JM_search_stext_page(fz_context *ctx, fz_stext_page *page, const char *needle)
+{
+    struct highlight hits;
+    fz_stext_block *block;
+    fz_stext_line *line;
+    fz_stext_char *ch;
+    fz_buffer *buffer = NULL;
+    fz_rect rect = page->mediabox;
+    const char *haystack, *begin, *end;
+    int c, inside;
+
+    if (strlen(needle) == 0) Py_RETURN_NONE;
+    PyObject *quads = PyList_New(0);
+    hits.len = 0;
+    hits.quads = quads;
+    hits.hfuzz = 0.2f; /* merge kerns but not large gaps */
+    hits.vfuzz = 0.1f;
+
+    fz_try(ctx)
+    {
+        buffer = JM_new_buffer_from_stext_page(ctx, page);
+        haystack = fz_string_from_buffer(ctx, buffer);
+        begin = find_string(haystack, needle, &end);
+        if (!begin)
+            goto no_more_matches;
+
+        inside = 0;
+        for (block = page->first_block; block; block = block->next)
+        {
+            if (block->type != FZ_STEXT_BLOCK_TEXT ||
+                fz_is_empty_rect(fz_intersect_rect(block->bbox, rect)))
+                continue;
+            for (line = block->u.t.first_line; line; line = line->next)
+            {
+                if (fz_is_empty_rect(fz_intersect_rect(line->bbox, rect))) continue;
+                for (ch = line->first_char; ch; ch = ch->next)
+                {
+                    if (!fz_contains_rect(rect, JM_char_bbox(ch))) continue;
+try_new_match:
+                    if (!inside)
+                    {
+                        if (haystack >= begin)
+                            inside = 1;
+                    }
+                    if (inside)
+                    {
+                        if (haystack < end)
+                            on_highlight_char(ctx, &hits, line, ch);
+                        else
+                        {
+                            inside = 0;
+                            begin = find_string(haystack, needle, &end);
+                            if (!begin)
+                                goto no_more_matches;
+                            else
+                                goto try_new_match;
+                        }
+                    }
+                    haystack += fz_chartorune(&c, haystack);
+                }
+                assert(*haystack == '\n');
+                ++haystack;
+            }
+            assert(*haystack == '\n');
+            ++haystack;
+        }
+no_more_matches:;
+    }
+    fz_always(ctx)
+        fz_drop_buffer(ctx, buffer);
+    fz_catch(ctx)
+        fz_rethrow(ctx);
+
+    return quads;
+}
+
+
 //-----------------------------------------------------------------------------
 // Plain text output. An identical copy of fz_print_stext_page_as_text,
 // but lines within a block are concatenated by space instead a new-line
@@ -5285,7 +5517,7 @@ JM_print_stext_page_as_text(fz_context *ctx, fz_output *out, fz_stext_page *page
                 last_char = 0;
                 for (ch = line->first_char; ch; ch = ch->next)
                 {
-                    if (fz_is_empty_rect(fz_intersect_rect(JM_char_bbox(ch), rect))) continue;
+                    if (!fz_contains_rect(rect, JM_char_bbox(ch))) continue;
                     last_char = ch->c;
                     n = fz_runetochar(utf, ch->c);
                     for (i = 0; i < n; i++)
@@ -5367,9 +5599,9 @@ JM_make_spanlist(fz_context *ctx, PyObject *line_dict,
     for (ch = line->first_char; ch; ch = ch->next) {
 //start-trace
         fz_rect r = JM_char_bbox(ch);
-        if (fz_is_empty_rect(fz_intersect_rect(tp_rect, r))) {
-            continue;
-        }
+        // if (fz_is_empty_rect(fz_intersect_rect(tp_rect, r))) continue;
+        if (!fz_contains_rect(tp_rect, r)) continue;
+
         int flags = JM_char_font_flags(ctx, ch->font, line, ch);
         fz_point origin = ch->origin;
         style.size = ch->size;
@@ -5469,8 +5701,7 @@ JM_make_spanlist(fz_context *ctx, PyObject *line_dict,
     if (!fz_is_empty_rect(line_rect)) {
         DICT_SETITEM_DROP(line_dict, dictkey_spans, span_list);
     } else {
-        PySys_WriteStdout("line-bbox %g, %g, %g, %g\n", line->bbox.x0,line->bbox.y0,line->bbox.x1,line->bbox.y1);
-        THROWMSG("line_rect is empty");
+        DICT_SETITEM_DROP(line_dict, dictkey_spans, span_list);
     }
 //stop-trace
     return line_rect;
@@ -9507,6 +9738,31 @@ SWIGINTERN PyObject *Document__getXrefLength(struct Document *self){
             if (pdf) xreflen = pdf_xref_len(gctx, pdf);
             return Py_BuildValue("i", xreflen);
         }
+SWIGINTERN PyObject *Document_getXmlMetadata(struct Document *self){
+            PyObject *rc = NULL;
+            fz_buffer *buff = NULL;
+            pdf_obj *xml = NULL;
+            fz_try(gctx) {
+                pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+                if (pdf) {
+                    xml = pdf_dict_getl(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root), PDF_NAME(Metadata), NULL);
+                }
+                if (xml) {
+                    buff = pdf_load_stream(gctx, xml);
+                    rc = JM_UnicodeFromBuffer(gctx, buff);
+                } else {
+                    rc = EMPTY_STRING;
+                }
+            }
+            fz_always(gctx) {
+                fz_drop_buffer(gctx, buff);
+                PyErr_Clear();
+            }
+            fz_catch(gctx) {
+                return EMPTY_STRING;
+            }
+            return rc;
+        }
 SWIGINTERN PyObject *Document__getXmlMetadataXref(struct Document *self){
             int xref = 0;
             fz_try(gctx) {
@@ -12755,26 +13011,15 @@ SWIGINTERN struct TextPage *new_TextPage(PyObject *mediabox){
             return (struct TextPage *) tp;
         }
 SWIGINTERN PyObject *TextPage_search(struct TextPage *self,char const *needle,int hit_max,int quads){
-            fz_quad *result = NULL;
             PyObject *liste = NULL;
-            int i, mymax = hit_max;
-            if (mymax < 1) mymax = 16;
             fz_try(gctx) {
-                liste = PyList_New(0);
-                result = JM_Alloc(fz_quad, (mymax + 1));
-                fz_quad *quad = (fz_quad *) result;
-                int count = fz_search_stext_page(gctx, (fz_stext_page *) self, needle, result, hit_max);
-                for (i = 0; i < count; i++) {
-                    LIST_APPEND_DROP(liste, JM_py_from_quad(*quad));
-                    quad += 1;
-                }
+                liste = JM_search_stext_page(gctx, (fz_stext_page *) self, needle);
             }
             fz_always(gctx) {
-                JM_Free(result);
+                ;
             }
             fz_catch(gctx) {
-                Py_CLEAR(liste);
-                return PyList_New(0);
+                return NULL;
             }
             return liste;
         }
@@ -12826,7 +13071,7 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
                             */
                             for (ch = line->first_char; ch; ch = ch->next) {
                                 fz_rect cbbox = JM_char_bbox(ch);
-                                if (fz_is_empty_rect(fz_intersect_rect(tp_rect, cbbox))) {
+                                if (!fz_contains_rect(tp_rect, cbbox)) {
                                     continue;
                                 }
                                 JM_append_rune(gctx, res, ch->c);
@@ -12895,10 +13140,9 @@ SWIGINTERN PyObject *TextPage_extractWORDS(struct TextPage *self){
                         buflen = 0;                       // reset char counter
                         for (ch = line->first_char; ch; ch = ch->next) {
                             fz_rect cbbox = JM_char_bbox(ch);
-                            if (fz_is_empty_rect(fz_intersect_rect(tp_rect, cbbox))) {
+                            if (!fz_contains_rect(tp_rect, cbbox)) {
                                 continue;
                             }
-
                             if (ch->c == 32 && buflen == 0)
                                 continue;                 // skip spaces at line start
                             if (ch->c == 32) {
@@ -16058,6 +16302,29 @@ SWIGINTERN PyObject *_wrap_Document__getXrefLength(PyObject *SWIGUNUSEDPARM(self
   }
   arg1 = (struct Document *)(argp1);
   result = (PyObject *)Document__getXrefLength(arg1);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Document_getXmlMetadata(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_getXmlMetadata" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  result = (PyObject *)Document_getXmlMetadata(arg1);
   resultobj = result;
   return resultobj;
 fail:
@@ -22520,7 +22787,7 @@ SWIGINTERN PyObject *_wrap_TextPage_search(PyObject *SWIGUNUSEDPARM(self), PyObj
   PyObject *resultobj = 0;
   struct TextPage *arg1 = (struct TextPage *) 0 ;
   char *arg2 = (char *) 0 ;
-  int arg3 = (int) 16 ;
+  int arg3 = (int) 0 ;
   int arg4 = (int) 1 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
@@ -24828,6 +25095,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document__getOLRootNumber", _wrap_Document__getOLRootNumber, METH_O, NULL},
 	 { "Document__getNewXref", _wrap_Document__getNewXref, METH_O, NULL},
 	 { "Document__getXrefLength", _wrap_Document__getXrefLength, METH_O, NULL},
+	 { "Document_getXmlMetadata", _wrap_Document_getXmlMetadata, METH_O, NULL},
 	 { "Document__getXmlMetadataXref", _wrap_Document__getXmlMetadataXref, METH_O, NULL},
 	 { "Document__delXmlMetadata", _wrap_Document__delXmlMetadata, METH_O, NULL},
 	 { "Document_setXmlMetadata", _wrap_Document_setXmlMetadata, METH_VARARGS, NULL},
