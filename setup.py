@@ -60,7 +60,7 @@ if sys.platform.startswith("linux") or "gnu" in sys.platform:
         include_dirs=[  # we need the path of the MuPDF headers
             "/usr/include/mupdf",
             "/usr/local/include/mupdf",
-            "/usr/include/freetype2",
+            "mupdf/thirdparty/freetype/include",
         ],
         libraries=load_libraries(),
     )
@@ -72,7 +72,7 @@ elif sys.platform.startswith(("darwin", "freebsd")):
         include_dirs=[
             "/usr/local/include/mupdf",
             "/usr/local/include",
-            "/usr/include/freetype2",
+            "mupdf/thirdparty/freetype/include",
         ],
         # libraries should already be linked here by brew
         library_dirs=["/usr/local/lib"],
