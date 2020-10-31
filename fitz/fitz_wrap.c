@@ -2714,7 +2714,7 @@ static swig_module_info swig_module = {swig_types, 15, 0, 0, 0, 0};
 
 #define EMPTY_STRING PyUnicode_FromString("")
 #define EXISTS(x) (x != NULL && PyObject_IsTrue(x)==1)
-#define THROWMSG(msg) fz_throw(gctx, FZ_ERROR_GENERIC, msg)
+#define THROWMSG(ctx, msg) fz_throw(ctx, FZ_ERROR_GENERIC, msg)
 #define ASSERT_PDF(cond) if (cond == NULL) fz_throw(gctx, FZ_ERROR_GENERIC, "not a PDF")
 #define INRANGE(v, low, high) ((low) <= v && v <= (high))
 #define MAX(a, b) ((a) < (b)) ? (b) : (a)
@@ -5998,7 +5998,7 @@ fz_font *JM_get_font(fz_context *ctx,
         goto fertig;
 
         fertig:;
-        if (!font) THROWMSG("could not find a matching font");
+        if (!font) THROWMSG(ctx, "no matching font found");
     }
     fz_always(ctx) {
         fz_drop_buffer(ctx, res);
@@ -6757,9 +6757,6 @@ void JM_set_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
     Py_CLEAR(value);
 
     // field value ------------------------------------------------------------
-    // MuPDF function "pdf_set_field_value" always sets strings. For button
-    // fields this may lead to an unrecognized state for some PDF viewers.
-    //-------------------------------------------------------------------------
     value = GETATTR("field_value");
     char *text = NULL;
     switch(field_type)
@@ -6767,8 +6764,10 @@ void JM_set_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
     case PDF_WIDGET_TYPE_CHECKBOX:
     case PDF_WIDGET_TYPE_RADIOBUTTON:
         if (PyObject_RichCompareBool(value, Py_True, Py_EQ)) {
-            result = pdf_set_field_value(ctx, pdf, annot->obj, "Yes", 1);
-            pdf_dict_put_name(ctx, annot->obj, PDF_NAME(V), "Yes");
+            pdf_obj *onstate = pdf_button_field_on_state(ctx, annot->obj);
+            char *on = pdf_to_name(ctx, onstate);
+            result = pdf_set_field_value(ctx, pdf, annot->obj, on, 1);
+            pdf_dict_put_name(ctx, annot->obj, PDF_NAME(V), on);
         } else {
             result = pdf_set_field_value(ctx, pdf, annot->obj, "Off", 1);
             pdf_dict_put(ctx, annot->obj, PDF_NAME(V), PDF_NAME(Off));
@@ -7084,7 +7083,7 @@ void retainpages(fz_context *ctx, globals *glo, PyObject *liste)
         for (page = 0; page < argc; page++) {
             i = (int) PyInt_AsLong(PySequence_ITEM(liste, page));
             if (i < 0 || i >= pagecount)
-                THROWMSG("invalid page number(s)");
+                THROWMSG(ctx, "invalid page number(s)");
             retainpage(ctx, doc, pages, kids, i);
         }
     }
@@ -8259,7 +8258,7 @@ SWIGINTERN struct Document *new_Document(char const *filename,PyObject *stream,c
                             handler = fz_recognize_document(gctx, filetype);
                             if (handler && handler->open)
                                 doc = handler->open(gctx, filename);
-                            else THROWMSG("unrecognized file type");
+                            else THROWMSG(gctx, "unrecognized file type");
                         }
                     } else {
                         pdf_document *pdf = pdf_create_document(gctx);
@@ -8293,21 +8292,21 @@ SWIGINTERN struct Page *Document_loadPage(struct Document *self,PyObject *page_i
             fz_try(gctx) {
                 if (PySequence_Check(page_id)) {
                     val = PySequence_GetItem(page_id, 0);
-                    if (!val) THROWMSG("bad page page id");
+                    if (!val) THROWMSG(gctx, "bad page page id");
                     int chapter = (int) PyLong_AsLong(val);
                     Py_DECREF(val);
-                    if (PyErr_Occurred()) THROWMSG("bad page id");
+                    if (PyErr_Occurred()) THROWMSG(gctx, "bad page id");
 
                     val = PySequence_GetItem(page_id, 1);
-                    if (!val) THROWMSG("bad page page id");
+                    if (!val) THROWMSG(gctx, "bad page page id");
                     pno = (int) PyLong_AsLong(val);
                     Py_DECREF(val);
-                    if (PyErr_Occurred()) THROWMSG("bad page id");
+                    if (PyErr_Occurred()) THROWMSG(gctx, "bad page id");
 
                     page = fz_load_chapter_page(gctx, doc, chapter, pno);
                 } else {
                     pno = (int) PyLong_AsLong(page_id);
-                    if (PyErr_Occurred()) THROWMSG("bad page id");
+                    if (PyErr_Occurred()) THROWMSG(gctx, "bad page id");
                     page = fz_load_page(gctx, doc, pno);
                 }
             }
@@ -8556,10 +8555,10 @@ SWIGINTERN PyObject *Document__embeddedFileUpd(struct Document *self,int idx,PyO
 
                 pdf_obj *filespec = pdf_dict_getl(gctx, entry, PDF_NAME(EF),
                                                   PDF_NAME(F), NULL);
-                if (!filespec) THROWMSG("bad PDF: /EF object not found");
+                if (!filespec) THROWMSG(gctx, "bad PDF: /EF object not found");
 
                 res = JM_BufferFromBytes(gctx, buffer);
-                if (EXISTS(buffer) && !res) THROWMSG("bad type: 'buffer'");
+                if (EXISTS(buffer) && !res) THROWMSG(gctx, "bad type: 'buffer'");
                 if (res)
                 {
                     JM_update_stream(gctx, pdf, filespec, res, 1);
@@ -8627,7 +8626,7 @@ SWIGINTERN PyObject *Document__embeddedFileAdd(struct Document *self,char const 
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 data = JM_BufferFromBytes(gctx, buffer);
-                if (!data) THROWMSG("bad type: 'buffer'");
+                if (!data) THROWMSG(gctx, "bad type: 'buffer'");
                 size = fz_buffer_storage(gctx, data, &buffdata);
 
                 names = pdf_dict_getl(gctx, pdf_trailer(gctx, pdf),
@@ -8669,7 +8668,7 @@ SWIGINTERN PyObject *Document_convertToPDF(struct Document *self,int from_page,i
             fz_try(gctx) {
                 int fp = from_page, tp = to_page, srcCount = fz_count_pages(gctx, fz_doc);
                 if (pdf_specifics(gctx, fz_doc))
-                    THROWMSG("bad document type");
+                    THROWMSG(gctx, "bad document type");
                 if (fp < 0) fp = 0;
                 if (fp > srcCount - 1) fp = srcCount - 1;
                 if (tp < 0) tp = srcCount - 1;
@@ -8717,7 +8716,7 @@ SWIGINTERN PyObject *Document_chapterPageCount(struct Document *self,int chapter
             fz_try(gctx) {
                 int chapters = fz_count_chapters(gctx, (fz_document *) self);
                 if (chapter < 0 || chapter >= chapters)
-                    THROWMSG("bad chapter number");
+                    THROWMSG(gctx, "bad chapter number");
                 pages = fz_count_chapter_pages(gctx, (fz_document *) self, chapter);
             }
             fz_catch(gctx) {
@@ -8732,16 +8731,16 @@ SWIGINTERN PyObject *Document_previousLocation(struct Document *self,PyObject *p
             int pno;
             fz_try(gctx) {
                 val = PySequence_GetItem(page_id, 0);
-                if (!val) THROWMSG("bad page id");
+                if (!val) THROWMSG(gctx, "bad page id");
                 int chapter = (int) PyLong_AsLong(val);
                 Py_DECREF(val);
-                if (PyErr_Occurred()) THROWMSG("bad page id");
+                if (PyErr_Occurred()) THROWMSG(gctx, "bad page id");
 
                 val = PySequence_GetItem(page_id, 1);
-                if (!val) THROWMSG("bad page id");
+                if (!val) THROWMSG(gctx, "bad page id");
                 pno = (int) PyLong_AsLong(val);
                 Py_DECREF(val);
-                if (PyErr_Occurred()) THROWMSG("bad page id");
+                if (PyErr_Occurred()) THROWMSG(gctx, "bad page id");
 
                 loc = fz_make_location(chapter, pno);
                 prev_loc = fz_previous_page(gctx, this_doc, loc);
@@ -8760,16 +8759,16 @@ SWIGINTERN PyObject *Document_nextLocation(struct Document *self,PyObject *page_
             int pno;
             fz_try(gctx) {
                 val = PySequence_GetItem(page_id, 0);
-                if (!val) THROWMSG("bad page id");
+                if (!val) THROWMSG(gctx, "bad page id");
                 int chapter = (int) PyLong_AsLong(val);
                 Py_DECREF(val);
-                if (PyErr_Occurred()) THROWMSG("bad page id");
+                if (PyErr_Occurred()) THROWMSG(gctx, "bad page id");
 
                 val = PySequence_GetItem(page_id, 1);
-                if (!val) THROWMSG("bad page id");
+                if (!val) THROWMSG(gctx, "bad page id");
                 pno = (int) PyLong_AsLong(val);
                 Py_DECREF(val);
-                if (PyErr_Occurred()) THROWMSG("bad page id");
+                if (PyErr_Occurred()) THROWMSG(gctx, "bad page id");
 
                 loc = fz_make_location(chapter, pno);
                 next_loc = fz_next_page(gctx, this_doc, loc);
@@ -8787,7 +8786,7 @@ SWIGINTERN PyObject *Document_location_from_page_number(struct Document *self,in
             while (pno < 0) pno += pageCount;
             fz_try(gctx) {
                 if (pno >= pageCount)
-                    THROWMSG("bad page number(s)");
+                    THROWMSG(gctx, "bad page number(s)");
                 loc = fz_location_from_page_number(gctx, this_doc, pno);
             }
             fz_catch(gctx) {
@@ -8803,16 +8802,16 @@ SWIGINTERN PyObject *Document_page_number_from_location(struct Document *self,Py
             int pno;
             fz_try(gctx) {
                 val = PySequence_GetItem(page_id, 0);
-                if (!val) THROWMSG("bad page id");
+                if (!val) THROWMSG(gctx, "bad page id");
                 int chapter = (int) PyLong_AsLong(val);
                 Py_DECREF(val);
-                if (PyErr_Occurred()) THROWMSG("bad page id");
+                if (PyErr_Occurred()) THROWMSG(gctx, "bad page id");
 
                 val = PySequence_GetItem(page_id, 1);
-                if (!val) THROWMSG("bad page id");
+                if (!val) THROWMSG(gctx, "bad page id");
                 pno = (int) PyLong_AsLong(val);
                 Py_DECREF(val);
-                if (PyErr_Occurred()) THROWMSG("bad page id");
+                if (PyErr_Occurred()) THROWMSG(gctx, "bad page id");
 
                 loc = fz_make_location(chapter, pno);
                 page_n = fz_page_number_from_location(gctx, this_doc, loc);
@@ -8894,7 +8893,7 @@ SWIGINTERN PyObject *Document_layout(struct Document *self,PyObject *rect,float 
                     h = r.y1 - r.y0;
                 }
                 if (w <= 0.0f || h <= 0.0f)
-                        THROWMSG("invalid page size");
+                        THROWMSG(gctx, "invalid page size");
                 fz_layout_document(gctx, doc, w, h, fontsize);
             }
             fz_catch(gctx) {
@@ -8908,11 +8907,11 @@ SWIGINTERN PyObject *Document_makeBookmark(struct Document *self,PyObject *loc){
             fz_bookmark mark;
             fz_try(gctx) {
                 if (JM_INT_ITEM(loc, 0, &location.chapter) == 1)
-                    THROWMSG("Bad location");
+                    THROWMSG(gctx, "Bad location");
                 if (JM_INT_ITEM(loc, 1, &location.page) == 1)
-                    THROWMSG("Bad location");
+                    THROWMSG(gctx, "Bad location");
                 mark = fz_make_bookmark(gctx, doc, location);
-                if (!mark) THROWMSG("Bad location");
+                if (!mark) THROWMSG(gctx, "Bad location");
             }
             fz_catch(gctx) {
                 return NULL;
@@ -8940,7 +8939,7 @@ SWIGINTERN PyObject *Document__deleteObject(struct Document *self,int xref){
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 if (!INRANGE(xref, 1, pdf_xref_len(gctx, pdf)-1))
-                    THROWMSG("bad xref");
+                    THROWMSG(gctx, "bad xref");
                 pdf_delete_object(gctx, pdf, xref);
             }
             fz_catch(gctx) {
@@ -9046,6 +9045,8 @@ SWIGINTERN PyObject *Document_save(struct Document *self,char *filename,int garb
             opts.permissions        = permissions;
             if (owner_pw) {
                 memcpy(&opts.opwd_utf8, owner_pw, strlen(owner_pw)+1);
+            } else if (user_pw) {
+                memcpy(&opts.opwd_utf8, user_pw, strlen(user_pw)+1);
             }
             if (user_pw) {
                 memcpy(&opts.upwd_utf8, user_pw, strlen(user_pw)+1);
@@ -9084,6 +9085,8 @@ SWIGINTERN PyObject *Document_write(struct Document *self,int garbage,int clean,
             opts.permissions        = permissions;
             if (owner_pw) {
                 memcpy(&opts.opwd_utf8, owner_pw, strlen(owner_pw)+1);
+            } else if (user_pw) {
+                memcpy(&opts.opwd_utf8, user_pw, strlen(user_pw)+1);
             }
             if (user_pw) {
                 memcpy(&opts.upwd_utf8, user_pw, strlen(user_pw)+1);
@@ -9096,7 +9099,7 @@ SWIGINTERN PyObject *Document_write(struct Document *self,int garbage,int clean,
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 if (pdf_count_pages(gctx, pdf) < 1)
-                    THROWMSG("cannot save with zero pages");
+                    THROWMSG(gctx, "cannot save with zero pages");
                 JM_embedded_clean(gctx, pdf);
                 JM_ensure_identity(gctx, pdf);
                 res = fz_new_buffer(gctx, 8192);
@@ -9135,7 +9138,7 @@ SWIGINTERN PyObject *Document_insertPDF(struct Document *self,struct Document *d
             sa = MIN(sa, outCount);         // but that is also the limit
 
             fz_try(gctx) {
-                if (!pdfout || !pdfsrc) THROWMSG("source or target not a PDF");
+                if (!pdfout || !pdfsrc) THROWMSG(gctx, "source or target not a PDF");
                 JM_merge_range(gctx, pdfout, pdfsrc, fp, tp, sa, rotate, links, annots, show_progress, (pdf_graft_map *) _gmap);
             }
             fz_catch(gctx) {
@@ -9153,7 +9156,7 @@ SWIGINTERN PyObject *Document__newPage(struct Document *self,int pno,float width
             fz_buffer *contents = NULL;
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
-                if (pno < -1) THROWMSG("bad page number(s)");
+                if (pno < -1) THROWMSG(gctx, "bad page number(s)");
                 // create /Resources and /Contents objects
                 resources = pdf_add_object_drop(gctx, pdf, pdf_new_dict(gctx, pdf, 1));
                 page_obj = pdf_add_page(gctx, pdf, mediabox, 0, resources, contents);
@@ -9298,7 +9301,7 @@ SWIGINTERN PyObject *Document__getPageObjNumber(struct Document *self,int pno){
             fz_var(pageref);
             pdf_document *pdf = pdf_specifics(gctx, this_doc);
             fz_try(gctx) {
-                if (n >= pageCount) THROWMSG("bad page number(s)");
+                if (n >= pageCount) THROWMSG(gctx, "bad page number(s)");
                 ASSERT_PDF(pdf);
                 pageref = pdf_lookup_page_obj(gctx, pdf, n);
             }
@@ -9318,7 +9321,7 @@ SWIGINTERN PyObject *Document_pageCropBox(struct Document *self,int pno){
             fz_var(pageref);
             pdf_document *pdf = pdf_specifics(gctx, this_doc);
             fz_try(gctx) {
-                if (n >= pageCount) THROWMSG("bad page number(s)");
+                if (n >= pageCount) THROWMSG(gctx, "bad page number(s)");
                 ASSERT_PDF(pdf);
                 pageref = pdf_lookup_page_obj(gctx, pdf, n);
             }
@@ -9340,7 +9343,7 @@ SWIGINTERN PyObject *Document__getPageInfo(struct Document *self,int pno,int wha
                 int pageCount = fz_count_pages(gctx, doc);
                 int n = pno;  // pno < 0 is allowed
                 while (n < 0) n += pageCount;  // make it non-negative
-                if (n >= pageCount) THROWMSG("bad page number(s)");
+                if (n >= pageCount) THROWMSG(gctx, "bad page number(s)");
                 ASSERT_PDF(pdf);
                 pageref = pdf_lookup_page_obj(gctx, pdf, n);
                 rsrc = pdf_dict_get_inheritable(gctx,
@@ -9436,13 +9439,13 @@ SWIGINTERN PyObject *Document_extractImage(struct Document *self,int xref){
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 if (!INRANGE(xref, 1, pdf_xref_len(gctx, pdf)-1))
-                    THROWMSG("bad xref");
+                    THROWMSG(gctx, "bad xref");
 
                 obj = pdf_new_indirect(gctx, pdf, xref, 0);
                 pdf_obj *subtype = pdf_dict_get(gctx, obj, PDF_NAME(Subtype));
 
                 if (!pdf_name_eq(gctx, subtype, PDF_NAME(Image)))
-                    THROWMSG("not an image");
+                    THROWMSG(gctx, "not an image");
 
                 pdf_obj *o = pdf_dict_get(gctx, obj, PDF_NAME(SMask));
                 if (o) smask = pdf_to_num(gctx, o);
@@ -9688,7 +9691,7 @@ SWIGINTERN PyObject *Document__addFormFont(struct Document *self,char *name,char
                 fonts = pdf_dict_getl(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root),
                              PDF_NAME(AcroForm), PDF_NAME(DR), PDF_NAME(Font), NULL);
                 if (!fonts || !pdf_is_dict(gctx, fonts))
-                    THROWMSG("PDF has no form fonts yet");
+                    THROWMSG(gctx, "PDF has no form fonts yet");
                 pdf_obj *k = pdf_new_name(gctx, (const char *) name);
                 pdf_obj *v = JM_pdf_obj_from_str(gctx, pdf, font);
                 pdf_dict_put(gctx, fonts, k, v);
@@ -9769,7 +9772,7 @@ SWIGINTERN PyObject *Document__getXmlMetadataXref(struct Document *self){
                 pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
                 ASSERT_PDF(pdf);
                 pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
-                if (!root) THROWMSG("PDF has no root");
+                if (!root) THROWMSG(gctx, "PDF has no root");
                 pdf_obj *xml = pdf_dict_get(gctx, root, PDF_NAME(Metadata));
                 if (xml) xref = pdf_to_num(gctx, xml);
             }
@@ -9795,7 +9798,7 @@ SWIGINTERN PyObject *Document_setXmlMetadata(struct Document *self,char *metadat
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
-                if (!root) THROWMSG("PDF has no root");
+                if (!root) THROWMSG(gctx, "PDF has no root");
                 res = fz_new_buffer_from_copied_data(gctx, (const unsigned char *) metadata, strlen(metadata));
                 pdf_obj *xml = pdf_dict_get(gctx, root, PDF_NAME(Metadata));
                 if (xml) {
@@ -9826,7 +9829,7 @@ SWIGINTERN PyObject *Document__getXrefString(struct Document *self,int xref,int 
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
                 if (!INRANGE(xref, 1, xreflen-1))
-                    THROWMSG("bad xref");
+                    THROWMSG(gctx, "bad xref");
                 obj = pdf_load_object(gctx, pdf, xref);
                 res = JM_object_to_buffer(gctx, pdf_resolve_indirect(gctx, obj), compressed, ascii);
                 text = JM_EscapeStrFromBuffer(gctx, res);
@@ -9866,7 +9869,7 @@ SWIGINTERN PyObject *Document__getXrefStreamRaw(struct Document *self,int xref){
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
                 if (!INRANGE(xref, 1, xreflen-1))
-                    THROWMSG("bad xref");
+                    THROWMSG(gctx, "bad xref");
                 obj = pdf_new_indirect(gctx, pdf, xref, 0);
                 if (pdf_is_stream(gctx, obj))
                 {
@@ -9896,7 +9899,7 @@ SWIGINTERN PyObject *Document__getXrefStream(struct Document *self,int xref){
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
                 if (!INRANGE(xref, 1, xreflen-1))
-                    THROWMSG("bad xref");
+                    THROWMSG(gctx, "bad xref");
                 obj = pdf_new_indirect(gctx, pdf, xref, 0);
                 if (pdf_is_stream(gctx, obj))
                 {
@@ -9922,7 +9925,7 @@ SWIGINTERN PyObject *Document__updateObject(struct Document *self,int xref,char 
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
                 if (!INRANGE(xref, 1, xreflen-1))
-                    THROWMSG("bad xref");
+                    THROWMSG(gctx, "bad xref");
                 // create new object with passed-in string
                 new_obj = JM_pdf_obj_from_str(gctx, pdf, text);
                 pdf_update_object(gctx, pdf, xref, new_obj);
@@ -9946,13 +9949,13 @@ SWIGINTERN PyObject *Document__updateStream(struct Document *self,int xref,PyObj
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
                 if (!INRANGE(xref, 1, xreflen-1))
-                    THROWMSG("bad xref");
+                    THROWMSG(gctx, "bad xref");
                 // get the object
                 obj = pdf_new_indirect(gctx, pdf, xref, 0);
                 if (!new && !pdf_is_stream(gctx, obj))
-                    THROWMSG("xref not a stream object");
+                    THROWMSG(gctx, "no stream object at xref");
                 res = JM_BufferFromBytes(gctx, stream);
-                if (!res) THROWMSG("bad type: 'stream'");
+                if (!res) THROWMSG(gctx, "bad type: 'stream'");
                 JM_update_stream(gctx, pdf, obj, res, 1);
 
             }
@@ -10014,7 +10017,7 @@ SWIGINTERN PyObject *Document_fullcopyPage(struct Document *self,int pno,int to)
                 ASSERT_PDF(pdf);
                 if (!INRANGE(pno, 0, pageCount - 1) ||
                     !INRANGE(to, -1, pageCount - 1))
-                    THROWMSG("bad page number(s)");
+                    THROWMSG(gctx, "bad page number(s)");
 
                 pdf_obj *page1 = pdf_resolve_indirect(gctx,
                                  pdf_lookup_page_obj(gctx, pdf, pno));
@@ -10448,7 +10451,7 @@ SWIGINTERN struct Annot *Page__add_ink_annot(struct Page *self,PyObject *list){
             fz_var(annot);
             fz_try(gctx) {
                 ASSERT_PDF(page);
-                if (!PySequence_Check(list)) THROWMSG("arg must be a sequence");
+                if (!PySequence_Check(list)) THROWMSG(gctx, "arg must be a sequence");
                 pdf_page_transform(gctx, page, NULL, &ctm);
                 inv_ctm = fz_invert_matrix(ctm);
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_INK);
@@ -10463,7 +10466,7 @@ SWIGINTERN struct Annot *Page__add_ink_annot(struct Page *self,PyObject *list){
                     for (i = 0; i < n1; i++) {
                         p = PySequence_ITEM(sublist, i);
                         if (!PySequence_Check(p) || PySequence_Size(p) != 2)
-                            THROWMSG("3rd level entries must be pairs of floats");
+                            THROWMSG(gctx, "3rd level entries must be pairs of floats");
                         point = fz_transform_point(JM_point_from_py(p), inv_ctm);
                         Py_CLEAR(p);
                         pdf_array_push_real(gctx, stroke, point.x);
@@ -10506,7 +10509,7 @@ SWIGINTERN struct Annot *Page__add_stamp_annot(struct Page *self,PyObject *rect,
                 ASSERT_PDF(page);
                 fz_rect r = JM_rect_from_py(rect);
                 if (fz_is_infinite_rect(r) || fz_is_empty_rect(r))
-                    THROWMSG("rect must be finite and not empty");
+                    THROWMSG(gctx, "rect must be finite and not empty");
                 if (INRANGE(stamp, 0, n-1))
                     name = stamp_id[stamp];
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_STAMP);
@@ -10536,7 +10539,7 @@ SWIGINTERN struct Annot *Page__add_file_annot(struct Page *self,PyObject *point,
             fz_try(gctx) {
                 ASSERT_PDF(page);
                 filebuf = JM_BufferFromBytes(gctx, buffer);
-                if (!filebuf) THROWMSG("bad type: 'buffer'");
+                if (!filebuf) THROWMSG(gctx, "bad type: 'buffer'");
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_FILE_ATTACHMENT);
                 r = pdf_annot_rect(gctx, annot);
                 r = fz_make_rect(p.x, p.y, p.x + r.x1 - r.x0, p.y + r.y1 - r.y0);
@@ -10603,7 +10606,7 @@ SWIGINTERN struct Annot *Page__add_square_or_circle(struct Page *self,PyObject *
             fz_try(gctx) {
                 fz_rect r = JM_rect_from_py(rect);
                 if (fz_is_infinite_rect(r) || fz_is_empty_rect(r))
-                    THROWMSG("rect must be finite and not empty");
+                    THROWMSG(gctx, "rect must be finite and not empty");
                 annot = pdf_create_annot(gctx, page, annot_type);
                 pdf_set_annot_rect(gctx, annot, r);
                 JM_add_annot_id(gctx, annot, "fitzannot");
@@ -10620,13 +10623,13 @@ SWIGINTERN struct Annot *Page__add_multiline(struct Page *self,PyObject *points,
             pdf_annot *annot = NULL;
             fz_try(gctx) {
                 Py_ssize_t i, n = PySequence_Size(points);
-                if (n < 2) THROWMSG("bad list of points");
+                if (n < 2) THROWMSG(gctx, "bad list of points");
                 annot = pdf_create_annot(gctx, page, annot_type);
                 for (i = 0; i < n; i++) {
                     PyObject *p = PySequence_ITEM(points, i);
                     if (PySequence_Size(p) != 2) {
                         Py_DECREF(p);
-                        THROWMSG("bad list of points");
+                        THROWMSG(gctx, "bad list of points");
                     }
                     fz_point point = JM_point_from_py(p);
                     Py_DECREF(p);
@@ -10654,7 +10657,7 @@ SWIGINTERN struct Annot *Page__add_freetext_annot(struct Page *self,PyObject *re
             pdf_annot *annot = NULL;
             fz_try(gctx) {
                 if (fz_is_infinite_rect(r) || fz_is_empty_rect(r))
-                    THROWMSG("rect must be finite and not empty");
+                    THROWMSG(gctx, "rect must be finite and not empty");
                 annot = pdf_create_annot(gctx, page, PDF_ANNOT_FREE_TEXT);
                 pdf_set_annot_contents(gctx, annot, text);
                 pdf_set_annot_rect(gctx, annot, r);
@@ -10708,7 +10711,7 @@ SWIGINTERN struct Annot *Page__addWidget(struct Page *self,int field_type,char *
             fz_var(annot);
             fz_try(gctx) {
                 annot = JM_create_widget(gctx, pdf, page, field_type, field_name);
-                if (!annot) THROWMSG("could not create widget");
+                if (!annot) THROWMSG(gctx, "could not create widget");
                 JM_add_annot_id(gctx, annot, "fitzwidget");
             }
             fz_catch(gctx) {
@@ -10782,7 +10785,7 @@ SWIGINTERN PyObject *Page_setMediaBox(struct Page *self,PyObject *rect){
                 fz_rect mediabox = JM_rect_from_py(rect);
                 if (fz_is_empty_rect(mediabox) ||
                     fz_is_infinite_rect(mediabox)) {
-                    THROWMSG("rect must be finite and not empty");
+                    THROWMSG(gctx, "rect must be finite and not empty");
                 }
                 pdf_dict_put_rect(gctx, page->obj, PDF_NAME(MediaBox), mediabox);
                 pdf_dict_put_rect(gctx, page->obj, PDF_NAME(CropBox), mediabox);
@@ -10944,7 +10947,7 @@ SWIGINTERN PyObject *Page__addAnnot_FromString(struct Page *self,PyObject *linkl
                     txtpy = PySequence_ITEM(linklist, (Py_ssize_t) i);
                     text = JM_Python_str_AsChar(txtpy);
                     Py_CLEAR(txtpy);
-                    if (!text) THROWMSG("bad linklist item");
+                    if (!text) THROWMSG(gctx, "bad linklist item");
                     annot = pdf_add_object_drop(gctx, page->doc,
                             JM_pdf_obj_from_str(gctx, page->doc, text));
                     JM_Python_str_DelForPy3(text);
@@ -11116,7 +11119,7 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                     fz_image_resolution(image, &xres, &yres);
                     if (EXISTS(imask)) {
                         cbuf1 = fz_compressed_image_buffer(gctx, image);
-                        if (!cbuf1) THROWMSG("cannot mask uncompressed image");
+                        if (!cbuf1) THROWMSG(gctx, "cannot mask uncompressed image");
                         maskbuf = JM_BufferFromBytes(gctx, imask);
                         mask = fz_new_image_from_buffer(gctx, maskbuf);
                         zimg = fz_new_image_from_compressed_buffer(gctx, w, h,
@@ -11254,7 +11257,7 @@ SWIGINTERN PyObject *Page__insertFont(struct Page *self,char *fontname,char *bfn
                     font = fz_new_font_from_file(gctx, NULL, fontfile, idx, 0);
                 } else {
                     res = JM_BufferFromBytes(gctx, fontbuffer);
-                    if (!res) THROWMSG("need one of fontfile, fontbuffer");
+                    if (!res) THROWMSG(gctx, "need one of fontfile, fontbuffer");
                     font = fz_new_font_from_buffer(gctx, NULL, res, idx, 0);
                 }
 
@@ -11368,11 +11371,11 @@ SWIGINTERN PyObject *Page__setContents(struct Page *self,int xref){
                 ASSERT_PDF(page);
 
                 if (!INRANGE(xref, 1, pdf_xref_len(gctx, page->doc) - 1))
-                    THROWMSG("bad xref");
+                    THROWMSG(gctx, "bad xref");
 
                 contents = pdf_new_indirect(gctx, page->doc, xref, 0);
                 if (!pdf_is_stream(gctx, contents))
-                    THROWMSG("xref is not a stream");
+                    THROWMSG(gctx, "no stream at xref");
 
                 pdf_dict_put_drop(gctx, page->obj, PDF_NAME(Contents), contents);
             }
@@ -11402,7 +11405,7 @@ SWIGINTERN struct Pixmap *new_Pixmap__SWIG_1(struct Colorspace *cs,struct Pixmap
             fz_pixmap *pm = NULL;
             fz_try(gctx) {
                 if (!fz_pixmap_colorspace(gctx, (fz_pixmap *) spix))
-                    THROWMSG("cannot copy pixmap with NULL colorspace");
+                    THROWMSG(gctx, "cannot copy pixmap with NULL colorspace");
                 pm = fz_convert_pixmap(gctx, (fz_pixmap *) spix, (fz_colorspace *) cs, NULL, NULL, fz_default_color_params, 1);
             }
             fz_catch(gctx) {
@@ -11432,10 +11435,10 @@ SWIGINTERN struct Pixmap *new_Pixmap__SWIG_3(struct Pixmap *spix,int alpha){
             fz_separations *seps = NULL;
             fz_try(gctx) {
                 if (!INRANGE(alpha, 0, 1))
-                    THROWMSG("bad alpha value");
+                    THROWMSG(gctx, "bad alpha value");
                 fz_colorspace *cs = fz_pixmap_colorspace(gctx, src_pix);
                 if (!cs && !alpha)
-                    THROWMSG("cannot drop alpha for 'NULL' colorspace");
+                    THROWMSG(gctx, "cannot drop alpha for 'NULL' colorspace");
                 n = fz_pixmap_colorants(gctx, src_pix);
                 w = fz_pixmap_width(gctx, src_pix);
                 h = fz_pixmap_height(gctx, src_pix);
@@ -11477,9 +11480,9 @@ SWIGINTERN struct Pixmap *new_Pixmap__SWIG_4(struct Colorspace *cs,int w,int h,P
                 size_t size = 0;
                 unsigned char *c = NULL;
                 res = JM_BufferFromBytes(gctx, samples);
-                if (!res) THROWMSG("bad samples data");
+                if (!res) THROWMSG(gctx, "bad samples data");
                 size = fz_buffer_storage(gctx, res, &c);
-                if (stride * h != size) THROWMSG("bad samples length");
+                if (stride * h != size) THROWMSG(gctx, "bad samples length");
                 pm = fz_new_pixmap(gctx, (fz_colorspace *) cs, w, h, seps, alpha);
                 memcpy(pm->samples, c, size);
             }
@@ -11516,7 +11519,7 @@ SWIGINTERN struct Pixmap *new_Pixmap__SWIG_6(PyObject *imagedata){
             fz_pixmap *pm = NULL;
             fz_try(gctx) {
                 res = JM_BufferFromBytes(gctx, imagedata);
-                if (!res) THROWMSG("bad image data");
+                if (!res) THROWMSG(gctx, "bad image data");
                 img = fz_new_image_from_buffer(gctx, res);
                 pm = fz_get_pixmap_from_image(gctx, img, NULL, NULL, NULL, NULL);
                 int xres, yres;
@@ -11543,11 +11546,11 @@ SWIGINTERN struct Pixmap *new_Pixmap__SWIG_7(struct Document *doc,int xref){
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
                 if (!INRANGE(xref, 1, xreflen-1))
-                    THROWMSG("bad xref");
+                    THROWMSG(gctx, "bad xref");
                 ref = pdf_new_indirect(gctx, pdf, xref, 0);
                 type = pdf_dict_get(gctx, ref, PDF_NAME(Subtype));
                 if (!pdf_name_eq(gctx, type, PDF_NAME(Image)))
-                    THROWMSG("not an image");
+                    THROWMSG(gctx, "not an image");
                 img = pdf_load_image(gctx, pdf, ref);
                 pix = fz_get_pixmap_from_image(gctx, img, NULL, NULL, NULL, NULL);
             }
@@ -11585,9 +11588,9 @@ SWIGINTERN PyObject *Pixmap_copyPixmap(struct Pixmap *self,struct Pixmap *src,Py
             fz_try(gctx) {
                 fz_pixmap *pm = (fz_pixmap *) self, *src_pix = (fz_pixmap *) src;
                 if (!fz_pixmap_colorspace(gctx, src_pix))
-                    THROWMSG("cannot copy pixmap with NULL colorspace");
+                    THROWMSG(gctx, "cannot copy pixmap with NULL colorspace");
                 if (pm->alpha != src_pix->alpha)
-                    THROWMSG("source and target alpha must be equal");
+                    THROWMSG(gctx, "source and target alpha must be equal");
                 fz_copy_pixmap_rect(gctx, pm, src_pix, JM_irect_from_py(bbox), NULL);
             }
             fz_catch(gctx) {
@@ -11599,7 +11602,7 @@ SWIGINTERN PyObject *Pixmap_setAlpha(struct Pixmap *self,PyObject *alphavalues,i
             fz_buffer *res = NULL;
             fz_pixmap *pix = (fz_pixmap *) self;
             fz_try(gctx) {
-                if (pix->alpha == 0) THROWMSG("pixmap has no alpha");
+                if (pix->alpha == 0) THROWMSG(gctx, "pixmap has no alpha");
                 size_t n = fz_pixmap_colorants(gctx, pix);
                 size_t w = fz_pixmap_width(gctx, pix);
                 size_t h = fz_pixmap_height(gctx, pix);
@@ -11611,9 +11614,9 @@ SWIGINTERN PyObject *Pixmap_setAlpha(struct Pixmap *self,PyObject *alphavalues,i
                     if (res) {
                         data_len = fz_buffer_storage(gctx, res, &data);
                         if (data && data_len < w * h)
-                            THROWMSG("not enough alpha values");
+                            THROWMSG(gctx, "not enough alpha values");
                     }
-                    else THROWMSG("bad type: 'alphavalues'");
+                    else THROWMSG(gctx, "bad type: 'alphavalues'");
                 }
                 size_t i = 0, k = 0, j = 0;
                 while (i < balen) {
@@ -11729,7 +11732,7 @@ SWIGINTERN PyObject *Pixmap_pixel(struct Pixmap *self,int x,int y){
             fz_try(gctx) {
                 fz_pixmap *pm = (fz_pixmap *) self;
                 if (!INRANGE(x, 0, pm->w - 1) || !INRANGE(y, 0, pm->h - 1))
-                    THROWMSG("coordinates outside image");
+                    THROWMSG(gctx, "outside image");
                 int n = pm->n;
                 int stride = fz_pixmap_stride(gctx, pm);
                 int j, i = stride * y + n * x;
@@ -11747,17 +11750,17 @@ SWIGINTERN PyObject *Pixmap_setPixel(struct Pixmap *self,int x,int y,PyObject *c
             fz_try(gctx) {
                 fz_pixmap *pm = (fz_pixmap *) self;
                 if (!INRANGE(x, 0, pm->w - 1) || !INRANGE(y, 0, pm->h - 1))
-                    THROWMSG("outside image");
+                    THROWMSG(gctx, "outside image");
                 int n = pm->n;
                 if (!PySequence_Check(color) || PySequence_Size(color) != n)
-                    THROWMSG("bad color arg");
+                    THROWMSG(gctx, "bad color arg");
                 int i, j;
                 unsigned char c[5];
                 for (j = 0; j < n; j++) {
                     if (JM_INT_ITEM(color, j, &i) == 1)
-                        THROWMSG("bad color sequence");
+                        THROWMSG(gctx, "bad color sequence");
                     if (!INRANGE(i, 0, 255))
-                        THROWMSG("bad color sequence");
+                        THROWMSG(gctx, "bad color sequence");
                     c[j] = (unsigned char) i;
                 }
                 int stride = fz_pixmap_stride(gctx, pm);
@@ -11790,14 +11793,14 @@ SWIGINTERN PyObject *Pixmap_setRect(struct Pixmap *self,PyObject *bbox,PyObject 
                 fz_pixmap *pm = (fz_pixmap *) self;
                 Py_ssize_t j, n = (Py_ssize_t) pm->n;
                 if (!PySequence_Check(color) || PySequence_Size(color) != n)
-                    THROWMSG("bad color arg");
+                    THROWMSG(gctx, "bad color arg");
                 unsigned char c[5];
                 int i;
                 for (j = 0; j < n; j++) {
                     if (JM_INT_ITEM(color, j, &i) == 1)
-                        THROWMSG("bad color component");
+                        THROWMSG(gctx, "bad color component");
                     if (!INRANGE(i, 0, 255))
-                        THROWMSG("bad color component");
+                        THROWMSG(gctx, "bad color component");
                     c[j] = (unsigned char) i;
                 }
                 i = JM_fill_pixmap_rect_with_color(gctx, pm, c, JM_irect_from_py(bbox));
@@ -12027,7 +12030,7 @@ SWIGINTERN PyObject *Annot_setAPNMatrix(struct Annot *self,PyObject *matrix){
             fz_try(gctx) {
                 pdf_obj *ap = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
                                                 PDF_NAME(N), NULL);
-                if (!ap) THROWMSG("annot has no appearance stream");
+                if (!ap) THROWMSG(gctx, "annot has no appearance stream");
                 fz_matrix mat = JM_matrix_from_py(matrix);
                 pdf_dict_put_matrix(gctx, ap, PDF_NAME(Matrix), mat);
             }
@@ -12041,7 +12044,7 @@ SWIGINTERN PyObject *Annot_setAPNBBox(struct Annot *self,PyObject *bbox){
             fz_try(gctx) {
                 pdf_obj *ap = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
                                                 PDF_NAME(N), NULL);
-                if (!ap) THROWMSG("annot has no appearance stream");
+                if (!ap) THROWMSG(gctx, "annot has no appearance stream");
                 fz_rect rect = JM_rect_from_py(bbox);
                 pdf_dict_put_rect(gctx, ap, PDF_NAME(BBox), rect);
             }
@@ -12149,11 +12152,11 @@ SWIGINTERN PyObject *Annot__setAP(struct Annot *self,PyObject *ap,int rect){
                 pdf_annot *annot = (pdf_annot *) self;
                 pdf_obj *apobj = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
                                               PDF_NAME(N), NULL);
-                if (!apobj) THROWMSG("annot has no /AP/N object");
+                if (!apobj) THROWMSG(gctx, "annot has no /AP/N object");
                 if (!pdf_is_stream(gctx, apobj))
-                    THROWMSG("/AP/N object is no stream");
+                    THROWMSG(gctx, "/AP/N object is no stream");
                 res = JM_BufferFromBytes(gctx, ap);
-                if (!res) THROWMSG("invalid /AP stream argument");
+                if (!res) THROWMSG(gctx, "invalid /AP stream argument");
                 JM_update_stream(gctx, annot->page->doc, apobj, res, 1);
                 if (rect) {
                     fz_rect bbox = pdf_dict_get_rect(gctx, annot->obj, PDF_NAME(Rect));
@@ -12382,7 +12385,7 @@ SWIGINTERN PyObject *Annot__update_appearance(struct Annot *self,float opacity,c
                 pdf_obj *ap = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
                                         PDF_NAME(N), NULL);
                 if (!ap)  // should never happen
-                    THROWMSG("annot has no /AP object");
+                    THROWMSG(gctx, "annot has no /AP object");
 
                 pdf_obj *resources = pdf_dict_get(gctx, ap, PDF_NAME(Resources));
                 if (!resources) {  // no Resources yet: make one
@@ -12508,10 +12511,10 @@ SWIGINTERN PyObject *Annot_fileInfo(struct Annot *self){
             fz_try(gctx) {
                 int type = (int) pdf_annot_type(gctx, annot);
                 if (type != PDF_ANNOT_FILE_ATTACHMENT)
-                    THROWMSG("bad annot type");
+                    THROWMSG(gctx, "bad annot type");
                 stream = pdf_dict_getl(gctx, annot->obj, PDF_NAME(FS),
                                    PDF_NAME(EF), PDF_NAME(F), NULL);
-                if (!stream) THROWMSG("bad PDF: file entry not found");
+                if (!stream) THROWMSG(gctx, "bad PDF: file entry not found");
             }
             fz_catch(gctx) {
                 return NULL;
@@ -12552,10 +12555,10 @@ SWIGINTERN PyObject *Annot_fileGet(struct Annot *self){
             fz_try(gctx) {
                 int type = (int) pdf_annot_type(gctx, annot);
                 if (type != PDF_ANNOT_FILE_ATTACHMENT)
-                    THROWMSG("bad annot type");
+                    THROWMSG(gctx, "bad annot type");
                 stream = pdf_dict_getl(gctx, annot->obj, PDF_NAME(FS),
                                    PDF_NAME(EF), PDF_NAME(F), NULL);
-                if (!stream) THROWMSG("bad PDF: file entry not found");
+                if (!stream) THROWMSG(gctx, "bad PDF: file entry not found");
                 buf = pdf_load_stream(gctx, stream);
                 res = JM_BinFromBuffer(gctx, buf);
             }
@@ -12578,9 +12581,9 @@ SWIGINTERN PyObject *Annot_soundGet(struct Annot *self){
                 int type = (int) pdf_annot_type(gctx, annot);
                 pdf_obj *sound = pdf_dict_get(gctx, annot->obj, PDF_NAME(Sound));
                 if (type != PDF_ANNOT_SOUND || !sound)
-                    THROWMSG("bad annot type");
+                    THROWMSG(gctx, "bad annot type");
                 if (pdf_dict_get(gctx, sound, PDF_NAME(F))) {
-                    THROWMSG("unsupported sound stream");
+                    THROWMSG(gctx, "unsupported sound stream");
                 }
                 res = PyDict_New();
                 obj = pdf_dict_get(gctx, sound, PDF_NAME(R));
@@ -12632,17 +12635,17 @@ SWIGINTERN PyObject *Annot_fileUpd(struct Annot *self,PyObject *buffer,char *fil
                 pdf = annot->page->doc;     // the owning PDF
                 int type = (int) pdf_annot_type(gctx, annot);
                 if (type != PDF_ANNOT_FILE_ATTACHMENT)
-                    THROWMSG("bad annot type");
+                    THROWMSG(gctx, "bad annot type");
                 stream = pdf_dict_getl(gctx, annot->obj, PDF_NAME(FS),
                                    PDF_NAME(EF), PDF_NAME(F), NULL);
                 // the object for file content
-                if (!stream) THROWMSG("bad PDF: no /EF object");
+                if (!stream) THROWMSG(gctx, "bad PDF: no /EF object");
 
                 fs = pdf_dict_get(gctx, annot->obj, PDF_NAME(FS));
 
                 // file content given
                 res = JM_BufferFromBytes(gctx, buffer);
-                if (buffer && !res) THROWMSG("bad type: 'buffer'");
+                if (buffer && !res) THROWMSG(gctx, "bad type: 'buffer'");
                 if (res) {
                     JM_update_stream(gctx, pdf, stream, res, 1);
                     // adjust /DL and /Size parameters
@@ -13432,7 +13435,7 @@ SWIGINTERN PyObject *Tools_set_icc(struct Tools *self,int on){
                     if (FZ_ENABLE_ICC)
                         fz_enable_icc(gctx);
                     else
-                        THROWMSG("MuPDF generated without ICC suppot.");
+                        THROWMSG(gctx, "MuPDF generated without ICC suppot.");
                 } else if (FZ_ENABLE_ICC) {
                     fz_disable_icc(gctx);
                 }

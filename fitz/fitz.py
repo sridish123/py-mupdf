@@ -86,9 +86,9 @@ except ImportError:
 
 
 VersionFitz = "1.18.0"
-VersionBind = "1.18.2"
-VersionDate = "2020-10-23 09:17:55"
-version = (VersionBind, VersionFitz, "20201023091755")
+VersionBind = "1.18.3"
+VersionDate = "2020-10-29 09:57:02"
+version = (VersionBind, VersionFitz, "20201029095702")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -4315,7 +4315,7 @@ class Document(object):
 
 
     def setXmlMetadata(self, metadata):
-        """Put XML metadata."""
+        """Store XML metadata."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
