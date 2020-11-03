@@ -3471,15 +3471,14 @@ class Document(object):
 
         Notes:
             Basic usages:
-            open() - creates new empty PDF document
+            open() - new PDF document
             open(filename) - string or pathlib.Path, must have supported
                     file extension.
             open(type, buffer) - type: valid extension, buffer: bytes object.
             open(stream=buffer, filetype=type) - keyword version of previous.
             open(filename, fileype=type) - filename with unrecognized extension.
-
-            rect, width, height, fontsize may be used to re-layout reflowable documents
-            on open (e.g. EPUB). Ignored if not applicable.
+            rect, width, height, fontsize: layout reflowable document
+            on open (e.g. EPUB). Ignored if n/a.
         """
 
         if not filename or type(filename) is str:
@@ -3945,7 +3944,7 @@ class Document(object):
     @property
 
     def isPDF(self):
-        """Check if a PDF document."""
+        """Check for PDF."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -4012,7 +4011,7 @@ class Document(object):
         return val
 
 
-    def save(self, filename, garbage=0, clean=0, deflate=0, incremental=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
+    def save(self, filename, garbage=0, clean=0, deflate=0, deflate_images=0, deflate_fonts=0, incremental=0, ascii=0, expand=0, linear=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
 
         """Save PDF to filename."""
         if self.isClosed or self.isEncrypted:
@@ -4032,10 +4031,10 @@ class Document(object):
                 raise ValueError("incremental needs original file")
 
 
-        return _fitz.Document_save(self, filename, garbage, clean, deflate, incremental, ascii, expand, linear, pretty, encryption, permissions, owner_pw, user_pw)
+        return _fitz.Document_save(self, filename, garbage, clean, deflate, deflate_images, deflate_fonts, incremental, ascii, expand, linear, pretty, encryption, permissions, owner_pw, user_pw)
 
 
-    def write(self, garbage=0, clean=0, deflate=0, ascii=0, expand=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
+    def write(self, garbage=0, clean=0, deflate=0, deflate_images=0, deflate_fonts=0, ascii=0, expand=0, pretty=0, encryption=1, permissions=-1, owner_pw=None, user_pw=None):
 
         """Write the PDF to a bytes object."""
         if self.isClosed or self.isEncrypted:
@@ -4043,7 +4042,7 @@ class Document(object):
         if self.pageCount < 1:
             raise ValueError("cannot write with zero pages")
 
-        return _fitz.Document_write(self, garbage, clean, deflate, ascii, expand, pretty, encryption, permissions, owner_pw, user_pw)
+        return _fitz.Document_write(self, garbage, clean, deflate, deflate_images, deflate_fonts, ascii, expand, pretty, encryption, permissions, owner_pw, user_pw)
 
 
     def insertPDF(self, docsrc, from_page=-1, to_page=-1, start_at=-1, rotate=-1, links=1, annots=1, show_progress=0, final=1, _gmap=None):
@@ -4413,6 +4412,62 @@ class Document(object):
 
     def _update_toc_item(self, xref, action=None, title=None):
         return _fitz.Document__update_toc_item(self, xref, action, title)
+
+    def layerConfigs(self):
+        """Show optional content configurations."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_layerConfigs(self)
+
+
+    def setLayerConfig(self, config, as_default=0):
+        """Activate a optional content configuration."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_setLayerConfig(self, config, as_default)
+
+
+    def addLayerConfig(self, name, creator=None):
+        """Add new optional content configuration."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_addLayerConfig(self, name, creator)
+
+
+    def layerUIConfigs(self):
+        """Show OC intent configurations."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_layerUIConfigs(self)
+
+
+    def setLayerConfigUI(self, number, action=0):
+        """Set / unset OC intent configuration."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_setLayerConfigUI(self, number, action)
+
+
+    def getOCGs(self):
+        """Show existing optional content groups."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_getOCGs(self)
+
+
+    def addOCG(self, name, config=-1, on=1, intent=None):
+        """Add new optional content group."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_addOCG(self, name, config, on, intent)
+
 
     def initData(self):
         if self.isEncrypted:
