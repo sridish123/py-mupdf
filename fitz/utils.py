@@ -69,6 +69,7 @@ def showPDFpage(
     overlay=True,
     keep_proportion=True,
     rotate=0,
+    oc=0,
     reuse_xref=0,
     clip=None,
 ):
@@ -195,6 +196,7 @@ def insertImage(
     stream=None,
     mask=None,
     rotate=0,
+    oc=0,
     keep_proportion=True,
     overlay=True,
 ):
@@ -209,6 +211,7 @@ def insertImage(
         stream: (bytes) an image in memory
         mask: (bytes) enforce this image mask
         rotate: (int) degrees (int multiple of 90)
+        oc: (int) xref of an optional content object
         keep_proportion: (bool) whether to maintain aspect ratio
         overlay: (bool) put in foreground
     """
@@ -353,6 +356,7 @@ def insertImage(
         imask=mask,
         matrix=matrix,  # generated matrix
         overlay=overlay,
+        oc=oc,  # optional content object
         _imgname=_imgname,  # generated PDF resource name
         _imgpointer=_imgpointer,  # address of fz_image
     )

@@ -7488,7 +7488,7 @@ JM_ensure_ocproperties(fz_context *ctx, pdf_document *pdf)
 
 
 //----------------------------------------------------------------------------
-// Add OC configuration to the catalog
+// Add OC configuration to PDF catalog
 //----------------------------------------------------------------------------
 void
 JM_add_layer_config(fz_context *ctx, pdf_document *pdf, char *name, char *creator)
@@ -7512,6 +7512,35 @@ JM_add_layer_config(fz_context *ctx, pdf_document *pdf, char *name, char *creato
         pdf_dict_put_array(ctx, D, PDF_NAME(RBGroups), 0);
         pdf_dict_put_array(ctx, D, PDF_NAME(Locked), 0);
         pdf_array_push_drop(ctx, configs, D);
+    }
+    fz_catch(ctx) {
+        fz_rethrow(ctx);
+    }
+}
+
+
+//----------------------------------------------------------------------------
+// Add OC object reference to a dictionary
+//----------------------------------------------------------------------------
+void
+JM_add_oc_object(fz_context *ctx, pdf_obj *ref, int xref)
+{
+    pdf_obj *indobj = NULL;
+    pdf_document *pdf = NULL;
+    fz_try(ctx) {
+        pdf = pdf_get_bound_document(ctx, ref);
+        indobj = pdf_new_indirect(ctx, pdf, xref, 0);
+        if (!pdf_is_dict(ctx, indobj)) THROWMSG(ctx, "bad 'oc' reference");
+        pdf_obj *type = pdf_dict_get(ctx, indobj, PDF_NAME(Type));
+        if (pdf_objcmp(ctx, type, PDF_NAME(OCG)) == 0 ||
+            pdf_objcmp(ctx, type, PDF_NAME(OCMD)) == 0) {
+            pdf_dict_put(ctx, ref, PDF_NAME(OC), indobj);
+        } else {
+            THROWMSG(ctx, "bad 'oc' type");
+        }
+    }
+    fz_always(ctx) {
+        pdf_drop_obj(ctx, indobj);
     }
     fz_catch(ctx) {
         fz_rethrow(ctx);
@@ -11312,7 +11341,7 @@ SWIGINTERN PyObject *Page__cleanContents(struct Page *self,int sanitize){
             page->doc->dirty = 1;
             return_none;
         }
-SWIGINTERN PyObject *Page__showPDFpage(struct Page *self,struct Page *fz_srcpage,int overlay,PyObject *matrix,int xref,PyObject *clip,struct Graftmap *graftmap,char *_imgname){
+SWIGINTERN PyObject *Page__showPDFpage(struct Page *self,struct Page *fz_srcpage,int overlay,PyObject *matrix,int xref,int oc,PyObject *clip,struct Graftmap *graftmap,char *_imgname){
             pdf_obj *xobj1, *xobj2, *resources;
             fz_buffer *res=NULL, *nres=NULL;
             fz_rect cropbox = JM_rect_from_py(clip);
@@ -11344,7 +11373,7 @@ SWIGINTERN PyObject *Page__showPDFpage(struct Page *self,struct Page *fz_srcpage
                 fz_append_string(gctx, res, "/fullpage Do");
 
                 xobj2 = pdf_new_xobject(gctx, pdfout, cropbox, mat, subres, res);
-
+                if (oc) JM_add_oc_object(gctx, xobj2, oc);
                 pdf_drop_obj(gctx, subres);
                 fz_drop_buffer(gctx, res);
 
@@ -11356,8 +11385,7 @@ SWIGINTERN PyObject *Page__showPDFpage(struct Page *self,struct Page *fz_srcpage
                 resources = pdf_dict_get_inheritable(gctx, tpageref, PDF_NAME(Resources));
                 subres = pdf_dict_get(gctx, resources, PDF_NAME(XObject));
                 if (!subres) {
-                    subres = pdf_new_dict(gctx, pdfout, 10);
-                    pdf_dict_putl(gctx, tpageref, subres, PDF_NAME(Resources), PDF_NAME(XObject), NULL);
+                    subres = pdf_dict_put_dict(gctx, resources, PDF_NAME(XObject), 5);
                 }
 
                 pdf_dict_puts(gctx, subres, _imgname, xobj2);
@@ -11378,7 +11406,7 @@ SWIGINTERN PyObject *Page__showPDFpage(struct Page *self,struct Page *fz_srcpage
             }
             return Py_BuildValue("i", rc_xref);
         }
-SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,struct Pixmap *pixmap,PyObject *stream,PyObject *imask,int overlay,PyObject *matrix,char const *_imgname,PyObject *_imgpointer){
+SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,struct Pixmap *pixmap,PyObject *stream,PyObject *imask,int overlay,int oc,PyObject *matrix,char const *_imgname,PyObject *_imgpointer){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             pdf_document *pdf;
             fz_pixmap *pm = NULL;
@@ -11457,11 +11485,11 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                 resources = pdf_dict_get_inheritable(gctx, page->obj, PDF_NAME(Resources));
                 xobject = pdf_dict_get(gctx, resources, PDF_NAME(XObject));
                 if (!xobject) {  // has no XObject yet, create one
-                    xobject = pdf_new_dict(gctx, pdf, 10);
-                    pdf_dict_putl_drop(gctx, page->obj, xobject, PDF_NAME(Resources), PDF_NAME(XObject), NULL);
+                    xobject = pdf_dict_put_dict(gctx, resources, PDF_NAME(XObject), 5);
                 }
 
                 ref = pdf_add_image(gctx, pdf, image);
+                if (oc) JM_add_oc_object(gctx, ref, oc);
                 pdf_dict_puts(gctx, xobject, _imgname, ref);  // update XObject
 
                 // make contents stream that invokes the image
@@ -12390,6 +12418,20 @@ SWIGINTERN PyObject *Annot_setBlendMode(struct Annot *self,char *blend_mode){
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
                 pdf_dict_put_name(gctx, annot->obj, PDF_NAME(BM), blend_mode);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return_none;
+        }
+SWIGINTERN PyObject *Annot_setOC(struct Annot *self,int oc){
+            fz_try(gctx) {
+                pdf_annot *annot = (pdf_annot *) self;
+                if (!oc) {
+                    pdf_dict_del(gctx, annot->obj, PDF_NAME(OC));
+                } else {
+                    JM_add_oc_object(gctx, annot->obj, oc);
+                }
             }
             fz_catch(gctx) {
                 return NULL;
@@ -19178,9 +19220,10 @@ SWIGINTERN PyObject *_wrap_Page__showPDFpage(PyObject *SWIGUNUSEDPARM(self), PyO
   int arg3 = (int) 1 ;
   PyObject *arg4 = (PyObject *) NULL ;
   int arg5 = (int) 0 ;
-  PyObject *arg6 = (PyObject *) NULL ;
-  struct Graftmap *arg7 = (struct Graftmap *) NULL ;
-  char *arg8 = (char *) NULL ;
+  int arg6 = (int) 0 ;
+  PyObject *arg7 = (PyObject *) NULL ;
+  struct Graftmap *arg8 = (struct Graftmap *) NULL ;
+  char *arg9 = (char *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 = 0 ;
@@ -19189,15 +19232,17 @@ SWIGINTERN PyObject *_wrap_Page__showPDFpage(PyObject *SWIGUNUSEDPARM(self), PyO
   int ecode3 = 0 ;
   int val5 ;
   int ecode5 = 0 ;
-  void *argp7 = 0 ;
-  int res7 = 0 ;
-  int res8 ;
-  char *buf8 = 0 ;
-  int alloc8 = 0 ;
-  PyObject *swig_obj[8] ;
+  int val6 ;
+  int ecode6 = 0 ;
+  void *argp8 = 0 ;
+  int res8 = 0 ;
+  int res9 ;
+  char *buf9 = 0 ;
+  int alloc9 = 0 ;
+  PyObject *swig_obj[9] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Page__showPDFpage", 2, 8, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Page__showPDFpage", 2, 9, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__showPDFpage" "', argument " "1"" of type '" "struct Page *""'"); 
@@ -19226,34 +19271,41 @@ SWIGINTERN PyObject *_wrap_Page__showPDFpage(PyObject *SWIGUNUSEDPARM(self), PyO
     arg5 = (int)(val5);
   }
   if (swig_obj[5]) {
-    arg6 = swig_obj[5];
+    ecode6 = SWIG_AsVal_int(swig_obj[5], &val6);
+    if (!SWIG_IsOK(ecode6)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "Page__showPDFpage" "', argument " "6"" of type '" "int""'");
+    } 
+    arg6 = (int)(val6);
   }
   if (swig_obj[6]) {
-    res7 = SWIG_ConvertPtr(swig_obj[6], &argp7,SWIGTYPE_p_Graftmap, 0 |  0 );
-    if (!SWIG_IsOK(res7)) {
-      SWIG_exception_fail(SWIG_ArgError(res7), "in method '" "Page__showPDFpage" "', argument " "7"" of type '" "struct Graftmap *""'"); 
-    }
-    arg7 = (struct Graftmap *)(argp7);
+    arg7 = swig_obj[6];
   }
   if (swig_obj[7]) {
-    res8 = SWIG_AsCharPtrAndSize(swig_obj[7], &buf8, NULL, &alloc8);
+    res8 = SWIG_ConvertPtr(swig_obj[7], &argp8,SWIGTYPE_p_Graftmap, 0 |  0 );
     if (!SWIG_IsOK(res8)) {
-      SWIG_exception_fail(SWIG_ArgError(res8), "in method '" "Page__showPDFpage" "', argument " "8"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res8), "in method '" "Page__showPDFpage" "', argument " "8"" of type '" "struct Graftmap *""'"); 
     }
-    arg8 = (char *)(buf8);
+    arg8 = (struct Graftmap *)(argp8);
+  }
+  if (swig_obj[8]) {
+    res9 = SWIG_AsCharPtrAndSize(swig_obj[8], &buf9, NULL, &alloc9);
+    if (!SWIG_IsOK(res9)) {
+      SWIG_exception_fail(SWIG_ArgError(res9), "in method '" "Page__showPDFpage" "', argument " "9"" of type '" "char *""'");
+    }
+    arg9 = (char *)(buf9);
   }
   {
-    result = (PyObject *)Page__showPDFpage(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8);
+    result = (PyObject *)Page__showPDFpage(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
     }
   }
   resultobj = result;
-  if (alloc8 == SWIG_NEWOBJ) free((char*)buf8);
+  if (alloc9 == SWIG_NEWOBJ) free((char*)buf9);
   return resultobj;
 fail:
-  if (alloc8 == SWIG_NEWOBJ) free((char*)buf8);
+  if (alloc9 == SWIG_NEWOBJ) free((char*)buf9);
   return NULL;
 }
 
@@ -19266,9 +19318,10 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   PyObject *arg4 = (PyObject *) NULL ;
   PyObject *arg5 = (PyObject *) NULL ;
   int arg6 = (int) 1 ;
-  PyObject *arg7 = (PyObject *) NULL ;
-  char *arg8 = (char *) NULL ;
-  PyObject *arg9 = (PyObject *) NULL ;
+  int arg7 = (int) 0 ;
+  PyObject *arg8 = (PyObject *) NULL ;
+  char *arg9 = (char *) NULL ;
+  PyObject *arg10 = (PyObject *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res2 ;
@@ -19278,13 +19331,15 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   int res3 = 0 ;
   int val6 ;
   int ecode6 = 0 ;
-  int res8 ;
-  char *buf8 = 0 ;
-  int alloc8 = 0 ;
-  PyObject *swig_obj[9] ;
+  int val7 ;
+  int ecode7 = 0 ;
+  int res9 ;
+  char *buf9 = 0 ;
+  int alloc9 = 0 ;
+  PyObject *swig_obj[10] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Page__insertImage", 1, 9, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Page__insertImage", 1, 10, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__insertImage" "', argument " "1"" of type '" "struct Page *""'"); 
@@ -19318,20 +19373,27 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
     arg6 = (int)(val6);
   }
   if (swig_obj[6]) {
-    arg7 = swig_obj[6];
+    ecode7 = SWIG_AsVal_int(swig_obj[6], &val7);
+    if (!SWIG_IsOK(ecode7)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode7), "in method '" "Page__insertImage" "', argument " "7"" of type '" "int""'");
+    } 
+    arg7 = (int)(val7);
   }
   if (swig_obj[7]) {
-    res8 = SWIG_AsCharPtrAndSize(swig_obj[7], &buf8, NULL, &alloc8);
-    if (!SWIG_IsOK(res8)) {
-      SWIG_exception_fail(SWIG_ArgError(res8), "in method '" "Page__insertImage" "', argument " "8"" of type '" "char const *""'");
-    }
-    arg8 = (char *)(buf8);
+    arg8 = swig_obj[7];
   }
   if (swig_obj[8]) {
-    arg9 = swig_obj[8];
+    res9 = SWIG_AsCharPtrAndSize(swig_obj[8], &buf9, NULL, &alloc9);
+    if (!SWIG_IsOK(res9)) {
+      SWIG_exception_fail(SWIG_ArgError(res9), "in method '" "Page__insertImage" "', argument " "9"" of type '" "char const *""'");
+    }
+    arg9 = (char *)(buf9);
+  }
+  if (swig_obj[9]) {
+    arg10 = swig_obj[9];
   }
   {
-    result = (PyObject *)Page__insertImage(arg1,(char const *)arg2,arg3,arg4,arg5,arg6,arg7,(char const *)arg8,arg9);
+    result = (PyObject *)Page__insertImage(arg1,(char const *)arg2,arg3,arg4,arg5,arg6,arg7,arg8,(char const *)arg9,arg10);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -19339,11 +19401,11 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   }
   resultobj = result;
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  if (alloc8 == SWIG_NEWOBJ) free((char*)buf8);
+  if (alloc9 == SWIG_NEWOBJ) free((char*)buf9);
   return resultobj;
 fail:
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  if (alloc8 == SWIG_NEWOBJ) free((char*)buf8);
+  if (alloc9 == SWIG_NEWOBJ) free((char*)buf9);
   return NULL;
 }
 
@@ -21729,6 +21791,44 @@ SWIGINTERN PyObject *_wrap_Annot_setBlendMode(PyObject *SWIGUNUSEDPARM(self), Py
   return resultobj;
 fail:
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Annot_setOC(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Annot *arg1 = (struct Annot *) 0 ;
+  int arg2 = (int) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Annot_setOC", 1, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setOC" "', argument " "1"" of type '" "struct Annot *""'"); 
+  }
+  arg1 = (struct Annot *)(argp1);
+  if (swig_obj[1]) {
+    ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+    if (!SWIG_IsOK(ecode2)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_setOC" "', argument " "2"" of type '" "int""'");
+    } 
+    arg2 = (int)(val2);
+  }
+  {
+    result = (PyObject *)Annot_setOC(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
   return NULL;
 }
 
@@ -25859,6 +25959,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Annot_setAPNBBox", _wrap_Annot_setAPNBBox, METH_VARARGS, NULL},
 	 { "Annot_blendMode", _wrap_Annot_blendMode, METH_O, NULL},
 	 { "Annot_setBlendMode", _wrap_Annot_setBlendMode, METH_VARARGS, NULL},
+	 { "Annot_setOC", _wrap_Annot_setOC, METH_VARARGS, NULL},
 	 { "Annot_language", _wrap_Annot_language, METH_O, NULL},
 	 { "Annot_setLaguage", _wrap_Annot_setLaguage, METH_VARARGS, NULL},
 	 { "Annot__getAP", _wrap_Annot__getAP, METH_O, NULL},

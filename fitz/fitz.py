@@ -5649,11 +5649,11 @@ class Page(object):
         return _fitz.Page__cleanContents(self, sanitize)
 
 
-    def _showPDFpage(self, fz_srcpage, overlay=1, matrix=None, xref=0, clip=None, graftmap=None, _imgname=None):
-        return _fitz.Page__showPDFpage(self, fz_srcpage, overlay, matrix, xref, clip, graftmap, _imgname)
+    def _showPDFpage(self, fz_srcpage, overlay=1, matrix=None, xref=0, oc=0, clip=None, graftmap=None, _imgname=None):
+        return _fitz.Page__showPDFpage(self, fz_srcpage, overlay, matrix, xref, oc, clip, graftmap, _imgname)
 
-    def _insertImage(self, filename=None, pixmap=None, stream=None, imask=None, overlay=1, matrix=None, _imgname=None, _imgpointer=None):
-        return _fitz.Page__insertImage(self, filename, pixmap, stream, imask, overlay, matrix, _imgname, _imgpointer)
+    def _insertImage(self, filename=None, pixmap=None, stream=None, imask=None, overlay=1, oc=0, matrix=None, _imgname=None, _imgpointer=None):
+        return _fitz.Page__insertImage(self, filename, pixmap, stream, imask, overlay, oc, matrix, _imgname, _imgpointer)
 
     def refresh(self):
         """Refresh page after link/annot/widget updates."""
@@ -6409,6 +6409,13 @@ class Annot(object):
         CheckParent(self)
 
         return _fitz.Annot_setBlendMode(self, blend_mode)
+
+
+    def setOC(self, oc=0):
+        """Set annotation optional content reference."""
+        CheckParent(self)
+
+        return _fitz.Annot_setOC(self, oc)
 
     @property
 
