@@ -179,6 +179,7 @@ def showPDFpage(
         overlay=overlay,
         matrix=matrix,
         xref=xref,
+        oc=oc,
         clip=src_rect,
         graftmap=gmap,
         _imgname=_imgname,

@@ -4438,19 +4438,19 @@ class Document(object):
 
 
     def layerUIConfigs(self):
-        """Show OC intent configurations."""
+        """Show OC visibility status modifyable by user."""
         if self.isClosed:
             raise ValueError("document closed")
 
         return _fitz.Document_layerUIConfigs(self)
 
 
-    def setLayerConfigUI(self, number, action=0):
+    def setLayerUIConfig(self, number, action=0):
         """Set / unset OC intent configuration."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_setLayerConfigUI(self, number, action)
+        return _fitz.Document_setLayerUIConfig(self, number, action)
 
 
     def getOCGs(self):
@@ -4461,12 +4461,12 @@ class Document(object):
         return _fitz.Document_getOCGs(self)
 
 
-    def addOCG(self, name, config=-1, on=1, intent=None):
+    def addOCG(self, name, config=-1, on=1, intent=None, usage=None):
         """Add new optional content group."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_addOCG(self, name, config, on, intent)
+        return _fitz.Document_addOCG(self, name, config, on, intent, usage)
 
 
     def initData(self):
@@ -6409,6 +6409,13 @@ class Annot(object):
         CheckParent(self)
 
         return _fitz.Annot_setBlendMode(self, blend_mode)
+
+
+    def getOC(self):
+        """Get annotation optional content reference."""
+        CheckParent(self)
+
+        return _fitz.Annot_getOC(self)
 
 
     def setOC(self, oc=0):
