@@ -71,6 +71,7 @@ import io
 import math
 import os
 import weakref
+import hashlib
 from binascii import hexlify
 
 fitz_py2 = str is bytes  # if true, this is Python 2
@@ -87,8 +88,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.3"
-VersionDate = "2020-10-29 09:57:02"
-version = (VersionBind, VersionFitz, "20201029095702")
+VersionDate = "2020-11-09 07:36:17"
+version = (VersionBind, VersionFitz, "20201109073617")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -3517,6 +3518,7 @@ class Document(object):
         self.FontInfos   = []
         self.Graftmaps   = {}
         self.ShownPages  = {}
+        self.InsertedImages  = {}
         self._page_refs  = weakref.WeakValueDictionary()
 
         _fitz.Document_swiginit(self, _fitz.new_Document(filename, stream, filetype, rect, width, height, fontsize))
@@ -3548,6 +3550,7 @@ class Document(object):
             self.Graftmaps[k] = None
         self.Graftmaps = {}
         self.ShownPages = {}
+        self.InsertedImages  = {}
 
 
         val = _fitz.Document_close(self)
@@ -4429,12 +4432,41 @@ class Document(object):
         return _fitz.Document_setLayerConfig(self, config, as_default)
 
 
-    def addLayerConfig(self, name, creator=None):
+    def getOCStates(self, config=-1):
+        """Content of ON, OFF, RBGroups of a configuration."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_getOCStates(self, config)
+
+
+    def setOCStates(self, config, basestate=None, on=None, off=None, rbgroups=None):
+        """Set ON, OFF, RBGroups of a configuration."""
+        if self.isClosed:
+            raise ValueError("document closed")
+        if on is not None and type(on) not in (list, tuple):
+                raise ValueError("bad type: 'on'")
+        if off is not None and type(off) not in (list, tuple):
+                raise ValueError("bad type: 'off'")
+        if rbgroups is not None and type(rbgroups) not in (list, tuple):
+                raise ValueError("bad type: 'rbgroups'")
+        if basestate is not None:
+            basestate = basestate.upper()
+            if basestate == "UNCHANGED":
+                basestate = "Unchanged"
+            if basestate not in ("ON", "OFF", "Unchanged"):
+                raise ValueError("bad value: 'basestate'")
+
+
+        return _fitz.Document_setOCStates(self, config, basestate, on, off, rbgroups)
+
+
+    def addLayerConfig(self, name, creator=None, on=None):
         """Add new optional content configuration."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_addLayerConfig(self, name, creator)
+        return _fitz.Document_addLayerConfig(self, name, creator, on)
 
 
     def layerUIConfigs(self):
@@ -4808,6 +4840,7 @@ class Document(object):
 
         self.Graftmaps = {}
         self.ShownPages = {}
+        self.InsertedImages  = {}
         self.stream = None
         self._reset_page_refs = DUMMY
         self.__swig_destroy__ = DUMMY
@@ -5652,8 +5685,8 @@ class Page(object):
     def _showPDFpage(self, fz_srcpage, overlay=1, matrix=None, xref=0, oc=0, clip=None, graftmap=None, _imgname=None):
         return _fitz.Page__showPDFpage(self, fz_srcpage, overlay, matrix, xref, oc, clip, graftmap, _imgname)
 
-    def _insertImage(self, filename=None, pixmap=None, stream=None, imask=None, overlay=1, oc=0, matrix=None, _imgname=None, _imgpointer=None):
-        return _fitz.Page__insertImage(self, filename, pixmap, stream, imask, overlay, oc, matrix, _imgname, _imgpointer)
+    def _insertImage(self, filename=None, pixmap=None, stream=None, imask=None, overlay=1, oc=0, xref=0, matrix=None, _imgname=None, _imgpointer=None):
+        return _fitz.Page__insertImage(self, filename, pixmap, stream, imask, overlay, oc, xref, matrix, _imgname, _imgpointer)
 
     def refresh(self):
         """Refresh page after link/annot/widget updates."""

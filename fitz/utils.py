@@ -217,6 +217,11 @@ def insertImage(
         overlay: (bool) put in foreground
     """
 
+    def calc_hash(stream):
+        m = hashlib.sha1()
+        m.update(stream)
+        return m.digest()
+
     def calc_matrix(fw, fh, tr, rotate=0):
         """Calculate transformation matrix for image insertion.
 
@@ -313,6 +318,7 @@ def insertImage(
         if pixmap:  # this is the easy case
             w = pixmap.width
             h = pixmap.height
+            digest = calc_hash(pixmap.samples)
 
         elif stream:  # use tool to access the information
             # we also pass through the generated fz_image address
@@ -320,11 +326,13 @@ def insertImage(
                 stream = stream.getvalue()
             img_prof = TOOLS.image_profile(stream, keep_image=True)
             w, h = img_prof["width"], img_prof["height"]
+            digest = calc_hash(stream)
             stream = None  # make sure this arg is NOT used
             _imgpointer = img_prof["image"]  # pointer to fz_image
 
         else:  # worst case: must read the file
             stream = open(filename, "rb").read()
+            digest = calc_hash(stream)
             img_prof = TOOLS.image_profile(stream, keep_image=True)
             w, h = img_prof["width"], img_prof["height"]
             stream = None  # make sure this arg is NOT used
@@ -350,7 +358,9 @@ def insertImage(
         i += 1
         _imgname = n + str(i)  # try new name
 
-    page._insertImage(
+    xref = doc.InsertedImages.get(digest, 0)  # reuse any previously inserted image
+
+    xref = page._insertImage(
         filename=filename,  # image in file
         pixmap=pixmap,  # image in pixmap
         stream=stream,  # image in memory
@@ -358,9 +368,12 @@ def insertImage(
         matrix=matrix,  # generated matrix
         overlay=overlay,
         oc=oc,  # optional content object
+        xref=xref,
         _imgname=_imgname,  # generated PDF resource name
         _imgpointer=_imgpointer,  # address of fz_image
     )
+    if xref > 0:
+        doc.InsertedImages[digest] = xref
 
 
 def searchFor(page, text, hit_max=16, quads=False, clip=None, flags=None):

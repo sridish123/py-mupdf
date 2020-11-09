@@ -7467,18 +7467,16 @@ JM_ensure_ocproperties(fz_context *ctx, pdf_document *pdf)
     pdf_obj *D, *ocp;
     fz_try(ctx) {
         ocp = pdf_dict_get(ctx, pdf_dict_get(gctx, pdf_trailer(ctx, pdf), PDF_NAME(Root)), PDF_NAME(OCProperties));
-        if (ocp) goto fertig;
+        if (ocp) goto finished;
         pdf_obj *root = pdf_dict_get(ctx, pdf_trailer(ctx, pdf), PDF_NAME(Root));
         ocp = pdf_dict_put_dict(ctx, root, PDF_NAME(OCProperties), 2);
-        pdf_dict_put_array(ctx, ocp, PDF_NAME(Configs), 0);
         pdf_dict_put_array(ctx, ocp, PDF_NAME(OCGs), 0);
         D = pdf_dict_put_dict(ctx, ocp, PDF_NAME(D), 5);
-        pdf_dict_put_array(ctx, D, PDF_NAME(AS), 0);
         pdf_dict_put_array(ctx, D, PDF_NAME(ON), 0);
         pdf_dict_put_array(ctx, D, PDF_NAME(OFF), 0);
         pdf_dict_put_array(ctx, D, PDF_NAME(Order), 0);
         pdf_dict_put_array(ctx, D, PDF_NAME(RBGroups), 0);
-        fertig:;
+    finished:;
     }
     fz_catch(ctx) {
         fz_rethrow(ctx);
@@ -7488,10 +7486,10 @@ JM_ensure_ocproperties(fz_context *ctx, pdf_document *pdf)
 
 
 //----------------------------------------------------------------------------
-// Add OC configuration to PDF catalog
+// Add OC configuration to the PDF catalog
 //----------------------------------------------------------------------------
 void
-JM_add_layer_config(fz_context *ctx, pdf_document *pdf, char *name, char *creator)
+JM_add_layer_config(fz_context *ctx, pdf_document *pdf, char *name, char *creator, PyObject *ON)
 {
     pdf_obj *D, *ocp, *configs;
     fz_try(ctx) {
@@ -7505,17 +7503,173 @@ JM_add_layer_config(fz_context *ctx, pdf_document *pdf, char *name, char *creato
         if (creator) {
             pdf_dict_put_text_string(ctx, D, PDF_NAME(Creator), creator);
         }
-        pdf_dict_put_array(ctx, D, PDF_NAME(AS), 0);
-        pdf_dict_put_array(ctx, D, PDF_NAME(ON), 0);
-        pdf_dict_put_array(ctx, D, PDF_NAME(OFF), 0);
-        pdf_dict_put_array(ctx, D, PDF_NAME(Order), 0);
-        pdf_dict_put_array(ctx, D, PDF_NAME(RBGroups), 0);
-        pdf_dict_put_array(ctx, D, PDF_NAME(Locked), 0);
+        pdf_dict_put(ctx, D, PDF_NAME(BaseState), PDF_NAME(OFF));
+        pdf_obj *onarray = pdf_dict_put_array(ctx, D, PDF_NAME(ON), 5);
+        if (!EXISTS(ON) || !PySequence_Check(ON) || !PySequence_Size(ON)) {
+            ;
+        } else {
+            pdf_obj *ocgs = pdf_dict_get(ctx, ocp, PDF_NAME(OCGs));
+            int i, n = PySequence_Size(ON);
+            for (i = 0; i < n; i++) {
+                int xref = 0;
+                if (JM_INT_ITEM(ON, (Py_ssize_t) i, &xref) == 1) continue;
+                pdf_obj *ind = pdf_new_indirect(ctx, pdf, xref, 0);
+                if (pdf_array_contains(ctx, ocgs, ind)) {
+                    pdf_array_push_drop(ctx, onarray, ind);
+                } else {
+                    pdf_drop_obj(ctx, ind);
+                }
+            }
+        }
         pdf_array_push_drop(ctx, configs, D);
     }
     fz_catch(ctx) {
         fz_rethrow(ctx);
     }
+}
+
+
+//----------------------------------------------------------------------------
+// Get OCG arrays from OC configuration
+// Returns dict {"basestate":name, "on":list, "off":list, "rbg":list}
+//----------------------------------------------------------------------------
+static PyObject *
+JM_get_ocg_arrays_imp(fz_context *ctx, pdf_obj *arr)
+{
+    int i, n;
+    PyObject *list = PyList_New(0), *item = NULL;
+    pdf_obj *obj = NULL;
+    if (pdf_is_array(ctx, arr)) {
+        n = pdf_array_len(ctx, arr);
+        for (i = 0; i < n; i++) {
+            obj = pdf_array_get(ctx, arr, i);
+            item = Py_BuildValue("i", pdf_to_num(ctx, obj));
+            if (!PySequence_Contains(list, item)) {
+                LIST_APPEND_DROP(list, item);
+            } else {
+                Py_DECREF(item);
+            }
+        }
+    }
+    return list;
+}
+
+PyObject *
+JM_get_ocg_arrays(fz_context *ctx, pdf_obj *conf)
+{
+    PyObject *rc = PyDict_New(), *list = NULL, *list1 = NULL;
+    int i, n;
+    pdf_obj *arr = NULL, *obj = NULL;
+    fz_try(ctx) {
+        arr = pdf_dict_get(ctx, conf, PDF_NAME(ON));
+        list = JM_get_ocg_arrays_imp(ctx, arr);
+        if (PySequence_Size(list)) {
+            PyDict_SetItemString(rc, "on", list);
+        }
+        Py_DECREF(list);
+        arr = pdf_dict_get(ctx, conf, PDF_NAME(OFF));
+        list = JM_get_ocg_arrays_imp(ctx, arr);
+        if (PySequence_Size(list)) {
+            PyDict_SetItemString(rc, "off", list);
+        }
+        Py_DECREF(list);
+        list = PyList_New(0);
+        arr = pdf_dict_get(ctx, conf, PDF_NAME(RBGroups));
+        if (pdf_is_array(ctx, arr)) {
+            n = pdf_array_len(ctx, arr);
+            for (i = 0; i < n; i++) {
+                obj = pdf_array_get(ctx, arr, i);
+                list1 = JM_get_ocg_arrays_imp(ctx, obj);
+                LIST_APPEND_DROP(list, list1);
+            }
+        }
+        if (PySequence_Size(list)) {
+            PyDict_SetItemString(rc, "rbgroups", list);
+        }
+        Py_DECREF(list);
+        obj = pdf_dict_get(ctx, conf, PDF_NAME(BaseState));
+
+        if (obj) {
+            PyObject *state = NULL;
+            state = Py_BuildValue("s", pdf_to_name(ctx, obj));
+            PyDict_SetItemString(rc, "basestate", state);
+            Py_DECREF(state);
+        }
+    }
+    fz_always(ctx) {
+    }
+    fz_catch(ctx) {
+        Py_CLEAR(rc);
+        fz_rethrow(ctx);
+    }
+    return rc;
+}
+
+
+//----------------------------------------------------------------------------
+// Set OCG arrays from dict of Python lists
+// Works with dict like {"basestate":name, "on":list, "off":list, "rbg":list}
+//----------------------------------------------------------------------------
+static void
+JM_set_ocg_arrays_imp(fz_context *ctx, pdf_obj *arr, PyObject *list)
+{
+    int i, n = PySequence_Size(list);
+    pdf_obj *obj = NULL;
+    pdf_document *pdf = pdf_get_bound_document(ctx, arr);
+    for (i = 0; i < n; i++) {
+        int xref = 0;
+        if (JM_INT_ITEM(list, i, &xref) == 1) continue;
+        obj = pdf_new_indirect(ctx, pdf, xref, 0);
+        pdf_array_push_drop(ctx, arr, obj);
+    }
+    return;
+}
+
+static void
+JM_set_ocg_arrays(fz_context *ctx, pdf_obj *conf, const char *basestate,
+                  PyObject *on, PyObject *off, PyObject *rbgroups)
+{
+    int i, n;
+    pdf_obj *arr = NULL, *obj = NULL, *indobj = NULL;
+    fz_try(ctx) {
+        if (basestate) {
+            pdf_dict_put_name(ctx, conf, PDF_NAME(BaseState), basestate);
+        }
+
+        if (on != Py_None) {
+            pdf_dict_del(ctx, conf, PDF_NAME(ON));
+            if (PySequence_Size(on)) {
+                arr = pdf_dict_put_array(ctx, conf, PDF_NAME(ON), 1);
+                JM_set_ocg_arrays_imp(ctx, arr, on);
+            }
+        }
+
+        if (off != Py_None) {
+            pdf_dict_del(ctx, conf, PDF_NAME(OFF));
+            if (PySequence_Size(off)) {
+                arr = pdf_dict_put_array(ctx, conf, PDF_NAME(OFF), 1);
+                JM_set_ocg_arrays_imp(ctx, arr, off);
+            }
+        }
+
+        if (rbgroups != Py_None) {
+            pdf_dict_del(ctx, conf, PDF_NAME(RBGroups));
+            if (PySequence_Size(rbgroups)) {
+                arr = pdf_dict_put_array(ctx, conf, PDF_NAME(RBGroups), 1);
+                n = PySequence_Size(rbgroups);
+                for (i = 0; i < n; i++) {
+                    PyObject *item0 = PySequence_ITEM(rbgroups, i);
+                    obj = pdf_array_push_array(ctx, arr, 1);
+                    JM_set_ocg_arrays_imp(ctx, obj, item0);
+                    Py_DECREF(item0);
+                }
+            }
+        }
+    }
+    fz_catch(ctx) {
+        fz_rethrow(ctx);
+    }
+    return;
 }
 
 
@@ -10321,22 +10475,82 @@ SWIGINTERN PyObject *Document_setLayerConfig(struct Document *self,int config,in
             fz_try(gctx) {
                 pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
                 ASSERT_PDF(pdf);
+                pdf_obj *cfgs = pdf_dict_getl(gctx, pdf_trailer(gctx, pdf),
+                                   PDF_NAME(Root), PDF_NAME(OCProperties), PDF_NAME(Configs), NULL);
+                if (!pdf_is_array(gctx, cfgs) || !pdf_array_len(gctx, cfgs)) {
+                    if (config < 1) goto finished;
+                    THROWMSG(gctx, "bad config number");
+                }
+                if (config < 0) goto finished;
                 pdf_select_layer_config(gctx, pdf, config);
                 if (as_default) {
                     pdf_set_layer_config_as_default(gctx, pdf);
                     pdf_read_ocg(gctx, pdf);
                 }
+                finished:;
             }
             fz_catch(gctx) {
                 return NULL;
             }
             Py_RETURN_NONE;
         }
-SWIGINTERN PyObject *Document_addLayerConfig(struct Document *self,char *name,char *creator){
+SWIGINTERN PyObject *Document_getOCStates(struct Document *self,int config){
+            PyObject *rc;
+            pdf_obj *obj = NULL;
             fz_try(gctx) {
                 pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
                 ASSERT_PDF(pdf);
-                JM_add_layer_config(gctx, pdf, name, creator);
+                pdf_obj *ocp = pdf_dict_getl(gctx, pdf_trailer(gctx, pdf),
+                                   PDF_NAME(Root), PDF_NAME(OCProperties), NULL);
+                if (!ocp) {
+                    rc = Py_BuildValue("s", NULL);
+                    goto finished;
+                }
+                if (config == -1) {
+                    obj = pdf_dict_get(gctx, ocp, PDF_NAME(D));
+                } else {
+                    obj = pdf_array_get(gctx, pdf_dict_get(gctx, ocp, PDF_NAME(Configs)), config);
+                }
+                if (!obj) THROWMSG(gctx, "bad config number");
+                rc = JM_get_ocg_arrays(gctx, obj);
+                finished:;
+            }
+            fz_catch(gctx) {
+                Py_CLEAR(rc);
+                return NULL;
+            }
+            return rc;
+        }
+SWIGINTERN PyObject *Document_setOCStates(struct Document *self,int config,char const *basestate,PyObject *on,PyObject *off,PyObject *rbgroups){
+            pdf_obj *obj = NULL;
+            fz_try(gctx) {
+                pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+                ASSERT_PDF(pdf);
+                pdf_obj *ocp = pdf_dict_getl(gctx, pdf_trailer(gctx, pdf),
+                                   PDF_NAME(Root), PDF_NAME(OCProperties), NULL);
+                if (!ocp) {
+                    goto finished;
+                }
+                if (config == -1) {
+                    obj = pdf_dict_get(gctx, ocp, PDF_NAME(D));
+                } else {
+                    obj = pdf_array_get(gctx, pdf_dict_get(gctx, ocp, PDF_NAME(Configs)), config);
+                }
+                if (!obj) THROWMSG(gctx, "bad config number");
+                JM_set_ocg_arrays(gctx, obj, basestate, on, off, rbgroups);
+                pdf_read_ocg(gctx, pdf);
+                finished:;
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            Py_RETURN_NONE;
+        }
+SWIGINTERN PyObject *Document_addLayerConfig(struct Document *self,char *name,char *creator,PyObject *on){
+            fz_try(gctx) {
+                pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+                ASSERT_PDF(pdf);
+                JM_add_layer_config(gctx, pdf, name, creator, on);
                 pdf_read_ocg(gctx, pdf);
             }
             fz_catch(gctx) {
@@ -10375,7 +10589,7 @@ SWIGINTERN PyObject *Document_layerUIConfigs(struct Document *self){
                         "text", info.text,
                         "depth", info.depth,
                         "type", type,
-                        "selected", JM_BOOL(info.selected),
+                        "on", JM_BOOL(info.selected),
                         "locked", JM_BOOL(info.locked));
                     PyTuple_SET_ITEM(rc, i, item);
                 }
@@ -10447,7 +10661,7 @@ SWIGINTERN PyObject *Document_getOCGs(struct Document *self){
                     PyObject *item = Py_BuildValue("{s:s,s:O,s:O,s:s}",
                             "name", name,
                             "intent", intents,
-                            "hidden", JM_BOOL(hidden),
+                            "on", JM_BOOL(!hidden),
                             "usage", usage);
                     Py_DECREF(intents);
                     PyObject *temp = Py_BuildValue("i", xref);
@@ -10477,11 +10691,11 @@ SWIGINTERN PyObject *Document_addOCG(struct Document *self,char *name,int config
                 // make the OCG
                 // ------------------------------
                 pdf_obj *ocg = pdf_add_new_dict(gctx, pdf, 3);
-                pdf_dict_put_name(gctx, ocg, PDF_NAME(Type), "OCG");
+                pdf_dict_put(gctx, ocg, PDF_NAME(Type), PDF_NAME(OCG));
                 pdf_dict_put_text_string(gctx, ocg, PDF_NAME(Name), name);
                 pdf_obj *intents = pdf_dict_put_array(gctx, ocg, PDF_NAME(Intent), 2);
                 if (!EXISTS(intent)) {
-                    pdf_array_push(gctx, intents, pdf_new_name(gctx, "View"));
+                    pdf_array_push(gctx, intents, PDF_NAME(View));
                 } else if (!PyUnicode_Check(intent)) {
                     int i, n = PySequence_Size(intent);
                     for (i = 0; i < n; i++) {
@@ -10532,11 +10746,20 @@ SWIGINTERN PyObject *Document_addOCG(struct Document *self,char *name,int config
                 }
 
                 obj = pdf_dict_get(gctx, cfg, PDF_NAME(Order));
+                if (!obj) {
+                    obj = pdf_dict_put_array(gctx, cfg, PDF_NAME(Order), 1);
+                }
                 pdf_array_push(gctx, obj, indocg);
                 if (on) {
                     obj = pdf_dict_get(gctx, cfg, PDF_NAME(ON));
+                    if (!obj) {
+                        obj = pdf_dict_put_array(gctx, cfg, PDF_NAME(ON), 1);
+                    }
                 } else {
                     obj = pdf_dict_get(gctx, cfg, PDF_NAME(OFF));
+                    if (!obj) {
+                        obj = pdf_dict_put_array(gctx, cfg, PDF_NAME(OFF), 1);
+                    }
                 }
                 pdf_array_push(gctx, obj, indocg);
                 pdf_read_ocg(gctx, pdf);
@@ -11438,7 +11661,7 @@ SWIGINTERN PyObject *Page__showPDFpage(struct Page *self,struct Page *fz_srcpage
             }
             return Py_BuildValue("i", rc_xref);
         }
-SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,struct Pixmap *pixmap,PyObject *stream,PyObject *imask,int overlay,int oc,PyObject *matrix,char const *_imgname,PyObject *_imgpointer){
+SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,struct Pixmap *pixmap,PyObject *stream,PyObject *imask,int overlay,int oc,int xref,PyObject *matrix,char const *_imgname,PyObject *_imgpointer){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             pdf_document *pdf;
             fz_pixmap *pm = NULL;
@@ -11449,10 +11672,14 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
             fz_buffer *nres = NULL,  *imgbuf = NULL, *maskbuf = NULL;
             fz_matrix mat = JM_matrix_from_py(matrix); // pre-calculated
             fz_compressed_buffer *cbuf1 = NULL;
+            int img_xref = 0;
 
             const char *template = "\nq\n%g %g %g %g %g %g cm\n/%s Do\nQ\n";
             fz_image *zimg = NULL, *image = NULL;
             fz_try(gctx) {
+                if (xref > 0) {
+                    goto image_exists;
+                }
                 //-------------------------------------------------------------
                 // create the image
                 //-------------------------------------------------------------
@@ -11493,6 +11720,9 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                             fz_drop_image(gctx, image);
                             image = zimg;
                             zimg = NULL;
+                        } else {
+                            fz_drop_pixmap(gctx, pix);
+                            pix = NULL;
                         }
                     }
                 } else {  // pixmap specified
@@ -11511,6 +11741,7 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                 //-------------------------------------------------------------
                 // image created - now put it in the PDF
                 //-------------------------------------------------------------
+                image_exists:;
                 pdf = page->doc;  // owning PDF
 
                 // get /Resources, /XObject
@@ -11519,11 +11750,16 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                 if (!xobject) {  // has no XObject yet, create one
                     xobject = pdf_dict_put_dict(gctx, resources, PDF_NAME(XObject), 5);
                 }
-
-                ref = pdf_add_image(gctx, pdf, image);
+                if (xref > 0) {
+                    ref = pdf_new_indirect(gctx, page->doc, xref, 0);
+                    img_xref = xref;
+                } else {
+                    ref = pdf_add_image(gctx, pdf, image);
+                    img_xref = pdf_to_num(gctx, ref);
+                }
                 if (oc) JM_add_oc_object(gctx, pdf, ref, oc);
-                pdf_dict_puts(gctx, xobject, _imgname, ref);  // update XObject
-
+                
+                pdf_dict_puts_drop(gctx, xobject, _imgname, ref);  // update XObject
                 // make contents stream that invokes the image
                 nres = fz_new_buffer(gctx, 50);
                 fz_append_printf(gctx, nres, template,
@@ -11547,7 +11783,7 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                 return NULL;
             }
             pdf->dirty = 1;
-            return_none;
+            return Py_BuildValue("i", img_xref);
         }
 SWIGINTERN PyObject *Page_refresh(struct Page *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
@@ -17481,11 +17717,111 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Document_getOCStates(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  int arg2 = (int) -1 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document_getOCStates", 1, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_getOCStates" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  if (swig_obj[1]) {
+    ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+    if (!SWIG_IsOK(ecode2)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_getOCStates" "', argument " "2"" of type '" "int""'");
+    } 
+    arg2 = (int)(val2);
+  }
+  {
+    result = (PyObject *)Document_getOCStates(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Document_setOCStates(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  int arg2 ;
+  char *arg3 = (char *) NULL ;
+  PyObject *arg4 = (PyObject *) NULL ;
+  PyObject *arg5 = (PyObject *) NULL ;
+  PyObject *arg6 = (PyObject *) NULL ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int res3 ;
+  char *buf3 = 0 ;
+  int alloc3 = 0 ;
+  PyObject *swig_obj[6] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document_setOCStates", 2, 6, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_setOCStates" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_setOCStates" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  if (swig_obj[2]) {
+    res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Document_setOCStates" "', argument " "3"" of type '" "char const *""'");
+    }
+    arg3 = (char *)(buf3);
+  }
+  if (swig_obj[3]) {
+    arg4 = swig_obj[3];
+  }
+  if (swig_obj[4]) {
+    arg5 = swig_obj[4];
+  }
+  if (swig_obj[5]) {
+    arg6 = swig_obj[5];
+  }
+  {
+    result = (PyObject *)Document_setOCStates(arg1,arg2,(char const *)arg3,arg4,arg5,arg6);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return resultobj;
+fail:
+  if (alloc3 == SWIG_NEWOBJ) free((char*)buf3);
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Document_addLayerConfig(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Document *arg1 = (struct Document *) 0 ;
   char *arg2 = (char *) 0 ;
   char *arg3 = (char *) NULL ;
+  PyObject *arg4 = (PyObject *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res2 ;
@@ -17494,10 +17830,10 @@ SWIGINTERN PyObject *_wrap_Document_addLayerConfig(PyObject *SWIGUNUSEDPARM(self
   int res3 ;
   char *buf3 = 0 ;
   int alloc3 = 0 ;
-  PyObject *swig_obj[3] ;
+  PyObject *swig_obj[4] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Document_addLayerConfig", 2, 3, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Document_addLayerConfig", 2, 4, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_addLayerConfig" "', argument " "1"" of type '" "struct Document *""'"); 
@@ -17515,8 +17851,11 @@ SWIGINTERN PyObject *_wrap_Document_addLayerConfig(PyObject *SWIGUNUSEDPARM(self
     }
     arg3 = (char *)(buf3);
   }
+  if (swig_obj[3]) {
+    arg4 = swig_obj[3];
+  }
   {
-    result = (PyObject *)Document_addLayerConfig(arg1,arg2,arg3);
+    result = (PyObject *)Document_addLayerConfig(arg1,arg2,arg3,arg4);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -19381,9 +19720,10 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   PyObject *arg5 = (PyObject *) NULL ;
   int arg6 = (int) 1 ;
   int arg7 = (int) 0 ;
-  PyObject *arg8 = (PyObject *) NULL ;
-  char *arg9 = (char *) NULL ;
-  PyObject *arg10 = (PyObject *) NULL ;
+  int arg8 = (int) 0 ;
+  PyObject *arg9 = (PyObject *) NULL ;
+  char *arg10 = (char *) NULL ;
+  PyObject *arg11 = (PyObject *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res2 ;
@@ -19395,13 +19735,15 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   int ecode6 = 0 ;
   int val7 ;
   int ecode7 = 0 ;
-  int res9 ;
-  char *buf9 = 0 ;
-  int alloc9 = 0 ;
-  PyObject *swig_obj[10] ;
+  int val8 ;
+  int ecode8 = 0 ;
+  int res10 ;
+  char *buf10 = 0 ;
+  int alloc10 = 0 ;
+  PyObject *swig_obj[11] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Page__insertImage", 1, 10, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Page__insertImage", 1, 11, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__insertImage" "', argument " "1"" of type '" "struct Page *""'"); 
@@ -19442,20 +19784,27 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
     arg7 = (int)(val7);
   }
   if (swig_obj[7]) {
-    arg8 = swig_obj[7];
+    ecode8 = SWIG_AsVal_int(swig_obj[7], &val8);
+    if (!SWIG_IsOK(ecode8)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode8), "in method '" "Page__insertImage" "', argument " "8"" of type '" "int""'");
+    } 
+    arg8 = (int)(val8);
   }
   if (swig_obj[8]) {
-    res9 = SWIG_AsCharPtrAndSize(swig_obj[8], &buf9, NULL, &alloc9);
-    if (!SWIG_IsOK(res9)) {
-      SWIG_exception_fail(SWIG_ArgError(res9), "in method '" "Page__insertImage" "', argument " "9"" of type '" "char const *""'");
-    }
-    arg9 = (char *)(buf9);
+    arg9 = swig_obj[8];
   }
   if (swig_obj[9]) {
-    arg10 = swig_obj[9];
+    res10 = SWIG_AsCharPtrAndSize(swig_obj[9], &buf10, NULL, &alloc10);
+    if (!SWIG_IsOK(res10)) {
+      SWIG_exception_fail(SWIG_ArgError(res10), "in method '" "Page__insertImage" "', argument " "10"" of type '" "char const *""'");
+    }
+    arg10 = (char *)(buf10);
+  }
+  if (swig_obj[10]) {
+    arg11 = swig_obj[10];
   }
   {
-    result = (PyObject *)Page__insertImage(arg1,(char const *)arg2,arg3,arg4,arg5,arg6,arg7,arg8,(char const *)arg9,arg10);
+    result = (PyObject *)Page__insertImage(arg1,(char const *)arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,(char const *)arg10,arg11);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -19463,11 +19812,11 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   }
   resultobj = result;
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  if (alloc9 == SWIG_NEWOBJ) free((char*)buf9);
+  if (alloc10 == SWIG_NEWOBJ) free((char*)buf10);
   return resultobj;
 fail:
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  if (alloc9 == SWIG_NEWOBJ) free((char*)buf9);
+  if (alloc10 == SWIG_NEWOBJ) free((char*)buf10);
   return NULL;
 }
 
@@ -25933,6 +26282,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document__update_toc_item", _wrap_Document__update_toc_item, METH_VARARGS, NULL},
 	 { "Document_layerConfigs", _wrap_Document_layerConfigs, METH_O, NULL},
 	 { "Document_setLayerConfig", _wrap_Document_setLayerConfig, METH_VARARGS, NULL},
+	 { "Document_getOCStates", _wrap_Document_getOCStates, METH_VARARGS, NULL},
+	 { "Document_setOCStates", _wrap_Document_setOCStates, METH_VARARGS, NULL},
 	 { "Document_addLayerConfig", _wrap_Document_addLayerConfig, METH_VARARGS, NULL},
 	 { "Document_layerUIConfigs", _wrap_Document_layerUIConfigs, METH_O, NULL},
 	 { "Document_setLayerUIConfig", _wrap_Document_setLayerUIConfig, METH_VARARGS, NULL},
