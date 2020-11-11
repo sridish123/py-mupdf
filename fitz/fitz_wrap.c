@@ -2749,9 +2749,8 @@ static swig_module_info swig_module = {swig_types, 15, 0, 0, 0, 0};
 #endif
 // << freetype includes --------------------------------------------------
 
-
 char *JM_Python_str_AsChar(PyObject *str);
-
+void JM_delete_widget(fz_context *ctx, pdf_page *page, pdf_annot *annot);
 // additional headers from MuPDF ----------------------------------------------
 pdf_obj *pdf_lookup_page_loc(fz_context *ctx, pdf_document *doc, int needle, pdf_obj **parentp, int *indexp);
 fz_pixmap *fz_scale_pixmap(fz_context *ctx, fz_pixmap *src, float x, float y, float w, float h, const fz_irect *clip);
@@ -4748,9 +4747,9 @@ JM_pixmap_from_page(fz_context *ctx,
 }
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // return pdf_obj "border style" from Python str
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 pdf_obj *JM_get_border_style(fz_context *ctx, PyObject *style)
 {
     pdf_obj *val = PDF_NAME(S);
@@ -4766,9 +4765,9 @@ pdf_obj *JM_get_border_style(fz_context *ctx, PyObject *style)
     return val;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Make /DA string of annotation
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 const char *JM_expand_fname(const char **name)
 {
     if (!*name) return "Helv";
@@ -4805,9 +4804,9 @@ void JM_make_annot_DA(fz_context *ctx, pdf_annot *annot, int ncol, float col[4],
     return;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // refreshes the link and annotation tables of a page
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 void JM_refresh_link_table(fz_context *ctx, pdf_page *page)
 {
     fz_try(ctx)
@@ -4976,11 +4975,10 @@ PyObject *JM_annot_colors(fz_context *ctx, pdf_obj *annot_obj)
     return res;
 }
 
-//----------------------------------------------------------------------------
-// delete an annotation using mupdf functions, but first delete the /AP and
-// /Popup dict keys in annot->obj. Also remove the 'Popup' annotation
-// from the page's /Annots array which may also exist.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
+// delete an annotation using mupdf functions, but first delete the /AP
+// dict key in annot->obj.
+//------------------------------------------------------------------------
 void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
 {
     if (!annot) return;
@@ -4988,13 +4986,8 @@ void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
         // first get any existing popup for the annotation
         pdf_obj *popup = pdf_dict_get(ctx, annot->obj, PDF_NAME(Popup));
 
-
         // next delete the /Popup and /AP entries from annot dictionary
-        pdf_dict_del(ctx, annot->obj, PDF_NAME(Popup));
         pdf_dict_del(ctx, annot->obj, PDF_NAME(AP));
-
-        // if there exists a /Popup, find and destroy it. The right popup
-        // has a /Parent entry which points to our annotation.
 
         pdf_obj *annots = pdf_dict_get(ctx, page->obj, PDF_NAME(Annots));
         int i, n = pdf_array_len(ctx, annots);
@@ -5006,8 +4999,12 @@ void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
                 pdf_array_delete(ctx, annots, i);
             }
         }
-
-        pdf_delete_annot(ctx, page, annot);
+        int type = pdf_annot_type(ctx, annot);
+        if (type != PDF_ANNOT_WIDGET) {
+            pdf_delete_annot(ctx, page, annot);
+        } else {
+            JM_delete_widget(ctx, page, annot);
+        }
     }
     fz_catch(ctx) {
         fz_warn(ctx, "could not delete annotation");
@@ -5015,10 +5012,10 @@ void JM_delete_annot(fz_context *ctx, pdf_page *page, pdf_annot *annot)
     return;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Return the first annotation whose /IRT key ("In Response To") points to
 // annot. Used to remove the response chain of a given annotation.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 pdf_annot *JM_find_annot_irt(fz_context *ctx, pdf_annot *annot)
 {
     pdf_annot *irt_annot = NULL;  // returning this
@@ -5043,9 +5040,9 @@ pdf_annot *JM_find_annot_irt(fz_context *ctx, pdf_annot *annot)
     return NULL;
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // return the identifications of a page's annotations (list of /NM entries)
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 PyObject *JM_get_annot_id_list(fz_context *ctx, pdf_page *page)
 {
     PyObject *names = PyList_New(0);
@@ -5070,9 +5067,9 @@ PyObject *JM_get_annot_id_list(fz_context *ctx, pdf_page *page)
 }
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // return the xref numbers of a page's annots, links and fields
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 PyObject *JM_get_annot_xref_list(fz_context *ctx, pdf_page *page)
 {
     PyObject *names = PyList_New(0);
@@ -5101,10 +5098,10 @@ PyObject *JM_get_annot_xref_list(fz_context *ctx, pdf_page *page)
 }
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Add a unique /NM key to an annotation or widget.
 // Append a number to 'stem' such that the result is a unique name.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 void JM_add_annot_id(fz_context *ctx, pdf_annot *annot, char *stem)
 {
     fz_try(ctx) {
@@ -5131,9 +5128,9 @@ void JM_add_annot_id(fz_context *ctx, pdf_annot *annot, char *stem)
     }
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // retrieve annot by name (/NM key)
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 pdf_annot *JM_get_annot_by_name(fz_context *ctx, pdf_page *page, char *name)
 {
     if (!name || strlen(name) == 0) {
@@ -5163,9 +5160,9 @@ pdf_annot *JM_get_annot_by_name(fz_context *ctx, pdf_page *page, char *name)
     return pdf_keep_annot(ctx, annot);
 }
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // retrieve annot by its xref
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 pdf_annot *JM_get_annot_by_xref(fz_context *ctx, pdf_page *page, int xref)
 {
     pdf_annot **annotptr = NULL;
@@ -6288,6 +6285,58 @@ pdf_annot *JM_create_widget(fz_context *ctx, pdf_document *doc, pdf_page *page, 
 
 	return annot;
 }
+
+
+void
+JM_delete_widget(fz_context *ctx, pdf_page *page, pdf_annot *annot)
+{
+    pdf_document *doc = annot->page->doc;
+    pdf_annot **annotptr;
+    pdf_obj *annot_arr, *popup;
+    int i;
+
+    if (annot == NULL)
+        return;
+
+    // Remove widget from page's list
+    for (annotptr = &page->widgets; *annotptr; annotptr = &(*annotptr)->next) {
+        if (*annotptr == annot)
+            break;
+    }
+
+    // Check whether passed annotation was of this page
+    if (*annotptr == NULL)
+        return;
+
+    *annotptr = pdf_next_widget(gctx, (pdf_widget *) annot);
+
+    // If the removed annotation was the last in the list adjust the end pointer
+    if (*annotptr == NULL)
+        page->widget_tailp = annotptr;
+
+    annot_arr = pdf_dict_get(ctx, page->obj, PDF_NAME(Annots));
+    i = pdf_array_find(ctx, annot_arr, annot->obj);
+    if (i >= 0)
+        pdf_array_delete(ctx, annot_arr, i);
+
+    popup = pdf_dict_get(ctx, annot->obj, PDF_NAME(Popup));
+    if (popup)
+    {
+        i = pdf_array_find(ctx, annot_arr, popup);
+        if (i >= 0)
+            pdf_array_delete(ctx, annot_arr, i);
+    }
+
+    // And free it.
+    pdf_drop_annot(ctx, annot);
+
+    doc->dirty = 1;
+}
+
+
+
+
+
 
 
 // PushButton get state
@@ -8919,6 +8968,74 @@ SWIGINTERN PyObject *Document_convertToPDF(struct Document *self,int from_page,i
             }
             return doc;
         }
+SWIGINTERN PyObject *Document_getOC(struct Document *self,int xref){
+            PyObject *ret = NULL;
+            pdf_obj *ind = NULL;
+            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+            fz_try(gctx) {
+                ASSERT_PDF(pdf);
+                ind = pdf_new_indirect(gctx, pdf, xref, 0);
+                pdf_obj *type = pdf_dict_get(gctx, ind, PDF_NAME(Type));
+                if (pdf_objcmp(gctx, type, PDF_NAME(XObject)) != 0) {
+                    THROWMSG(gctx, "bad xref type");
+                }
+                type = pdf_dict_get(gctx, ind, PDF_NAME(Subtype));
+                if (pdf_objcmp(gctx, type, PDF_NAME(Image)) != 0 &&
+                    pdf_objcmp(gctx, type, PDF_NAME(Form)) != 0) {
+                    THROWMSG(gctx, "bad xref type");
+                }
+                pdf_obj *oc = pdf_dict_get(gctx, ind, PDF_NAME(OC));
+                if (!oc) {
+                    ret = Py_BuildValue("i", 0);
+                } else {
+                    ret = Py_BuildValue("i", pdf_to_num(gctx, oc));
+                }
+            }
+            fz_always(gctx) {
+                pdf_drop_obj(gctx, ind);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return ret;
+        }
+SWIGINTERN PyObject *Document_setOC(struct Document *self,int xref,int oc){
+            pdf_obj *ind = NULL, *indoc = NULL;
+            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+            fz_try(gctx) {
+                ASSERT_PDF(pdf);
+                ind = pdf_new_indirect(gctx, pdf, xref, 0);
+                pdf_obj *type = pdf_dict_get(gctx, ind, PDF_NAME(Type));
+                if (pdf_objcmp(gctx, type, PDF_NAME(XObject)) != 0) {
+                    THROWMSG(gctx, "bad xref type");
+                }
+                type = pdf_dict_get(gctx, ind, PDF_NAME(Subtype));
+                if (pdf_objcmp(gctx, type, PDF_NAME(Image)) != 0 &&
+                    pdf_objcmp(gctx, type, PDF_NAME(Form)) != 0) {
+                    THROWMSG(gctx, "bad xref type");
+                }
+                if (!oc) {
+                    pdf_dict_del(gctx, ind, PDF_NAME(OC));
+                } else {
+                    indoc = pdf_new_indirect(gctx, pdf, oc, 0);
+                    type = pdf_dict_get(gctx, indoc, PDF_NAME(Type));
+                    if (pdf_objcmp(gctx, type, PDF_NAME(OCG)) == 0 ||
+                        pdf_objcmp(gctx, type, PDF_NAME(OCMD)) == 0) {
+                        pdf_dict_put(gctx, ind, PDF_NAME(OC), indoc);
+                    } else {
+                        THROWMSG(gctx, "bad 'oc' type");
+                    }
+                }
+            }
+            fz_always(gctx) {
+                pdf_drop_obj(gctx, ind);
+                pdf_drop_obj(gctx, indoc);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            Py_RETURN_NONE;
+        }
 SWIGINTERN PyObject *Document_pageCount(struct Document *self){
             PyObject *ret;
             fz_try(gctx) {
@@ -9061,18 +9178,26 @@ SWIGINTERN PyObject *Document_page_number_from_location(struct Document *self,Py
             }
             return Py_BuildValue("i", page_n);
         }
-SWIGINTERN char *Document__getMetadata(struct Document *self,char const *key){
+SWIGINTERN PyObject *Document__getMetadata(struct Document *self,char const *key){
+            PyObject *res = NULL;
             fz_document *doc = (fz_document *) self;
             int vsize;
             char *value;
-            vsize = fz_lookup_metadata(gctx, doc, key, NULL, 0)+1;
-            if(vsize > 1) {
-                value = JM_Alloc(char, vsize);
-                fz_lookup_metadata(gctx, doc, key, value, vsize);
-                return value;
+            fz_try(gctx) {
+                vsize = fz_lookup_metadata(gctx, doc, key, NULL, 0)+1;
+                if(vsize > 1) {
+                    value = JM_Alloc(char, vsize);
+                    fz_lookup_metadata(gctx, doc, key, value, vsize);
+                    res = PyString_FromString(value);
+                    JM_Free(value);
+                } else {
+                    res = EMPTY_STRING;
+                }
             }
-            else
-                return NULL;
+            fz_catch(gctx) {
+                return EMPTY_STRING;
+            }
+            return res;
         }
 SWIGINTERN PyObject *Document_needsPass(struct Document *self){
             return JM_BOOL(fz_needs_password(gctx, (fz_document *) self));
@@ -14952,6 +15077,86 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Document_getOC(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document_getOC", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_getOC" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_getOC" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  {
+    result = (PyObject *)Document_getOC(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Document_setOC(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  int arg2 ;
+  int arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  int val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document_setOC", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_setOC" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_setOC" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Document_setOC" "', argument " "3"" of type '" "int""'");
+  } 
+  arg3 = (int)(val3);
+  {
+    result = (PyObject *)Document_setOC(arg1,arg2,arg3);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Document_pageCount(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Document *arg1 = (struct Document *) 0 ;
@@ -15211,7 +15416,7 @@ SWIGINTERN PyObject *_wrap_Document__getMetadata(PyObject *SWIGUNUSEDPARM(self),
   char *buf2 = 0 ;
   int alloc2 = 0 ;
   PyObject *swig_obj[2] ;
-  char *result = 0 ;
+  PyObject *result = 0 ;
   
   if (!SWIG_Python_UnpackTuple(args, "Document__getMetadata", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
@@ -15224,8 +15429,14 @@ SWIGINTERN PyObject *_wrap_Document__getMetadata(PyObject *SWIGUNUSEDPARM(self),
     SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Document__getMetadata" "', argument " "2"" of type '" "char const *""'");
   }
   arg2 = (char *)(buf2);
-  result = (char *)Document__getMetadata(arg1,(char const *)arg2);
-  resultobj = SWIG_FromCharPtr((const char *)result);
+  {
+    result = (PyObject *)Document__getMetadata(arg1,(char const *)arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
   return resultobj;
 fail:
@@ -26213,6 +26424,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document__embeddedFileGet", _wrap_Document__embeddedFileGet, METH_VARARGS, NULL},
 	 { "Document__embeddedFileAdd", _wrap_Document__embeddedFileAdd, METH_VARARGS, NULL},
 	 { "Document_convertToPDF", _wrap_Document_convertToPDF, METH_VARARGS, NULL},
+	 { "Document_getOC", _wrap_Document_getOC, METH_VARARGS, NULL},
+	 { "Document_setOC", _wrap_Document_setOC, METH_VARARGS, NULL},
 	 { "Document_pageCount", _wrap_Document_pageCount, METH_O, NULL},
 	 { "Document_chapterCount", _wrap_Document_chapterCount, METH_O, NULL},
 	 { "Document_lastLocation", _wrap_Document_lastLocation, METH_O, NULL},
@@ -27355,19 +27568,19 @@ SWIG_init(void) {
   }
   fz_register_document_handlers(gctx);
   
-  //-----------------------------------------------------------------------------
+  //------------------------------------------------------------------------
   // START redirect stdout/stderr
-  //-----------------------------------------------------------------------------
+  //------------------------------------------------------------------------
   JM_mupdf_warnings_store = PyList_New(0);
   JM_mupdf_show_errors = Py_True;
   char user[] = "PyMuPDF";
   fz_set_warning_callback(gctx, JM_mupdf_warning, &user);
   fz_set_error_callback(gctx, JM_mupdf_error, &user);
-  //-----------------------------------------------------------------------------
+  //------------------------------------------------------------------------
   // STOP redirect stdout/stderr
-  //-----------------------------------------------------------------------------
+  //------------------------------------------------------------------------
   // init global constants
-  //-----------------------------------------------------------------------------
+  //------------------------------------------------------------------------
   dictkey_align = PyString_InternFromString("align");
   dictkey_bbox = PyString_InternFromString("bbox");
   dictkey_blocks = PyString_InternFromString("blocks");

@@ -3747,6 +3747,22 @@ class Document(object):
 
         return _fitz.Document_convertToPDF(self, from_page, to_page, rotate)
 
+
+    def getOC(self, xref):
+        """Get xref of optional content object."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_getOC(self, xref)
+
+
+    def setOC(self, xref, oc):
+        """Attach optional content object to image or form xobject."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_setOC(self, xref, oc)
+
     @property
 
     def pageCount(self):
@@ -4444,12 +4460,27 @@ class Document(object):
         """Set ON, OFF, RBGroups of a configuration."""
         if self.isClosed:
             raise ValueError("document closed")
-        if on is not None and type(on) not in (list, tuple):
+        ocgs = set(self.getOCGs().keys())
+
+        if on is not None:
+            if type(on) not in (list, tuple):
                 raise ValueError("bad type: 'on'")
-        if off is not None and type(off) not in (list, tuple):
+            if not set(on) <= ocgs:
+                raise ValueError("bad OCGs in 'on'")
+
+        if off is not None:
+            if type(off) not in (list, tuple):
                 raise ValueError("bad type: 'off'")
-        if rbgroups is not None and type(rbgroups) not in (list, tuple):
+            if not set(off) <= ocgs:
+                raise ValueError("bad OCGs in 'off'")
+
+        if rbgroups is not None:
+            if type(rbgroups) not in (list, tuple):
                 raise ValueError("bad type: 'rbgroups'")
+            for x in rbgroups:
+                if not (type(x) in (list, tuple) and set(x) <= ocgs):
+                    raise ValueError("bad OCGs or item types in 'rbgroups'")
+
         if basestate is not None:
             basestate = basestate.upper()
             if basestate == "UNCHANGED":
@@ -6091,8 +6122,8 @@ class Pixmap(object):
         """
         from io import BytesIO
         bytes_out = BytesIO()
-        self.pillowSave(bytes_out, *args, **kwargs)
-        return bytes_out.get_value()
+        self.pillowWrite(bytes_out, *args, **kwargs)
+        return bytes_out.getvalue()
 
 
 

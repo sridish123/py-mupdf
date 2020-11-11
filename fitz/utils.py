@@ -1248,6 +1248,17 @@ def getLinkText(page, lnk):
     return annot
 
 
+def deleteWidget(page, widget):
+    """Delete widget from page and return the next one."""
+    CheckParent(page)
+    annot = getattr(widget, "_annot", None)
+    if annot is None:
+        raise ValueError("bad type: widget")
+    next = widget.next
+    page.deleteAnnot(annot)
+    return next
+
+
 def updateLink(page, lnk):
     """ Update a link on the current page. """
     CheckParent(page)

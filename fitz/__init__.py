@@ -50,6 +50,7 @@ fitz.Document.scrub = fitz.utils.scrub
 # Page
 # ------------------------------------------------------------------------------
 fitz.Page.apply_redactions = fitz.utils.apply_redactions
+fitz.Page.deleteWidget = fitz.utils.deleteWidget
 fitz.Page.drawBezier = fitz.utils.drawBezier
 fitz.Page.drawCircle = fitz.utils.drawCircle
 fitz.Page.drawCurve = fitz.utils.drawCurve
