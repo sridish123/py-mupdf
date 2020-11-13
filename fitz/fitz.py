@@ -87,9 +87,9 @@ except ImportError:
 
 
 VersionFitz = "1.18.0"
-VersionBind = "1.18.3"
-VersionDate = "2020-11-09 07:36:17"
-version = (VersionBind, VersionFitz, "20201109073617")
+VersionBind = "1.18.4"
+VersionDate = "2020-11-12 05:43:17"
+version = (VersionBind, VersionFitz, "20201112054317")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -6426,6 +6426,7 @@ class Annot(object):
 
         return val
 
+    apn_matrix = APNMatrix
     @property
 
     def APNBBox(self):
@@ -6439,6 +6440,7 @@ class Annot(object):
 
         return val
 
+    apn_bbox = APNBBox
 
     def setAPNMatrix(self, matrix):
         """Set annotation appearance matrix."""
@@ -6446,6 +6448,7 @@ class Annot(object):
 
         return _fitz.Annot_setAPNMatrix(self, matrix)
 
+    set_apn_matrix = setAPNMatrix
 
     def setAPNBBox(self, bbox):
 
@@ -6460,6 +6463,7 @@ class Annot(object):
 
         return _fitz.Annot_setAPNBBox(self, bbox)
 
+    set_apn_bbox = setAPNBBox
 
     def blendMode(self):
         """Annotation BlendMode."""
@@ -6467,6 +6471,7 @@ class Annot(object):
 
         return _fitz.Annot_blendMode(self)
 
+    blendmode = property(blendMode, doc="annotation BlendMode")
 
     def setBlendMode(self, blend_mode):
         """Set annotation BlendMode."""
@@ -6474,6 +6479,7 @@ class Annot(object):
 
         return _fitz.Annot_setBlendMode(self, blend_mode)
 
+    set_blendmode = setBlendMode
 
     def getOC(self):
         """Get annotation optional content reference."""
@@ -6481,13 +6487,66 @@ class Annot(object):
 
         return _fitz.Annot_getOC(self)
 
+    optional_content = property(getOC, doc="optional content xref")
+
+    def set_open(self, is_open):
+        """Set 'open' status of annotation or its Popup."""
+        CheckParent(self)
+
+        return _fitz.Annot_set_open(self, is_open)
+
+    @property
+
+    def is_open(self):
+        """Get 'open' status of annotation or its Popup."""
+        CheckParent(self)
+
+        return _fitz.Annot_is_open(self)
+
+    @property
+
+    def has_popup(self):
+        """Check if annotation has a Popup."""
+        CheckParent(self)
+
+        return _fitz.Annot_has_popup(self)
+
+
+    def set_popup(self, rect):
+        """Set the 'Popup' of annotation."""
+        CheckParent(self)
+
+        return _fitz.Annot_set_popup(self, rect)
+
+    @property
+
+    def popup_rect(self):
+        """Rectangle of the annotation's 'Popup'."""
+        CheckParent(self)
+
+        val = _fitz.Annot_popup_rect(self)
+
+        val = Rect(val) * self.parent.transformationMatrix
+        val *= self.parent.derotationMatrix
+
+        return val
+
+    @property
+
+    def popup_xref(self):
+        """Get rectangle of the annotation's 'Popup'."""
+        CheckParent(self)
+
+        return _fitz.Annot_popup_xref(self)
+
 
     def setOC(self, oc=0):
-        """Set annotation optional content reference."""
+        """Set annotation optional content xref."""
         CheckParent(self)
 
         return _fitz.Annot_setOC(self, oc)
 
+    set_optional_content = setOC
     @property
 
     def language(self):
@@ -6496,11 +6555,11 @@ class Annot(object):
         return _fitz.Annot_language(self)
 
 
-    def setLaguage(self, language=None):
+    def set_language(self, language=None):
         """Set annotation language."""
         CheckParent(self)
 
-        return _fitz.Annot_setLaguage(self, language)
+        return _fitz.Annot_set_language(self, language)
 
 
     def _getAP(self):
@@ -6533,6 +6592,7 @@ class Annot(object):
 
         return _fitz.Annot_getTextPage(self, clip, flags)
 
+    get_textpage = getTextPage
 
     def setName(self, name):
         """Set /Name (icon) of annotation."""
@@ -6540,6 +6600,7 @@ class Annot(object):
 
         return _fitz.Annot_setName(self, name)
 
+    set_name = setName
 
     def setRect(self, rect):
         """Set annotation rectangle."""
@@ -6547,6 +6608,7 @@ class Annot(object):
 
         return _fitz.Annot_setRect(self, rect)
 
+    set_rect = setRect
 
     def setRotation(self, rotate=0):
         """Set annotation rotation."""
@@ -6554,6 +6616,7 @@ class Annot(object):
 
         return _fitz.Annot_setRotation(self, rotate)
 
+    set_rotation = setRotation
     @property
 
     def rotation(self):
@@ -6883,6 +6946,7 @@ class Annot(object):
 
         return _fitz.Annot_setColors(self, colors, fill, stroke)
 
+    set_colors = setColors
     @property
 
     def lineEnds(self):
@@ -6898,6 +6962,7 @@ class Annot(object):
 
         return _fitz.Annot_setLineEnds(self, start, end)
 
+    set_line_ends = setLineEnds
     @property
 
     def type(self):
@@ -6935,6 +7000,7 @@ class Annot(object):
 
         return _fitz.Annot_fileGet(self)
 
+    get_file = fileGet
 
     def soundGet(self):
         """Retrieve sound stream."""
@@ -6942,6 +7008,7 @@ class Annot(object):
 
         return _fitz.Annot_soundGet(self)
 
+    get_sound = soundGet
 
     def fileUpd(self, buffer=None, filename=None, ufilename=None, desc=None):
 
@@ -6950,6 +7017,7 @@ class Annot(object):
 
         return _fitz.Annot_fileUpd(self, buffer, filename, ufilename, desc)
 
+    update_file = fileUpd
     @property
 
     def info(self):
@@ -6974,6 +7042,7 @@ class Annot(object):
 
         return _fitz.Annot_setInfo(self, info, content, title, creationDate, modDate, subject)
 
+    set_info = setInfo
     @property
 
     def border(self):
@@ -6995,6 +7064,7 @@ class Annot(object):
 
         return _fitz.Annot_setBorder(self, border, width, style, dashes)
 
+    set_border = setBorder
     @property
 
     def flags(self):
@@ -7017,6 +7087,7 @@ class Annot(object):
 
         return _fitz.Annot_setFlags(self, flags)
 
+    set_flags = setFlags
 
     def delete_responses(self):
         """Delete responding annotations."""
@@ -7058,6 +7129,7 @@ class Annot(object):
 
         return _fitz.Annot_getPixmap(self, matrix, colorspace, alpha)
 
+    get_pixmap = getPixmap
 
     def _erase(self):
         try:

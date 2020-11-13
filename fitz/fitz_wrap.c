@@ -6292,7 +6292,7 @@ JM_delete_widget(fz_context *ctx, pdf_page *page, pdf_annot *annot)
 {
     pdf_document *doc = annot->page->doc;
     pdf_annot **annotptr;
-    pdf_obj *annot_arr, *popup;
+    pdf_obj *annot_arr, *obj;
     int i;
 
     if (annot == NULL)
@@ -6310,7 +6310,7 @@ JM_delete_widget(fz_context *ctx, pdf_page *page, pdf_annot *annot)
 
     *annotptr = pdf_next_widget(gctx, (pdf_widget *) annot);
 
-    // If the removed annotation was the last in the list adjust the end pointer
+    // If the removed field was the last in the list adjust the end pointer
     if (*annotptr == NULL)
         page->widget_tailp = annotptr;
 
@@ -6319,17 +6319,23 @@ JM_delete_widget(fz_context *ctx, pdf_page *page, pdf_annot *annot)
     if (i >= 0)
         pdf_array_delete(ctx, annot_arr, i);
 
-    popup = pdf_dict_get(ctx, annot->obj, PDF_NAME(Popup));
-    if (popup)
-    {
-        i = pdf_array_find(ctx, annot_arr, popup);
+    // remove any Popup for the field
+    obj = pdf_dict_get(ctx, annot->obj, PDF_NAME(Popup));
+    if (obj) {
+        i = pdf_array_find(ctx, annot_arr, obj);
         if (i >= 0)
             pdf_array_delete(ctx, annot_arr, i);
     }
 
-    // And free it.
-    pdf_drop_annot(ctx, annot);
+    // remove field from AcroForm
+    obj = pdf_dict_getp(ctx, pdf_trailer(ctx, doc), "Root/AcroForm/Fields");
+    if (pdf_is_array(ctx, obj)) {
+        i = pdf_array_find(ctx, obj, annot->obj);
+        if (i >= 0)
+            pdf_array_delete(ctx, obj, i);
+    }
 
+    pdf_drop_annot(ctx, annot);
     doc->dirty = 1;
 }
 
@@ -12772,9 +12778,9 @@ SWIGINTERN PyObject *Annot_blendMode(struct Annot *self){
                 pdf_annot *annot = (pdf_annot *) self;
                 pdf_obj *obj, *obj1, *obj2;
                 obj = pdf_dict_get(gctx, annot->obj, PDF_NAME(BM));
-                if (obj) {  // check the annot object for /BM
+                if (obj) {
                     blend_mode = JM_UnicodeFromStr(pdf_to_name(gctx, obj));
-                    goto fertig;
+                    goto finished;
                 }
                 // loop through the /AP/N/Resources/ExtGState objects
                 obj = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
@@ -12793,13 +12799,13 @@ SWIGINTERN PyObject *Annot_blendMode(struct Annot *self){
                                 obj2 = pdf_dict_get_key(gctx, obj1, j);
                                 if (pdf_objcmp(gctx, obj2, PDF_NAME(BM)) == 0) {
                                     blend_mode = JM_UnicodeFromStr(pdf_to_name(gctx, pdf_dict_get_val(gctx, obj1, j)));
-                                    goto fertig;
+                                    goto finished;
                                 }
                             }
                         }
                     }
                 }
-                fertig:;
+                finished:;
             }
             fz_catch(gctx) {
                 return_none;
@@ -12818,21 +12824,92 @@ SWIGINTERN PyObject *Annot_setBlendMode(struct Annot *self,char *blend_mode){
             return_none;
         }
 SWIGINTERN PyObject *Annot_getOC(struct Annot *self){
-            PyObject *oc = NULL;
+            int oc = 0;
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
                 pdf_obj *obj = pdf_dict_get(gctx, annot->obj, PDF_NAME(OC));
-                if (!obj) {
-                    oc = Py_BuildValue("i", 0);
-                } else {
-                    int n = pdf_to_num(gctx, obj);
-                    oc = Py_BuildValue("i", n);
+                if (obj) {
+                    oc = pdf_to_num(gctx, obj);
                 }
             }
             fz_catch(gctx) {
                 return NULL;
             }
-            return oc;;
+            return Py_BuildValue("i", oc);
+        }
+SWIGINTERN PyObject *Annot_set_open(struct Annot *self,int is_open){
+            fz_try(gctx) {
+                pdf_annot *annot = (pdf_annot *) self;
+                pdf_set_annot_is_open(gctx, annot, is_open);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return_none;
+        }
+SWIGINTERN PyObject *Annot_is_open(struct Annot *self){
+            int is_open;
+            fz_try(gctx) {
+                pdf_annot *annot = (pdf_annot *) self;
+                is_open = pdf_annot_is_open(gctx, annot);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            JM_BOOL(is_open);
+        }
+SWIGINTERN PyObject *Annot_has_popup(struct Annot *self){
+            int has_popup = 0;
+            fz_try(gctx) {
+                pdf_annot *annot = (pdf_annot *) self;
+                pdf_obj *obj = pdf_dict_get(gctx, annot->obj, PDF_NAME(Popup));
+                if (obj) has_popup = 1;
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            JM_BOOL(has_popup);
+        }
+SWIGINTERN PyObject *Annot_set_popup(struct Annot *self,PyObject *rect){
+            fz_try(gctx) {
+                pdf_annot *annot = (pdf_annot *) self;
+                pdf_page *pdfpage = annot->page;
+                fz_matrix rot = JM_rotate_page_matrix(gctx, pdfpage);
+                fz_rect r = fz_transform_rect(JM_rect_from_py(rect), rot);
+                pdf_set_annot_popup(gctx, annot, r);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            Py_RETURN_NONE;
+        }
+SWIGINTERN PyObject *Annot_popup_rect(struct Annot *self){
+            fz_rect rect = fz_infinite_rect;
+            fz_try(gctx) {
+                pdf_annot *annot = (pdf_annot *) self;
+                pdf_obj *obj = pdf_dict_get(gctx, annot->obj, PDF_NAME(Popup));
+                if (obj) {
+                    rect = pdf_dict_get_rect(gctx, obj, PDF_NAME(Rect));
+                }
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            JM_py_from_rect(rect);
+        }
+SWIGINTERN PyObject *Annot_popup_xref(struct Annot *self){
+            int xref = 0;
+            fz_try(gctx) {
+                pdf_annot *annot = (pdf_annot *) self;
+                pdf_obj *obj = pdf_dict_get(gctx, annot->obj, PDF_NAME(Popup));
+                if (obj) {
+                    xref = pdf_to_num(gctx, obj);
+                }
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return Py_BuildValue("i", xref);
         }
 SWIGINTERN PyObject *Annot_setOC(struct Annot *self,int oc){
             fz_try(gctx) {
@@ -12855,7 +12932,7 @@ SWIGINTERN PyObject *Annot_language(struct Annot *self){
             if (lang == FZ_LANG_UNSET) return_none;
             return Py_BuildValue("s", fz_string_from_text_language(buf, lang));
         }
-SWIGINTERN PyObject *Annot_setLaguage(struct Annot *self,char *language){
+SWIGINTERN PyObject *Annot_set_language(struct Annot *self,char *language){
             pdf_annot *this_annot = (pdf_annot *) self;
             fz_try(gctx) {
                 fz_text_language lang;
@@ -12868,25 +12945,29 @@ SWIGINTERN PyObject *Annot_setLaguage(struct Annot *self,char *language){
             fz_catch(gctx) {
                 return NULL;
             }
-            Py_RETURN_TRUE;
+            Py_RETURN_NONE;
         }
 SWIGINTERN PyObject *Annot__getAP(struct Annot *self){
-            PyObject *r = Py_None;
+            PyObject *r = NULL;
             fz_buffer *res = NULL;
+            fz_var(res);
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
                 pdf_obj *ap = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
                                               PDF_NAME(N), NULL);
 
                 if (pdf_is_stream(gctx, ap))  res = pdf_load_stream(gctx, ap);
-                if (res) r = JM_BinFromBuffer(gctx, res);
+                if (res) {
+                    r = JM_BinFromBuffer(gctx, res);
+                }
             }
             fz_always(gctx) {
                 fz_drop_buffer(gctx, res);
             }
             fz_catch(gctx) {
-                return_none;
+                Py_RETURN_NONE;
             }
+            if (!r) Py_RETURN_NONE;
             return r;
         }
 SWIGINTERN PyObject *Annot__setAP(struct Annot *self,PyObject *ap,int rect){
@@ -12896,9 +12977,9 @@ SWIGINTERN PyObject *Annot__setAP(struct Annot *self,PyObject *ap,int rect){
                 pdf_annot *annot = (pdf_annot *) self;
                 pdf_obj *apobj = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
                                               PDF_NAME(N), NULL);
-                if (!apobj) THROWMSG(gctx, "annot has no /AP/N object");
+                if (!apobj) THROWMSG(gctx, "annot has no AP/N object");
                 if (!pdf_is_stream(gctx, apobj))
-                    THROWMSG(gctx, "/AP/N object is no stream");
+                    THROWMSG(gctx, "AP/N object is no stream");
                 res = JM_BufferFromBytes(gctx, ap);
                 if (!res) THROWMSG(gctx, "invalid /AP stream argument");
                 JM_update_stream(gctx, annot->page->doc, apobj, res, 1);
@@ -22446,6 +22527,188 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Annot_set_open(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Annot *arg1 = (struct Annot *) 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_open", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_open" "', argument " "1"" of type '" "struct Annot *""'"); 
+  }
+  arg1 = (struct Annot *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_set_open" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  {
+    result = (PyObject *)Annot_set_open(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Annot_is_open(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Annot *arg1 = (struct Annot *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_is_open" "', argument " "1"" of type '" "struct Annot *""'"); 
+  }
+  arg1 = (struct Annot *)(argp1);
+  {
+    result = (PyObject *)Annot_is_open(arg1);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Annot_has_popup(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Annot *arg1 = (struct Annot *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_has_popup" "', argument " "1"" of type '" "struct Annot *""'"); 
+  }
+  arg1 = (struct Annot *)(argp1);
+  {
+    result = (PyObject *)Annot_has_popup(arg1);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Annot_set_popup(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Annot *arg1 = (struct Annot *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_popup", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_popup" "', argument " "1"" of type '" "struct Annot *""'"); 
+  }
+  arg1 = (struct Annot *)(argp1);
+  arg2 = swig_obj[1];
+  {
+    result = (PyObject *)Annot_set_popup(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Annot_popup_rect(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Annot *arg1 = (struct Annot *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_popup_rect" "', argument " "1"" of type '" "struct Annot *""'"); 
+  }
+  arg1 = (struct Annot *)(argp1);
+  {
+    result = (PyObject *)Annot_popup_rect(arg1);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Annot_popup_xref(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Annot *arg1 = (struct Annot *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_popup_xref" "', argument " "1"" of type '" "struct Annot *""'"); 
+  }
+  arg1 = (struct Annot *)(argp1);
+  {
+    result = (PyObject *)Annot_popup_xref(arg1);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Annot_setOC(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
@@ -22507,7 +22770,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setLaguage(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_language(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   char *arg2 = (char *) NULL ;
@@ -22519,21 +22782,21 @@ SWIGINTERN PyObject *_wrap_Annot_setLaguage(PyObject *SWIGUNUSEDPARM(self), PyOb
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setLaguage", 1, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_language", 1, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setLaguage" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_language" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
     res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
     if (!SWIG_IsOK(res2)) {
-      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Annot_setLaguage" "', argument " "2"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Annot_set_language" "', argument " "2"" of type '" "char *""'");
     }
     arg2 = (char *)(buf2);
   }
   {
-    result = (PyObject *)Annot_setLaguage(arg1,arg2);
+    result = (PyObject *)Annot_set_language(arg1,arg2);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -26615,9 +26878,15 @@ static PyMethodDef SwigMethods[] = {
 	 { "Annot_blendMode", _wrap_Annot_blendMode, METH_O, NULL},
 	 { "Annot_setBlendMode", _wrap_Annot_setBlendMode, METH_VARARGS, NULL},
 	 { "Annot_getOC", _wrap_Annot_getOC, METH_O, NULL},
+	 { "Annot_set_open", _wrap_Annot_set_open, METH_VARARGS, NULL},
+	 { "Annot_is_open", _wrap_Annot_is_open, METH_O, NULL},
+	 { "Annot_has_popup", _wrap_Annot_has_popup, METH_O, NULL},
+	 { "Annot_set_popup", _wrap_Annot_set_popup, METH_VARARGS, NULL},
+	 { "Annot_popup_rect", _wrap_Annot_popup_rect, METH_O, NULL},
+	 { "Annot_popup_xref", _wrap_Annot_popup_xref, METH_O, NULL},
 	 { "Annot_setOC", _wrap_Annot_setOC, METH_VARARGS, NULL},
 	 { "Annot_language", _wrap_Annot_language, METH_O, NULL},
-	 { "Annot_setLaguage", _wrap_Annot_setLaguage, METH_VARARGS, NULL},
+	 { "Annot_set_language", _wrap_Annot_set_language, METH_VARARGS, NULL},
 	 { "Annot__getAP", _wrap_Annot__getAP, METH_O, NULL},
 	 { "Annot__setAP", _wrap_Annot__setAP, METH_VARARGS, NULL},
 	 { "Annot__get_redact_values", _wrap_Annot__get_redact_values, METH_O, NULL},
