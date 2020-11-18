@@ -7496,9 +7496,9 @@ JM_image_reporter(fz_context *ctx, pdf_page *page)
 
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Store ID in PDF trailer
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 void JM_ensure_identity(fz_context *ctx, pdf_document *pdf)
 {
     unsigned char rnd[16];
@@ -7513,9 +7513,9 @@ void JM_ensure_identity(fz_context *ctx, pdf_document *pdf)
 }
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Ensure OCProperties, return /OCProperties key
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 pdf_obj *
 JM_ensure_ocproperties(fz_context *ctx, pdf_document *pdf)
 {
@@ -7540,9 +7540,9 @@ JM_ensure_ocproperties(fz_context *ctx, pdf_document *pdf)
 }
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Add OC configuration to the PDF catalog
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 void
 JM_add_layer_config(fz_context *ctx, pdf_document *pdf, char *name, char *creator, PyObject *ON)
 {
@@ -7584,10 +7584,10 @@ JM_add_layer_config(fz_context *ctx, pdf_document *pdf, char *name, char *creato
 }
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Get OCG arrays from OC configuration
 // Returns dict {"basestate":name, "on":list, "off":list, "rbg":list}
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 static PyObject *
 JM_get_ocg_arrays_imp(fz_context *ctx, pdf_obj *arr)
 {
@@ -7655,16 +7655,17 @@ JM_get_ocg_arrays(fz_context *ctx, pdf_obj *conf)
     }
     fz_catch(ctx) {
         Py_CLEAR(rc);
+        PyErr_Clear();
         fz_rethrow(ctx);
     }
     return rc;
 }
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 // Set OCG arrays from dict of Python lists
 // Works with dict like {"basestate":name, "on":list, "off":list, "rbg":list}
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 static void
 JM_set_ocg_arrays_imp(fz_context *ctx, pdf_obj *arr, PyObject *list)
 {
@@ -7728,9 +7729,83 @@ JM_set_ocg_arrays(fz_context *ctx, pdf_obj *conf, const char *basestate,
 }
 
 
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
+// Return the items of Resources/Properties (used for Marked Content)
+// Argument may be e.g. a page object or a Form XObject
+//------------------------------------------------------------------------
+PyObject *
+JM_get_resource_properties(fz_context *ctx, pdf_obj *ref)
+{
+    PyObject *rc = NULL;
+    fz_try(ctx) {
+        pdf_obj *properties = pdf_dict_getl(ctx, ref,
+                         PDF_NAME(Resources),
+                         PDF_NAME(Properties), NULL);
+        if (!properties) {
+            rc = PyTuple_New(0);
+        } else {
+            int i, n = pdf_dict_len(ctx, properties);
+            if (n < 1) {
+                rc = PyTuple_New(0);
+                goto finished;
+            }
+            rc = PyTuple_New(n);
+            for (i = 0; i < n; i++) {
+                pdf_obj *key = pdf_dict_get_key(ctx, properties, i);
+                pdf_obj *val = pdf_dict_get_val(ctx, properties, i);
+                const char *c = pdf_to_name(ctx, key);
+                int xref = pdf_to_num(ctx, val);
+                PyTuple_SET_ITEM(rc, i, Py_BuildValue("si", c, xref));
+            }
+        }
+        finished:;
+    }
+    fz_catch(ctx) {
+        fz_rethrow(ctx);
+    }
+    return rc;
+}
+
+
+//------------------------------------------------------------------------
+// Insert an item into Resources/Properties (used for Marked Content)
+// Arguments:
+// (1) e.g. page object, Form XObject
+// (2) marked content name
+// (3) xref of the referenced object (insert as indirect reference)
+//------------------------------------------------------------------------
+void
+JM_set_resource_property(fz_context *ctx, pdf_obj *ref, const char *name, int xref)
+{
+    pdf_obj *ind = NULL;
+    pdf_obj *properties = NULL;
+    pdf_document *pdf = pdf_get_bound_document(ctx, ref);
+    fz_try(ctx) {
+        ind = pdf_new_indirect(ctx, pdf, xref, 0);
+        if (!ind) THROWMSG(ctx, "bad xref");
+        pdf_obj *resources = pdf_dict_get(ctx, ref, PDF_NAME(Resources));
+        if (!resources) {
+            resources = pdf_dict_put_dict(ctx, ref, PDF_NAME(Resources), 1);
+        }
+        properties = pdf_dict_get(ctx, resources, PDF_NAME(Properties));
+        if (!properties) {
+            properties = pdf_dict_put_dict(ctx, resources, PDF_NAME(Properties), 1);
+        }
+        pdf_dict_put(ctx, properties, pdf_new_name(ctx, name), ind);
+    }
+    fz_always(ctx) {
+        pdf_drop_obj(ctx, ind);
+    }
+    fz_catch(ctx) {
+        fz_rethrow(ctx);
+    }
+    return;
+}
+
+
+//------------------------------------------------------------------------
 // Add OC object reference to a dictionary
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------
 void
 JM_add_oc_object(fz_context *ctx, pdf_document *pdf, pdf_obj *ref, int xref)
 {
@@ -7755,9 +7830,9 @@ JM_add_oc_object(fz_context *ctx, pdf_document *pdf, pdf_obj *ref, int xref)
 }
 
 
-//-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 // Store info of a font in Python list
-//-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 int JM_gather_fonts(fz_context *ctx, pdf_document *pdf, pdf_obj *dict,
                     PyObject *fontlist, int stream_xref)
 {
@@ -7804,9 +7879,9 @@ int JM_gather_fonts(fz_context *ctx, pdf_document *pdf, pdf_obj *dict,
     return rc;
 }
 
-//-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 // Store info of an image in Python list
-//-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 int JM_gather_images(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
                      PyObject *imagelist, int stream_xref)
 {
@@ -7881,9 +7956,9 @@ int JM_gather_images(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
     return rc;
 }
 
-//-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 // Store info of a /Form xobject in Python list
-//-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 int JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
                      PyObject *imagelist, int stream_xref)
 {
@@ -7930,9 +8005,9 @@ int JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
     return rc;
 }
 
-//-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 // Step through /Resources, looking up image, xobject or font information
-//-----------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 void JM_scan_resources(fz_context *ctx, pdf_document *pdf, pdf_obj *rsrc,
                  PyObject *liste, int what, int stream_xref,
                  PyObject *tracer)
@@ -10648,6 +10723,7 @@ SWIGINTERN PyObject *Document_getOCStates(struct Document *self,int config){
             }
             fz_catch(gctx) {
                 Py_CLEAR(rc);
+                PyErr_Clear();
                 return NULL;
             }
             return rc;
@@ -11398,6 +11474,29 @@ SWIGINTERN struct Annot *Page__load_annot(struct Page *self,char *name,int xref)
                 return NULL;
             }
             return (struct Annot *) annot;
+        }
+SWIGINTERN PyObject *Page__get_resource_properties(struct Page *self){
+            pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
+            PyObject *rc;
+            fz_try(gctx) {
+                ASSERT_PDF(page);
+                rc = JM_get_resource_properties(gctx, page->obj);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return rc;
+        }
+SWIGINTERN PyObject *Page__set_resource_property(struct Page *self,char *name,int xref){
+            pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
+            fz_try(gctx) {
+                ASSERT_PDF(page);
+                JM_set_resource_property(gctx, page->obj, name, xref);
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            Py_RETURN_NONE;
         }
 SWIGINTERN PyObject *Page_annot_names(struct Page *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
@@ -12726,7 +12825,7 @@ SWIGINTERN PyObject *Annot_xref(struct Annot *self){
             pdf_annot *annot = (pdf_annot *) self;
             return Py_BuildValue("i", pdf_to_num(gctx, annot->obj));
         }
-SWIGINTERN PyObject *Annot_APNMatrix(struct Annot *self){
+SWIGINTERN PyObject *Annot_apn_matrix(struct Annot *self){
             pdf_annot *annot = (pdf_annot *) self;
             pdf_obj *ap = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
                             PDF_NAME(N), NULL);
@@ -12735,7 +12834,7 @@ SWIGINTERN PyObject *Annot_APNMatrix(struct Annot *self){
             fz_matrix mat = pdf_dict_get_matrix(gctx, ap, PDF_NAME(Matrix));
             return JM_py_from_matrix(mat);
         }
-SWIGINTERN PyObject *Annot_APNBBox(struct Annot *self){
+SWIGINTERN PyObject *Annot_apn_bbox(struct Annot *self){
             pdf_annot *annot = (pdf_annot *) self;
             pdf_obj *ap = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
                             PDF_NAME(N), NULL);
@@ -12744,7 +12843,7 @@ SWIGINTERN PyObject *Annot_APNBBox(struct Annot *self){
             fz_rect rect = pdf_dict_get_rect(gctx, ap, PDF_NAME(BBox));
             return JM_py_from_rect(rect);
         }
-SWIGINTERN PyObject *Annot_setAPNMatrix(struct Annot *self,PyObject *matrix){
+SWIGINTERN PyObject *Annot_set_apn_matrix(struct Annot *self,PyObject *matrix){
             pdf_annot *annot = (pdf_annot *) self;
             fz_try(gctx) {
                 pdf_obj *ap = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
@@ -12758,7 +12857,7 @@ SWIGINTERN PyObject *Annot_setAPNMatrix(struct Annot *self,PyObject *matrix){
             }
             return_none;
         }
-SWIGINTERN PyObject *Annot_setAPNBBox(struct Annot *self,PyObject *bbox){
+SWIGINTERN PyObject *Annot_set_apn_bbox(struct Annot *self,PyObject *bbox){
             pdf_annot *annot = (pdf_annot *) self;
             fz_try(gctx) {
                 pdf_obj *ap = pdf_dict_getl(gctx, annot->obj, PDF_NAME(AP),
@@ -12813,7 +12912,7 @@ SWIGINTERN PyObject *Annot_blendMode(struct Annot *self){
             if (blend_mode) return blend_mode;
             return_none;
         }
-SWIGINTERN PyObject *Annot_setBlendMode(struct Annot *self,char *blend_mode){
+SWIGINTERN PyObject *Annot_set_blendmode(struct Annot *self,char *blend_mode){
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
                 pdf_dict_put_name(gctx, annot->obj, PDF_NAME(BM), blend_mode);
@@ -12856,7 +12955,7 @@ SWIGINTERN PyObject *Annot_is_open(struct Annot *self){
             fz_catch(gctx) {
                 return NULL;
             }
-            JM_BOOL(is_open);
+            return JM_BOOL(is_open);
         }
 SWIGINTERN PyObject *Annot_has_popup(struct Annot *self){
             int has_popup = 0;
@@ -12868,7 +12967,7 @@ SWIGINTERN PyObject *Annot_has_popup(struct Annot *self){
             fz_catch(gctx) {
                 return NULL;
             }
-            JM_BOOL(has_popup);
+            return JM_BOOL(has_popup);
         }
 SWIGINTERN PyObject *Annot_set_popup(struct Annot *self,PyObject *rect){
             fz_try(gctx) {
@@ -12895,7 +12994,7 @@ SWIGINTERN PyObject *Annot_popup_rect(struct Annot *self){
             fz_catch(gctx) {
                 return NULL;
             }
-            JM_py_from_rect(rect);
+            return JM_py_from_rect(rect);
         }
 SWIGINTERN PyObject *Annot_popup_xref(struct Annot *self){
             int xref = 0;
@@ -12911,7 +13010,7 @@ SWIGINTERN PyObject *Annot_popup_xref(struct Annot *self){
             }
             return Py_BuildValue("i", xref);
         }
-SWIGINTERN PyObject *Annot_setOC(struct Annot *self,int oc){
+SWIGINTERN PyObject *Annot_set_optional_content(struct Annot *self,int oc){
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
                 if (!oc) {
@@ -13032,7 +13131,7 @@ SWIGINTERN PyObject *Annot__get_redact_values(struct Annot *self){
             }
             return values;
         }
-SWIGINTERN struct TextPage *Annot_getTextPage(struct Annot *self,PyObject *clip,int flags){
+SWIGINTERN struct TextPage *Annot_get_textpage(struct Annot *self,PyObject *clip,int flags){
             fz_stext_page *textpage=NULL;
             fz_stext_options options = { 0 };
             options.flags = flags;
@@ -13045,7 +13144,7 @@ SWIGINTERN struct TextPage *Annot_getTextPage(struct Annot *self,PyObject *clip,
             }
             return (struct TextPage *) textpage;
         }
-SWIGINTERN PyObject *Annot_setName(struct Annot *self,char *name){
+SWIGINTERN PyObject *Annot_set_name(struct Annot *self,char *name){
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
                 pdf_dict_put_name(gctx, annot->obj, PDF_NAME(Name), name);
@@ -13056,7 +13155,7 @@ SWIGINTERN PyObject *Annot_setName(struct Annot *self,char *name){
             }
             return_none;
         }
-SWIGINTERN PyObject *Annot_setRect(struct Annot *self,PyObject *rect){
+SWIGINTERN PyObject *Annot_set_rect(struct Annot *self,PyObject *rect){
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
                 pdf_page *pdfpage = annot->page;
@@ -13069,7 +13168,7 @@ SWIGINTERN PyObject *Annot_setRect(struct Annot *self,PyObject *rect){
             }
             return_none;
         }
-SWIGINTERN PyObject *Annot_setRotation(struct Annot *self,int rotate){
+SWIGINTERN PyObject *Annot_set_rotation(struct Annot *self,int rotate){
             pdf_annot *annot = (pdf_annot *) self;
             int type = pdf_annot_type(gctx, annot);
             switch (type)
@@ -13239,7 +13338,7 @@ SWIGINTERN PyObject *Annot__update_appearance(struct Annot *self,float opacity,c
             }
             Py_RETURN_TRUE;
         }
-SWIGINTERN void Annot_setColors(struct Annot *self,PyObject *colors,PyObject *fill,PyObject *stroke){
+SWIGINTERN void Annot_set_colors(struct Annot *self,PyObject *colors,PyObject *fill,PyObject *stroke){
             if (!PyDict_Check(colors)) return;
             pdf_annot *annot = (pdf_annot *) self;
             int type = pdf_annot_type(gctx, annot);
@@ -13287,12 +13386,12 @@ SWIGINTERN PyObject *Annot_lineEnds(struct Annot *self){
             int lend = (int) pdf_annot_line_end_style(gctx, annot);
             return Py_BuildValue("ii", lstart, lend);
         }
-SWIGINTERN void Annot_setLineEnds(struct Annot *self,int start,int end){
+SWIGINTERN void Annot_set_line_ends(struct Annot *self,int start,int end){
             pdf_annot *annot = (pdf_annot *) self;
             if (pdf_annot_has_line_ending_styles(gctx, annot))
                 pdf_set_annot_line_ending_styles(gctx, annot, start, end);
             else
-                JM_Warning("annot type has no line ends");
+                JM_Warning("bad annot type for line ends");
         }
 SWIGINTERN PyObject *Annot_type(struct Annot *self){
             pdf_annot *annot = (pdf_annot *) self;
@@ -13312,7 +13411,7 @@ SWIGINTERN PyObject *Annot_opacity(struct Annot *self){
                 opy = pdf_to_real(gctx, ca);
             return Py_BuildValue("f", opy);
         }
-SWIGINTERN void Annot_setOpacity(struct Annot *self,float opacity){
+SWIGINTERN void Annot_set_opacity(struct Annot *self,float opacity){
             pdf_annot *annot = (pdf_annot *) self;
             if (!INRANGE(opacity, 0.0f, 1.0f))
             {
@@ -13371,7 +13470,7 @@ SWIGINTERN PyObject *Annot_fileInfo(struct Annot *self){
             DICT_SETITEM_DROP(res, dictkey_size, Py_BuildValue("i", size));
             return res;
         }
-SWIGINTERN PyObject *Annot_fileGet(struct Annot *self){
+SWIGINTERN PyObject *Annot_get_file(struct Annot *self){
             PyObject *res = NULL;
             pdf_obj *stream = NULL;
             fz_buffer *buf = NULL;
@@ -13395,7 +13494,7 @@ SWIGINTERN PyObject *Annot_fileGet(struct Annot *self){
             }
             return res;
         }
-SWIGINTERN PyObject *Annot_soundGet(struct Annot *self){
+SWIGINTERN PyObject *Annot_get_sound(struct Annot *self){
             PyObject *res = NULL;
             PyObject *stream = NULL;
             fz_buffer *buf = NULL;
@@ -13449,7 +13548,7 @@ SWIGINTERN PyObject *Annot_soundGet(struct Annot *self){
             }
             return res;
         }
-SWIGINTERN PyObject *Annot_fileUpd(struct Annot *self,PyObject *buffer,char *filename,char *ufilename,char *desc){
+SWIGINTERN PyObject *Annot_update_file(struct Annot *self,PyObject *buffer,char *filename,char *ufilename,char *desc){
             pdf_document *pdf = NULL;       // to be filled in
             char *data = NULL;              // for new file content
             fz_buffer *res = NULL;          // for compressed content
@@ -13543,7 +13642,7 @@ SWIGINTERN PyObject *Annot_info(struct Annot *self){
 
             return res;
         }
-SWIGINTERN PyObject *Annot_setInfo(struct Annot *self,PyObject *info,char *content,char *title,char *creationDate,char *modDate,char *subject){
+SWIGINTERN PyObject *Annot_set_info(struct Annot *self,PyObject *info,char *content,char *title,char *creationDate,char *modDate,char *subject){
             pdf_annot *annot = (pdf_annot *) self;
             // use this to indicate a 'markup' annot type
             int is_markup = pdf_annot_has_author(gctx, annot);
@@ -13582,7 +13681,7 @@ SWIGINTERN PyObject *Annot_border(struct Annot *self){
             pdf_annot *annot = (pdf_annot *) self;
             return JM_annot_border(gctx, annot->obj);
         }
-SWIGINTERN PyObject *Annot_setBorder(struct Annot *self,PyObject *border,float width,char *style,PyObject *dashes){
+SWIGINTERN PyObject *Annot_set_border(struct Annot *self,PyObject *border,float width,char *style,PyObject *dashes){
             pdf_annot *annot = (pdf_annot *) self;
             return JM_annot_set_border(gctx, border, annot->page->doc, annot->obj);
         }
@@ -13613,7 +13712,7 @@ SWIGINTERN PyObject *Annot__cleanContents(struct Annot *self,int sanitize){
             pdf_dirty_annot(gctx, annot);
             return_none;
         }
-SWIGINTERN void Annot_setFlags(struct Annot *self,int flags){
+SWIGINTERN void Annot_set_flags(struct Annot *self,int flags){
             pdf_annot *annot = (pdf_annot *) self;
             pdf_set_annot_flags(gctx, annot, flags);
         }
@@ -13656,12 +13755,9 @@ SWIGINTERN struct Annot *Annot_next(struct Annot *self){
             int type = pdf_annot_type(gctx, this_annot);
             pdf_annot *annot;
 
-            if (type != PDF_ANNOT_WIDGET)
-            {
+            if (type != PDF_ANNOT_WIDGET) {
                 annot = pdf_next_annot(gctx, this_annot);
-            }
-            else
-            {
+            } else {
                 annot = (pdf_widget *) pdf_next_widget(gctx, (pdf_widget *) this_annot);
             }
 
@@ -13669,7 +13765,7 @@ SWIGINTERN struct Annot *Annot_next(struct Annot *self){
                 pdf_keep_annot(gctx, annot);
             return (struct Annot *) annot;
         }
-SWIGINTERN struct Pixmap *Annot_getPixmap(struct Annot *self,PyObject *matrix,struct Colorspace *colorspace,int alpha){
+SWIGINTERN struct Pixmap *Annot_get_pixmap(struct Annot *self,PyObject *matrix,struct Colorspace *colorspace,int alpha){
             fz_matrix ctm = JM_matrix_from_py(matrix);
             fz_colorspace *cs = (fz_colorspace *) colorspace;
             fz_pixmap *pix = NULL;
@@ -14111,7 +14207,7 @@ SWIGINTERN PyObject *TextWriter_append(struct TextWriter *self,PyObject *pos,cha
 SWIGINTERN PyObject *TextWriter__bbox(struct TextWriter *self){
             return JM_py_from_rect(fz_bound_text(gctx, (fz_text *) self, NULL, fz_identity));
         }
-SWIGINTERN PyObject *TextWriter_writeText(struct TextWriter *self,struct Page *page,PyObject *color,float opacity,int overlay,PyObject *morph,int render_mode){
+SWIGINTERN PyObject *TextWriter_writeText(struct TextWriter *self,struct Page *page,PyObject *color,float opacity,int overlay,PyObject *morph,int render_mode,int oc){
             pdf_page *pdfpage = pdf_page_from_fz_page(gctx, (fz_page *) page);
             fz_rect mediabox = fz_bound_page(gctx, (fz_page *) page);
             pdf_obj *resources = NULL;
@@ -19266,6 +19362,82 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Page__get_resource_properties(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Page *arg1 = (struct Page *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__get_resource_properties" "', argument " "1"" of type '" "struct Page *""'"); 
+  }
+  arg1 = (struct Page *)(argp1);
+  {
+    result = (PyObject *)Page__get_resource_properties(arg1);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Page__set_resource_property(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Page *arg1 = (struct Page *) 0 ;
+  char *arg2 = (char *) 0 ;
+  int arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  int val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Page__set_resource_property", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__set_resource_property" "', argument " "1"" of type '" "struct Page *""'"); 
+  }
+  arg1 = (struct Page *)(argp1);
+  res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Page__set_resource_property" "', argument " "2"" of type '" "char *""'");
+  }
+  arg2 = (char *)(buf2);
+  ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Page__set_resource_property" "', argument " "3"" of type '" "int""'");
+  } 
+  arg3 = (int)(val3);
+  {
+    result = (PyObject *)Page__set_resource_property(arg1,arg2,arg3);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Page_annot_names(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Page *arg1 = (struct Page *) 0 ;
@@ -22330,7 +22502,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_APNMatrix(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_apn_matrix(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   void *argp1 = 0 ;
@@ -22342,10 +22514,10 @@ SWIGINTERN PyObject *_wrap_Annot_APNMatrix(PyObject *SWIGUNUSEDPARM(self), PyObj
   swig_obj[0] = args;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_APNMatrix" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_apn_matrix" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
-  result = (PyObject *)Annot_APNMatrix(arg1);
+  result = (PyObject *)Annot_apn_matrix(arg1);
   resultobj = result;
   return resultobj;
 fail:
@@ -22353,7 +22525,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_APNBBox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_apn_bbox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   void *argp1 = 0 ;
@@ -22365,10 +22537,10 @@ SWIGINTERN PyObject *_wrap_Annot_APNBBox(PyObject *SWIGUNUSEDPARM(self), PyObjec
   swig_obj[0] = args;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_APNBBox" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_apn_bbox" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
-  result = (PyObject *)Annot_APNBBox(arg1);
+  result = (PyObject *)Annot_apn_bbox(arg1);
   resultobj = result;
   return resultobj;
 fail:
@@ -22376,7 +22548,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setAPNMatrix(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_apn_matrix(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   PyObject *arg2 = (PyObject *) 0 ;
@@ -22385,15 +22557,15 @@ SWIGINTERN PyObject *_wrap_Annot_setAPNMatrix(PyObject *SWIGUNUSEDPARM(self), Py
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setAPNMatrix", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_apn_matrix", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setAPNMatrix" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_apn_matrix" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   arg2 = swig_obj[1];
   {
-    result = (PyObject *)Annot_setAPNMatrix(arg1,arg2);
+    result = (PyObject *)Annot_set_apn_matrix(arg1,arg2);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -22406,7 +22578,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setAPNBBox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_apn_bbox(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   PyObject *arg2 = (PyObject *) 0 ;
@@ -22415,15 +22587,15 @@ SWIGINTERN PyObject *_wrap_Annot_setAPNBBox(PyObject *SWIGUNUSEDPARM(self), PyOb
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setAPNBBox", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_apn_bbox", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setAPNBBox" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_apn_bbox" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   arg2 = swig_obj[1];
   {
-    result = (PyObject *)Annot_setAPNBBox(arg1,arg2);
+    result = (PyObject *)Annot_set_apn_bbox(arg1,arg2);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -22459,7 +22631,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setBlendMode(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_blendmode(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   char *arg2 = (char *) 0 ;
@@ -22471,19 +22643,19 @@ SWIGINTERN PyObject *_wrap_Annot_setBlendMode(PyObject *SWIGUNUSEDPARM(self), Py
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setBlendMode", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_blendmode", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setBlendMode" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_blendmode" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Annot_setBlendMode" "', argument " "2"" of type '" "char *""'");
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Annot_set_blendmode" "', argument " "2"" of type '" "char *""'");
   }
   arg2 = (char *)(buf2);
   {
-    result = (PyObject *)Annot_setBlendMode(arg1,arg2);
+    result = (PyObject *)Annot_set_blendmode(arg1,arg2);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -22709,7 +22881,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setOC(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_optional_content(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   int arg2 = (int) 0 ;
@@ -22720,21 +22892,21 @@ SWIGINTERN PyObject *_wrap_Annot_setOC(PyObject *SWIGUNUSEDPARM(self), PyObject 
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setOC", 1, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_optional_content", 1, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setOC" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_optional_content" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
     ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
     if (!SWIG_IsOK(ecode2)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_setOC" "', argument " "2"" of type '" "int""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_set_optional_content" "', argument " "2"" of type '" "int""'");
     } 
     arg2 = (int)(val2);
   }
   {
-    result = (PyObject *)Annot_setOC(arg1,arg2);
+    result = (PyObject *)Annot_set_optional_content(arg1,arg2);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -22909,7 +23081,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_getTextPage(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_get_textpage(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   PyObject *arg2 = (PyObject *) NULL ;
@@ -22921,10 +23093,10 @@ SWIGINTERN PyObject *_wrap_Annot_getTextPage(PyObject *SWIGUNUSEDPARM(self), PyO
   PyObject *swig_obj[3] ;
   struct TextPage *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_getTextPage", 1, 3, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_get_textpage", 1, 3, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_getTextPage" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_get_textpage" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
@@ -22933,12 +23105,12 @@ SWIGINTERN PyObject *_wrap_Annot_getTextPage(PyObject *SWIGUNUSEDPARM(self), PyO
   if (swig_obj[2]) {
     ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
     if (!SWIG_IsOK(ecode3)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Annot_getTextPage" "', argument " "3"" of type '" "int""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Annot_get_textpage" "', argument " "3"" of type '" "int""'");
     } 
     arg3 = (int)(val3);
   }
   {
-    result = (struct TextPage *)Annot_getTextPage(arg1,arg2,arg3);
+    result = (struct TextPage *)Annot_get_textpage(arg1,arg2,arg3);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -22951,7 +23123,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setName(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_name(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   char *arg2 = (char *) 0 ;
@@ -22963,18 +23135,18 @@ SWIGINTERN PyObject *_wrap_Annot_setName(PyObject *SWIGUNUSEDPARM(self), PyObjec
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setName", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_name", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setName" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_name" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
   if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Annot_setName" "', argument " "2"" of type '" "char *""'");
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Annot_set_name" "', argument " "2"" of type '" "char *""'");
   }
   arg2 = (char *)(buf2);
-  result = (PyObject *)Annot_setName(arg1,arg2);
+  result = (PyObject *)Annot_set_name(arg1,arg2);
   resultobj = result;
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
   return resultobj;
@@ -22984,7 +23156,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setRect(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_rect(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   PyObject *arg2 = (PyObject *) 0 ;
@@ -22993,14 +23165,14 @@ SWIGINTERN PyObject *_wrap_Annot_setRect(PyObject *SWIGUNUSEDPARM(self), PyObjec
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setRect", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_rect", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setRect" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_rect" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   arg2 = swig_obj[1];
-  result = (PyObject *)Annot_setRect(arg1,arg2);
+  result = (PyObject *)Annot_set_rect(arg1,arg2);
   resultobj = result;
   return resultobj;
 fail:
@@ -23008,7 +23180,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setRotation(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_rotation(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   int arg2 = (int) 0 ;
@@ -23019,20 +23191,20 @@ SWIGINTERN PyObject *_wrap_Annot_setRotation(PyObject *SWIGUNUSEDPARM(self), PyO
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setRotation", 1, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_rotation", 1, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setRotation" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_rotation" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
     ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
     if (!SWIG_IsOK(ecode2)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_setRotation" "', argument " "2"" of type '" "int""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_set_rotation" "', argument " "2"" of type '" "int""'");
     } 
     arg2 = (int)(val2);
   }
-  result = (PyObject *)Annot_setRotation(arg1,arg2);
+  result = (PyObject *)Annot_set_rotation(arg1,arg2);
   resultobj = result;
   return resultobj;
 fail:
@@ -23168,7 +23340,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setColors(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_colors(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   PyObject *arg2 = (PyObject *) NULL ;
@@ -23178,10 +23350,10 @@ SWIGINTERN PyObject *_wrap_Annot_setColors(PyObject *SWIGUNUSEDPARM(self), PyObj
   int res1 = 0 ;
   PyObject *swig_obj[4] ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setColors", 1, 4, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_colors", 1, 4, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setColors" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_colors" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
@@ -23193,7 +23365,7 @@ SWIGINTERN PyObject *_wrap_Annot_setColors(PyObject *SWIGUNUSEDPARM(self), PyObj
   if (swig_obj[3]) {
     arg4 = swig_obj[3];
   }
-  Annot_setColors(arg1,arg2,arg3,arg4);
+  Annot_set_colors(arg1,arg2,arg3,arg4);
   resultobj = SWIG_Py_Void();
   return resultobj;
 fail:
@@ -23224,7 +23396,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setLineEnds(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_line_ends(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   int arg2 ;
@@ -23237,23 +23409,23 @@ SWIGINTERN PyObject *_wrap_Annot_setLineEnds(PyObject *SWIGUNUSEDPARM(self), PyO
   int ecode3 = 0 ;
   PyObject *swig_obj[3] ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setLineEnds", 3, 3, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_line_ends", 3, 3, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setLineEnds" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_line_ends" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
   if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_setLineEnds" "', argument " "2"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_set_line_ends" "', argument " "2"" of type '" "int""'");
   } 
   arg2 = (int)(val2);
   ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
   if (!SWIG_IsOK(ecode3)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Annot_setLineEnds" "', argument " "3"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Annot_set_line_ends" "', argument " "3"" of type '" "int""'");
   } 
   arg3 = (int)(val3);
-  Annot_setLineEnds(arg1,arg2,arg3);
+  Annot_set_line_ends(arg1,arg2,arg3);
   resultobj = SWIG_Py_Void();
   return resultobj;
 fail:
@@ -23307,7 +23479,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setOpacity(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_opacity(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   float arg2 ;
@@ -23317,18 +23489,18 @@ SWIGINTERN PyObject *_wrap_Annot_setOpacity(PyObject *SWIGUNUSEDPARM(self), PyOb
   int ecode2 = 0 ;
   PyObject *swig_obj[2] ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setOpacity", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_opacity", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setOpacity" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_opacity" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   ecode2 = SWIG_AsVal_float(swig_obj[1], &val2);
   if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_setOpacity" "', argument " "2"" of type '" "float""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_set_opacity" "', argument " "2"" of type '" "float""'");
   } 
   arg2 = (float)(val2);
-  Annot_setOpacity(arg1,arg2);
+  Annot_set_opacity(arg1,arg2);
   resultobj = SWIG_Py_Void();
   return resultobj;
 fail:
@@ -23365,7 +23537,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_fileGet(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_get_file(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   void *argp1 = 0 ;
@@ -23377,11 +23549,11 @@ SWIGINTERN PyObject *_wrap_Annot_fileGet(PyObject *SWIGUNUSEDPARM(self), PyObjec
   swig_obj[0] = args;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_fileGet" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_get_file" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   {
-    result = (PyObject *)Annot_fileGet(arg1);
+    result = (PyObject *)Annot_get_file(arg1);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -23394,7 +23566,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_soundGet(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_get_sound(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   void *argp1 = 0 ;
@@ -23406,11 +23578,11 @@ SWIGINTERN PyObject *_wrap_Annot_soundGet(PyObject *SWIGUNUSEDPARM(self), PyObje
   swig_obj[0] = args;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_soundGet" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_get_sound" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   {
-    result = (PyObject *)Annot_soundGet(arg1);
+    result = (PyObject *)Annot_get_sound(arg1);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -23423,7 +23595,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_fileUpd(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_update_file(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   PyObject *arg2 = (PyObject *) NULL ;
@@ -23444,10 +23616,10 @@ SWIGINTERN PyObject *_wrap_Annot_fileUpd(PyObject *SWIGUNUSEDPARM(self), PyObjec
   PyObject *swig_obj[5] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_fileUpd", 1, 5, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_update_file", 1, 5, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_fileUpd" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_update_file" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
@@ -23456,26 +23628,26 @@ SWIGINTERN PyObject *_wrap_Annot_fileUpd(PyObject *SWIGUNUSEDPARM(self), PyObjec
   if (swig_obj[2]) {
     res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
     if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Annot_fileUpd" "', argument " "3"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Annot_update_file" "', argument " "3"" of type '" "char *""'");
     }
     arg3 = (char *)(buf3);
   }
   if (swig_obj[3]) {
     res4 = SWIG_AsCharPtrAndSize(swig_obj[3], &buf4, NULL, &alloc4);
     if (!SWIG_IsOK(res4)) {
-      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "Annot_fileUpd" "', argument " "4"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "Annot_update_file" "', argument " "4"" of type '" "char *""'");
     }
     arg4 = (char *)(buf4);
   }
   if (swig_obj[4]) {
     res5 = SWIG_AsCharPtrAndSize(swig_obj[4], &buf5, NULL, &alloc5);
     if (!SWIG_IsOK(res5)) {
-      SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "Annot_fileUpd" "', argument " "5"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "Annot_update_file" "', argument " "5"" of type '" "char *""'");
     }
     arg5 = (char *)(buf5);
   }
   {
-    result = (PyObject *)Annot_fileUpd(arg1,arg2,arg3,arg4,arg5);
+    result = (PyObject *)Annot_update_file(arg1,arg2,arg3,arg4,arg5);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -23517,7 +23689,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setInfo(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_info(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   PyObject *arg2 = (PyObject *) NULL ;
@@ -23546,10 +23718,10 @@ SWIGINTERN PyObject *_wrap_Annot_setInfo(PyObject *SWIGUNUSEDPARM(self), PyObjec
   PyObject *swig_obj[7] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setInfo", 1, 7, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_info", 1, 7, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setInfo" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_info" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
@@ -23558,40 +23730,40 @@ SWIGINTERN PyObject *_wrap_Annot_setInfo(PyObject *SWIGUNUSEDPARM(self), PyObjec
   if (swig_obj[2]) {
     res3 = SWIG_AsCharPtrAndSize(swig_obj[2], &buf3, NULL, &alloc3);
     if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Annot_setInfo" "', argument " "3"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Annot_set_info" "', argument " "3"" of type '" "char *""'");
     }
     arg3 = (char *)(buf3);
   }
   if (swig_obj[3]) {
     res4 = SWIG_AsCharPtrAndSize(swig_obj[3], &buf4, NULL, &alloc4);
     if (!SWIG_IsOK(res4)) {
-      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "Annot_setInfo" "', argument " "4"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "Annot_set_info" "', argument " "4"" of type '" "char *""'");
     }
     arg4 = (char *)(buf4);
   }
   if (swig_obj[4]) {
     res5 = SWIG_AsCharPtrAndSize(swig_obj[4], &buf5, NULL, &alloc5);
     if (!SWIG_IsOK(res5)) {
-      SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "Annot_setInfo" "', argument " "5"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "Annot_set_info" "', argument " "5"" of type '" "char *""'");
     }
     arg5 = (char *)(buf5);
   }
   if (swig_obj[5]) {
     res6 = SWIG_AsCharPtrAndSize(swig_obj[5], &buf6, NULL, &alloc6);
     if (!SWIG_IsOK(res6)) {
-      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "Annot_setInfo" "', argument " "6"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res6), "in method '" "Annot_set_info" "', argument " "6"" of type '" "char *""'");
     }
     arg6 = (char *)(buf6);
   }
   if (swig_obj[6]) {
     res7 = SWIG_AsCharPtrAndSize(swig_obj[6], &buf7, NULL, &alloc7);
     if (!SWIG_IsOK(res7)) {
-      SWIG_exception_fail(SWIG_ArgError(res7), "in method '" "Annot_setInfo" "', argument " "7"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res7), "in method '" "Annot_set_info" "', argument " "7"" of type '" "char *""'");
     }
     arg7 = (char *)(buf7);
   }
   {
-    result = (PyObject *)Annot_setInfo(arg1,arg2,arg3,arg4,arg5,arg6,arg7);
+    result = (PyObject *)Annot_set_info(arg1,arg2,arg3,arg4,arg5,arg6,arg7);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -23637,7 +23809,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setBorder(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_border(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   PyObject *arg2 = (PyObject *) NULL ;
@@ -23654,10 +23826,10 @@ SWIGINTERN PyObject *_wrap_Annot_setBorder(PyObject *SWIGUNUSEDPARM(self), PyObj
   PyObject *swig_obj[5] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setBorder", 1, 5, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_border", 1, 5, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setBorder" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_border" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
@@ -23666,21 +23838,21 @@ SWIGINTERN PyObject *_wrap_Annot_setBorder(PyObject *SWIGUNUSEDPARM(self), PyObj
   if (swig_obj[2]) {
     ecode3 = SWIG_AsVal_float(swig_obj[2], &val3);
     if (!SWIG_IsOK(ecode3)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Annot_setBorder" "', argument " "3"" of type '" "float""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Annot_set_border" "', argument " "3"" of type '" "float""'");
     } 
     arg3 = (float)(val3);
   }
   if (swig_obj[3]) {
     res4 = SWIG_AsCharPtrAndSize(swig_obj[3], &buf4, NULL, &alloc4);
     if (!SWIG_IsOK(res4)) {
-      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "Annot_setBorder" "', argument " "4"" of type '" "char *""'");
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "Annot_set_border" "', argument " "4"" of type '" "char *""'");
     }
     arg4 = (char *)(buf4);
   }
   if (swig_obj[4]) {
     arg5 = swig_obj[4];
   }
-  result = (PyObject *)Annot_setBorder(arg1,arg2,arg3,arg4,arg5);
+  result = (PyObject *)Annot_set_border(arg1,arg2,arg3,arg4,arg5);
   resultobj = result;
   if (alloc4 == SWIG_NEWOBJ) free((char*)buf4);
   return resultobj;
@@ -23751,7 +23923,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_setFlags(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_flags(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   int arg2 ;
@@ -23761,18 +23933,18 @@ SWIGINTERN PyObject *_wrap_Annot_setFlags(PyObject *SWIGUNUSEDPARM(self), PyObje
   int ecode2 = 0 ;
   PyObject *swig_obj[2] ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_setFlags", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_flags", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_setFlags" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_flags" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
   if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_setFlags" "', argument " "2"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_set_flags" "', argument " "2"" of type '" "int""'");
   } 
   arg2 = (int)(val2);
-  Annot_setFlags(arg1,arg2);
+  Annot_set_flags(arg1,arg2);
   resultobj = SWIG_Py_Void();
   return resultobj;
 fail:
@@ -23832,7 +24004,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_getPixmap(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_get_pixmap(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   PyObject *arg2 = (PyObject *) NULL ;
@@ -23847,10 +24019,10 @@ SWIGINTERN PyObject *_wrap_Annot_getPixmap(PyObject *SWIGUNUSEDPARM(self), PyObj
   PyObject *swig_obj[4] ;
   struct Pixmap *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_getPixmap", 1, 4, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_get_pixmap", 1, 4, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_getPixmap" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_get_pixmap" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
@@ -23859,19 +24031,19 @@ SWIGINTERN PyObject *_wrap_Annot_getPixmap(PyObject *SWIGUNUSEDPARM(self), PyObj
   if (swig_obj[2]) {
     res3 = SWIG_ConvertPtr(swig_obj[2], &argp3,SWIGTYPE_p_Colorspace, 0 |  0 );
     if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Annot_getPixmap" "', argument " "3"" of type '" "struct Colorspace *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "Annot_get_pixmap" "', argument " "3"" of type '" "struct Colorspace *""'"); 
     }
     arg3 = (struct Colorspace *)(argp3);
   }
   if (swig_obj[3]) {
     ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
     if (!SWIG_IsOK(ecode4)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Annot_getPixmap" "', argument " "4"" of type '" "int""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "Annot_get_pixmap" "', argument " "4"" of type '" "int""'");
     } 
     arg4 = (int)(val4);
   }
   {
-    result = (struct Pixmap *)Annot_getPixmap(arg1,arg2,arg3,arg4);
+    result = (struct Pixmap *)Annot_get_pixmap(arg1,arg2,arg3,arg4);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -24903,6 +25075,7 @@ SWIGINTERN PyObject *_wrap_TextWriter_writeText(PyObject *SWIGUNUSEDPARM(self), 
   int arg5 = (int) 1 ;
   PyObject *arg6 = (PyObject *) NULL ;
   int arg7 = (int) 0 ;
+  int arg8 = (int) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 = 0 ;
@@ -24913,10 +25086,12 @@ SWIGINTERN PyObject *_wrap_TextWriter_writeText(PyObject *SWIGUNUSEDPARM(self), 
   int ecode5 = 0 ;
   int val7 ;
   int ecode7 = 0 ;
-  PyObject *swig_obj[7] ;
+  int val8 ;
+  int ecode8 = 0 ;
+  PyObject *swig_obj[8] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "TextWriter_writeText", 2, 7, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "TextWriter_writeText", 2, 8, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_TextWriter, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextWriter_writeText" "', argument " "1"" of type '" "struct TextWriter *""'"); 
@@ -24954,8 +25129,15 @@ SWIGINTERN PyObject *_wrap_TextWriter_writeText(PyObject *SWIGUNUSEDPARM(self), 
     } 
     arg7 = (int)(val7);
   }
+  if (swig_obj[7]) {
+    ecode8 = SWIG_AsVal_int(swig_obj[7], &val8);
+    if (!SWIG_IsOK(ecode8)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode8), "in method '" "TextWriter_writeText" "', argument " "8"" of type '" "int""'");
+    } 
+    arg8 = (int)(val8);
+  }
   {
-    result = (PyObject *)TextWriter_writeText(arg1,arg2,arg3,arg4,arg5,arg6,arg7);
+    result = (PyObject *)TextWriter_writeText(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -26788,6 +26970,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "Page__add_multiline", _wrap_Page__add_multiline, METH_VARARGS, NULL},
 	 { "Page__add_freetext_annot", _wrap_Page__add_freetext_annot, METH_VARARGS, NULL},
 	 { "Page__load_annot", _wrap_Page__load_annot, METH_VARARGS, NULL},
+	 { "Page__get_resource_properties", _wrap_Page__get_resource_properties, METH_O, NULL},
+	 { "Page__set_resource_property", _wrap_Page__set_resource_property, METH_VARARGS, NULL},
 	 { "Page_annot_names", _wrap_Page_annot_names, METH_O, NULL},
 	 { "Page_annot_xrefs", _wrap_Page_annot_xrefs, METH_O, NULL},
 	 { "Page__addWidget", _wrap_Page__addWidget, METH_VARARGS, NULL},
@@ -26871,12 +27055,12 @@ static PyMethodDef SwigMethods[] = {
 	 { "delete_Annot", _wrap_delete_Annot, METH_O, NULL},
 	 { "Annot_rect", _wrap_Annot_rect, METH_O, NULL},
 	 { "Annot_xref", _wrap_Annot_xref, METH_O, NULL},
-	 { "Annot_APNMatrix", _wrap_Annot_APNMatrix, METH_O, NULL},
-	 { "Annot_APNBBox", _wrap_Annot_APNBBox, METH_O, NULL},
-	 { "Annot_setAPNMatrix", _wrap_Annot_setAPNMatrix, METH_VARARGS, NULL},
-	 { "Annot_setAPNBBox", _wrap_Annot_setAPNBBox, METH_VARARGS, NULL},
+	 { "Annot_apn_matrix", _wrap_Annot_apn_matrix, METH_O, NULL},
+	 { "Annot_apn_bbox", _wrap_Annot_apn_bbox, METH_O, NULL},
+	 { "Annot_set_apn_matrix", _wrap_Annot_set_apn_matrix, METH_VARARGS, NULL},
+	 { "Annot_set_apn_bbox", _wrap_Annot_set_apn_bbox, METH_VARARGS, NULL},
 	 { "Annot_blendMode", _wrap_Annot_blendMode, METH_O, NULL},
-	 { "Annot_setBlendMode", _wrap_Annot_setBlendMode, METH_VARARGS, NULL},
+	 { "Annot_set_blendmode", _wrap_Annot_set_blendmode, METH_VARARGS, NULL},
 	 { "Annot_getOC", _wrap_Annot_getOC, METH_O, NULL},
 	 { "Annot_set_open", _wrap_Annot_set_open, METH_VARARGS, NULL},
 	 { "Annot_is_open", _wrap_Annot_is_open, METH_O, NULL},
@@ -26884,40 +27068,40 @@ static PyMethodDef SwigMethods[] = {
 	 { "Annot_set_popup", _wrap_Annot_set_popup, METH_VARARGS, NULL},
 	 { "Annot_popup_rect", _wrap_Annot_popup_rect, METH_O, NULL},
 	 { "Annot_popup_xref", _wrap_Annot_popup_xref, METH_O, NULL},
-	 { "Annot_setOC", _wrap_Annot_setOC, METH_VARARGS, NULL},
+	 { "Annot_set_optional_content", _wrap_Annot_set_optional_content, METH_VARARGS, NULL},
 	 { "Annot_language", _wrap_Annot_language, METH_O, NULL},
 	 { "Annot_set_language", _wrap_Annot_set_language, METH_VARARGS, NULL},
 	 { "Annot__getAP", _wrap_Annot__getAP, METH_O, NULL},
 	 { "Annot__setAP", _wrap_Annot__setAP, METH_VARARGS, NULL},
 	 { "Annot__get_redact_values", _wrap_Annot__get_redact_values, METH_O, NULL},
-	 { "Annot_getTextPage", _wrap_Annot_getTextPage, METH_VARARGS, NULL},
-	 { "Annot_setName", _wrap_Annot_setName, METH_VARARGS, NULL},
-	 { "Annot_setRect", _wrap_Annot_setRect, METH_VARARGS, NULL},
-	 { "Annot_setRotation", _wrap_Annot_setRotation, METH_VARARGS, NULL},
+	 { "Annot_get_textpage", _wrap_Annot_get_textpage, METH_VARARGS, NULL},
+	 { "Annot_set_name", _wrap_Annot_set_name, METH_VARARGS, NULL},
+	 { "Annot_set_rect", _wrap_Annot_set_rect, METH_VARARGS, NULL},
+	 { "Annot_set_rotation", _wrap_Annot_set_rotation, METH_VARARGS, NULL},
 	 { "Annot_rotation", _wrap_Annot_rotation, METH_O, NULL},
 	 { "Annot_vertices", _wrap_Annot_vertices, METH_O, NULL},
 	 { "Annot_colors", _wrap_Annot_colors, METH_O, NULL},
 	 { "Annot__update_appearance", _wrap_Annot__update_appearance, METH_VARARGS, NULL},
-	 { "Annot_setColors", _wrap_Annot_setColors, METH_VARARGS, NULL},
+	 { "Annot_set_colors", _wrap_Annot_set_colors, METH_VARARGS, NULL},
 	 { "Annot_lineEnds", _wrap_Annot_lineEnds, METH_O, NULL},
-	 { "Annot_setLineEnds", _wrap_Annot_setLineEnds, METH_VARARGS, NULL},
+	 { "Annot_set_line_ends", _wrap_Annot_set_line_ends, METH_VARARGS, NULL},
 	 { "Annot_type", _wrap_Annot_type, METH_O, NULL},
 	 { "Annot_opacity", _wrap_Annot_opacity, METH_O, NULL},
-	 { "Annot_setOpacity", _wrap_Annot_setOpacity, METH_VARARGS, NULL},
+	 { "Annot_set_opacity", _wrap_Annot_set_opacity, METH_VARARGS, NULL},
 	 { "Annot_fileInfo", _wrap_Annot_fileInfo, METH_O, NULL},
-	 { "Annot_fileGet", _wrap_Annot_fileGet, METH_O, NULL},
-	 { "Annot_soundGet", _wrap_Annot_soundGet, METH_O, NULL},
-	 { "Annot_fileUpd", _wrap_Annot_fileUpd, METH_VARARGS, NULL},
+	 { "Annot_get_file", _wrap_Annot_get_file, METH_O, NULL},
+	 { "Annot_get_sound", _wrap_Annot_get_sound, METH_O, NULL},
+	 { "Annot_update_file", _wrap_Annot_update_file, METH_VARARGS, NULL},
 	 { "Annot_info", _wrap_Annot_info, METH_O, NULL},
-	 { "Annot_setInfo", _wrap_Annot_setInfo, METH_VARARGS, NULL},
+	 { "Annot_set_info", _wrap_Annot_set_info, METH_VARARGS, NULL},
 	 { "Annot_border", _wrap_Annot_border, METH_O, NULL},
-	 { "Annot_setBorder", _wrap_Annot_setBorder, METH_VARARGS, NULL},
+	 { "Annot_set_border", _wrap_Annot_set_border, METH_VARARGS, NULL},
 	 { "Annot_flags", _wrap_Annot_flags, METH_O, NULL},
 	 { "Annot__cleanContents", _wrap_Annot__cleanContents, METH_VARARGS, NULL},
-	 { "Annot_setFlags", _wrap_Annot_setFlags, METH_VARARGS, NULL},
+	 { "Annot_set_flags", _wrap_Annot_set_flags, METH_VARARGS, NULL},
 	 { "Annot_delete_responses", _wrap_Annot_delete_responses, METH_O, NULL},
 	 { "Annot_next", _wrap_Annot_next, METH_O, NULL},
-	 { "Annot_getPixmap", _wrap_Annot_getPixmap, METH_VARARGS, NULL},
+	 { "Annot_get_pixmap", _wrap_Annot_get_pixmap, METH_VARARGS, NULL},
 	 { "Annot_swigregister", Annot_swigregister, METH_O, NULL},
 	 { "delete_Link", _wrap_delete_Link, METH_O, NULL},
 	 { "Link__border", _wrap_Link__border, METH_VARARGS, NULL},

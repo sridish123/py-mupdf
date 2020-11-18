@@ -2,7 +2,7 @@
 
 ![logo](https://github.com/pymupdf/PyMuPDF/blob/master/demo/pymupdf.jpg)
 
-Release date: November 9, 2020
+Release date: November 30, 2020
 
 **Travis-CI:** [![Build Status](https://travis-ci.org/JorjMcKie/py-mupdf.svg?branch=master)](https://travis-ci.org/JorjMcKie/py-mupdf)
 
@@ -40,6 +40,7 @@ For **PDF documents,** there exists a plethorea of additional features: they can
 * Embedded files are fully supported.
 * PDFs can be reformatted to support double-sided printing, posterizing, applying logos or watermarks
 * Password protection is fully supported: decryption, encryption, encryption method selection, permmission level and user / owner password setting.
+* Support of the **PDF Optional Content** concept for images, text and drawings.
 * Low-level PDF structures can be accessed and modified.
 * PyMuPDF can also be used as a **module in the command line** using ``"python -m fitz ..."``. This is a versatile utility, which we will further develop going forward. It currently supports PDF document
 
