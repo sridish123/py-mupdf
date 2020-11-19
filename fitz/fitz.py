@@ -96,8 +96,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.4"
-VersionDate = "2020-11-18 05:52:26"
-version = (VersionBind, VersionFitz, "20201118055226")
+VersionDate = "2020-11-19 08:56:23"
+version = (VersionBind, VersionFitz, "20201119085623")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -3840,19 +3840,19 @@ class Document(object):
 
         return _fitz.Document_convertToPDF(self, from_page, to_page, rotate)
 
-    def getOC(self, xref):
+    def get_oc(self, xref):
         """Get xref of optional content object."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_getOC(self, xref)
+        return _fitz.Document_get_oc(self, xref)
 
-    def setOC(self, xref, oc):
+    def set_oc(self, xref, oc):
         """Attach optional content object to image or form xobject."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_setOC(self, xref, oc)
+        return _fitz.Document_set_oc(self, xref, oc)
 
     @property
     def pageCount(self):
@@ -4666,6 +4666,7 @@ class Document(object):
                     "producer": "info:Producer",
                     "creationDate": "info:CreationDate",
                     "modDate": "info:ModDate",
+                    "trapped": "info:Trapped",
                 }.items()
             ]
         )
@@ -6663,11 +6664,11 @@ class Annot(object):
 
     setBlendMode = set_blendmode
 
-    def getOC(self):
+    def get_oc(self):
         """Get annotation optional content reference."""
         CheckParent(self)
 
-        return _fitz.Annot_getOC(self)
+        return _fitz.Annot_get_oc(self)
 
     optional_content = property(getOC, doc="optional content xref")
 
@@ -6717,12 +6718,9 @@ class Annot(object):
         return _fitz.Annot_popup_xref(self)
 
     def set_optional_content(self, oc=0):
-        """Set annotation optional content xref."""
-        CheckParent(self)
-
         return _fitz.Annot_set_optional_content(self, oc)
 
-    setOC = set_optional_content
+    setOC = set_oc
 
     @property
     def language(self):

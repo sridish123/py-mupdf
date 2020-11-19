@@ -9049,7 +9049,7 @@ SWIGINTERN PyObject *Document_convertToPDF(struct Document *self,int from_page,i
             }
             return doc;
         }
-SWIGINTERN PyObject *Document_getOC(struct Document *self,int xref){
+SWIGINTERN PyObject *Document_get_oc(struct Document *self,int xref){
             PyObject *ret = NULL;
             pdf_obj *ind = NULL;
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
@@ -9080,7 +9080,7 @@ SWIGINTERN PyObject *Document_getOC(struct Document *self,int xref){
             }
             return ret;
         }
-SWIGINTERN PyObject *Document_setOC(struct Document *self,int xref,int oc){
+SWIGINTERN PyObject *Document_set_oc(struct Document *self,int xref,int oc){
             pdf_obj *ind = NULL, *indoc = NULL;
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
             fz_try(gctx) {
@@ -12922,7 +12922,7 @@ SWIGINTERN PyObject *Annot_set_blendmode(struct Annot *self,char *blend_mode){
             }
             return_none;
         }
-SWIGINTERN PyObject *Annot_getOC(struct Annot *self){
+SWIGINTERN PyObject *Annot_get_oc(struct Annot *self){
             int oc = 0;
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
@@ -15254,7 +15254,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Document_getOC(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Document_get_oc(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Document *arg1 = (struct Document *) 0 ;
   int arg2 ;
@@ -15265,19 +15265,19 @@ SWIGINTERN PyObject *_wrap_Document_getOC(PyObject *SWIGUNUSEDPARM(self), PyObje
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Document_getOC", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Document_get_oc", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_getOC" "', argument " "1"" of type '" "struct Document *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_get_oc" "', argument " "1"" of type '" "struct Document *""'"); 
   }
   arg1 = (struct Document *)(argp1);
   ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
   if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_getOC" "', argument " "2"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_get_oc" "', argument " "2"" of type '" "int""'");
   } 
   arg2 = (int)(val2);
   {
-    result = (PyObject *)Document_getOC(arg1,arg2);
+    result = (PyObject *)Document_get_oc(arg1,arg2);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -15290,7 +15290,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Document_setOC(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Document_set_oc(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Document *arg1 = (struct Document *) 0 ;
   int arg2 ;
@@ -15304,24 +15304,24 @@ SWIGINTERN PyObject *_wrap_Document_setOC(PyObject *SWIGUNUSEDPARM(self), PyObje
   PyObject *swig_obj[3] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Document_setOC", 3, 3, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Document_set_oc", 3, 3, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_setOC" "', argument " "1"" of type '" "struct Document *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_set_oc" "', argument " "1"" of type '" "struct Document *""'"); 
   }
   arg1 = (struct Document *)(argp1);
   ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
   if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_setOC" "', argument " "2"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_set_oc" "', argument " "2"" of type '" "int""'");
   } 
   arg2 = (int)(val2);
   ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
   if (!SWIG_IsOK(ecode3)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Document_setOC" "', argument " "3"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Document_set_oc" "', argument " "3"" of type '" "int""'");
   } 
   arg3 = (int)(val3);
   {
-    result = (PyObject *)Document_setOC(arg1,arg2,arg3);
+    result = (PyObject *)Document_set_oc(arg1,arg2,arg3);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -22670,7 +22670,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_getOC(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_get_oc(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   void *argp1 = 0 ;
@@ -22682,11 +22682,11 @@ SWIGINTERN PyObject *_wrap_Annot_getOC(PyObject *SWIGUNUSEDPARM(self), PyObject 
   swig_obj[0] = args;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_getOC" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_get_oc" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   {
-    result = (PyObject *)Annot_getOC(arg1);
+    result = (PyObject *)Annot_get_oc(arg1);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -22905,13 +22905,7 @@ SWIGINTERN PyObject *_wrap_Annot_set_optional_content(PyObject *SWIGUNUSEDPARM(s
     } 
     arg2 = (int)(val2);
   }
-  {
-    result = (PyObject *)Annot_set_optional_content(arg1,arg2);
-    if (!result) {
-      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
-      return NULL;
-    }
-  }
+  result = (PyObject *)Annot_set_optional_content(arg1,arg2);
   resultobj = result;
   return resultobj;
 fail:
@@ -26869,8 +26863,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document__embeddedFileGet", _wrap_Document__embeddedFileGet, METH_VARARGS, NULL},
 	 { "Document__embeddedFileAdd", _wrap_Document__embeddedFileAdd, METH_VARARGS, NULL},
 	 { "Document_convertToPDF", _wrap_Document_convertToPDF, METH_VARARGS, NULL},
-	 { "Document_getOC", _wrap_Document_getOC, METH_VARARGS, NULL},
-	 { "Document_setOC", _wrap_Document_setOC, METH_VARARGS, NULL},
+	 { "Document_get_oc", _wrap_Document_get_oc, METH_VARARGS, NULL},
+	 { "Document_set_oc", _wrap_Document_set_oc, METH_VARARGS, NULL},
 	 { "Document_pageCount", _wrap_Document_pageCount, METH_O, NULL},
 	 { "Document_chapterCount", _wrap_Document_chapterCount, METH_O, NULL},
 	 { "Document_lastLocation", _wrap_Document_lastLocation, METH_O, NULL},
@@ -27061,7 +27055,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Annot_set_apn_bbox", _wrap_Annot_set_apn_bbox, METH_VARARGS, NULL},
 	 { "Annot_blendMode", _wrap_Annot_blendMode, METH_O, NULL},
 	 { "Annot_set_blendmode", _wrap_Annot_set_blendmode, METH_VARARGS, NULL},
-	 { "Annot_getOC", _wrap_Annot_getOC, METH_O, NULL},
+	 { "Annot_get_oc", _wrap_Annot_get_oc, METH_O, NULL},
 	 { "Annot_set_open", _wrap_Annot_set_open, METH_VARARGS, NULL},
 	 { "Annot_is_open", _wrap_Annot_is_open, METH_O, NULL},
 	 { "Annot_has_popup", _wrap_Annot_has_popup, METH_O, NULL},

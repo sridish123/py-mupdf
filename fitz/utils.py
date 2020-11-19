@@ -826,41 +826,39 @@ def getRectArea(*args):
 
 
 def setMetadata(doc, m):
-    """Set a PDF's metadata (/Info dictionary)\nm: dictionary like doc.metadata'."""
+    """Set PDF /Info object.
+
+    Args:
+        m: a dictionary like doc.metadata.
+    """
     if doc.isClosed or doc.isEncrypted:
         raise ValueError("document closed or encrypted")
     if type(m) is not dict:
-        raise ValueError("arg2 must be a dictionary")
+        raise ValueError("bad metadata argument")
+    keymap = {
+        "author": "/Author",
+        "producer": "/Producer",
+        "creator": "/Creator",
+        "title": "/Title",
+        "format": None,
+        "encryption": None,
+        "creationDate": "/CreationDate",
+        "modDate": "/ModDate",
+        "subject": "/Subject",
+        "keywords": "/Keywords",
+        "trapped": "/Trapped",
+    }
+    valid_keys = set(keymap.keys())
+    diff_set = set(m.keys()).difference(valid_keys)
+    if diff_set != set():
+        msg = "bad dict key(s): %s" % diff_set
+        raise ValueError(msg)
+
+    d = "<<"
     for k in m.keys():
-        if not k in (
-            "author",
-            "producer",
-            "creator",
-            "title",
-            "format",
-            "encryption",
-            "creationDate",
-            "modDate",
-            "subject",
-            "keywords",
-        ):
-            raise ValueError("invalid dictionary key: " + k)
-    d = "<</Author"
-    d += getPDFstr(m.get("author", "none"))
-    d += "/CreationDate"
-    d += getPDFstr(m.get("creationDate", "none"))
-    d += "/Creator"
-    d += getPDFstr(m.get("creator", "none"))
-    d += "/Keywords"
-    d += getPDFstr(m.get("keywords", "none"))
-    d += "/ModDate"
-    d += getPDFstr(m.get("modDate", "none"))
-    d += "/Producer"
-    d += getPDFstr(m.get("producer", "none"))
-    d += "/Subject"
-    d += getPDFstr(m.get("subject", "none"))
-    d += "/Title"
-    d += getPDFstr(m.get("title", "none"))
+        if m[k] and keymap[k] and m[k] != "none":
+            x = m[k] if m[k].startswith("/") else getPDFstr(m[k])
+            d += keymap[k] + x
     d += ">>"
     doc._setMetadata(d)
     doc.initData()
