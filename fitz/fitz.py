@@ -7000,6 +7000,9 @@ class Annot(object):
                 if item == b"BT":  # update text color
                     ap_tab[i + 1] = color_string(tcol, "f")
                     continue
+                if fill is None:
+                    if item.endswith((b" re")) and ap_tab[i + 1] == b"f":
+                        ap_tab[i + 1] = b"n"
 
             if dashes is not None:  # handle dashes
                 ap_tab.insert(0, dashes)

@@ -13272,8 +13272,13 @@ SWIGINTERN PyObject *Annot__update_appearance(struct Annot *self,float opacity,c
             JM_color_FromSequence(fill_color, &nfcol, fcol);
             fz_try(gctx) {
                 pdf_dirty_annot(gctx, annot); // enforce MuPDF /AP formatting
-                if (type == PDF_ANNOT_FREE_TEXT && EXISTS(fill_color))
-                    pdf_set_annot_color(gctx, annot, nfcol, fcol);
+                if (type == PDF_ANNOT_FREE_TEXT) {
+                    if (EXISTS(fill_color)) {
+                        pdf_set_annot_color(gctx, annot, nfcol, fcol);
+                    } else{
+                        pdf_dict_del(gctx, annot->obj, PDF_NAME(IC));
+                    }
+                }
 
                 int insert_rot = (rotate >= 0) ? 1 : 0;
                 switch (type) {
