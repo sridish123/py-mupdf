@@ -6670,8 +6670,6 @@ class Annot(object):
 
         return _fitz.Annot_get_oc(self)
 
-    optional_content = property(getOC, doc="optional content xref")
-
     def set_open(self, is_open):
         """Set 'open' status of annotation or its Popup."""
         CheckParent(self)
@@ -6717,8 +6715,11 @@ class Annot(object):
 
         return _fitz.Annot_popup_xref(self)
 
-    def set_optional_content(self, oc=0):
-        return _fitz.Annot_set_optional_content(self, oc)
+    def set_oc(self, oc=0):
+        """Set annotation optional content xref."""
+        CheckParent(self)
+
+        return _fitz.Annot_set_oc(self, oc)
 
     setOC = set_oc
 

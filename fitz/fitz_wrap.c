@@ -3474,8 +3474,8 @@ PyObject *JM_EscapeStrFromBuffer(fz_context *ctx, fz_buffer *buff)
 PyObject *JM_UnicodeFromBuffer(fz_context *ctx, fz_buffer *buff)
 {
     unsigned char *s = NULL;
-    size_t len = fz_buffer_storage(ctx, buff, &s);
-    PyObject *val = PyUnicode_FromStringAndSize((const char *) s, (Py_ssize_t) len);
+    Py_ssize_t len = (Py_ssize_t) fz_buffer_storage(ctx, buff, &s);
+    PyObject *val = PyUnicode_DecodeUTF8((const char *) s, len, "replace");
     if (!val) {
         val = EMPTY_STRING;
         PyErr_Clear();
@@ -5205,7 +5205,7 @@ fz_stext_page *JM_new_stext_page_from_page(fz_context *ctx, fz_page *page, fz_re
     fz_try(ctx) {
         tp = fz_new_stext_page(ctx, rect);
         dev = fz_new_stext_device(ctx, tp, &options);
-        fz_run_page_contents(ctx, page, dev, fz_identity, NULL);
+        fz_run_page(ctx, page, dev, fz_identity, NULL);
         fz_close_device(ctx, dev);
     }
     fz_always(ctx) {
@@ -13010,7 +13010,7 @@ SWIGINTERN PyObject *Annot_popup_xref(struct Annot *self){
             }
             return Py_BuildValue("i", xref);
         }
-SWIGINTERN PyObject *Annot_set_optional_content(struct Annot *self,int oc){
+SWIGINTERN PyObject *Annot_set_oc(struct Annot *self,int oc){
             fz_try(gctx) {
                 pdf_annot *annot = (pdf_annot *) self;
                 if (!oc) {
@@ -14115,21 +14115,18 @@ SWIGINTERN PyObject *TextPage__extractText(struct TextPage *self,int format){
             fz_stext_page *this_tpage = (fz_stext_page *) self;
             fz_try(gctx) {
                 res = fz_new_buffer(gctx, 1024);
+                out = fz_new_output_with_buffer(gctx, res);
                 switch(format) {
                     case(1):
-                        out = fz_new_output_with_buffer(gctx, res);
                         fz_print_stext_page_as_html(gctx, out, this_tpage, 0);
                         break;
                     case(3):
-                        out = fz_new_output_with_buffer(gctx, res);
                         fz_print_stext_page_as_xml(gctx, out, this_tpage, 0);
                         break;
                     case(4):
-                        out = fz_new_output_with_buffer(gctx, res);
                         fz_print_stext_page_as_xhtml(gctx, out, this_tpage, 0);
                         break;
                     default:
-                        out = fz_new_output_with_buffer(gctx, res);
                         JM_print_stext_page_as_text(gctx, out, this_tpage);
                         break;
                 }
@@ -22881,7 +22878,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Annot_set_optional_content(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Annot_set_oc(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Annot *arg1 = (struct Annot *) 0 ;
   int arg2 = (int) 0 ;
@@ -22892,20 +22889,26 @@ SWIGINTERN PyObject *_wrap_Annot_set_optional_content(PyObject *SWIGUNUSEDPARM(s
   PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Annot_set_optional_content", 1, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Annot_set_oc", 1, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Annot, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_optional_content" "', argument " "1"" of type '" "struct Annot *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Annot_set_oc" "', argument " "1"" of type '" "struct Annot *""'"); 
   }
   arg1 = (struct Annot *)(argp1);
   if (swig_obj[1]) {
     ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
     if (!SWIG_IsOK(ecode2)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_set_optional_content" "', argument " "2"" of type '" "int""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Annot_set_oc" "', argument " "2"" of type '" "int""'");
     } 
     arg2 = (int)(val2);
   }
-  result = (PyObject *)Annot_set_optional_content(arg1,arg2);
+  {
+    result = (PyObject *)Annot_set_oc(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
   resultobj = result;
   return resultobj;
 fail:
@@ -27062,7 +27065,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Annot_set_popup", _wrap_Annot_set_popup, METH_VARARGS, NULL},
 	 { "Annot_popup_rect", _wrap_Annot_popup_rect, METH_O, NULL},
 	 { "Annot_popup_xref", _wrap_Annot_popup_xref, METH_O, NULL},
-	 { "Annot_set_optional_content", _wrap_Annot_set_optional_content, METH_VARARGS, NULL},
+	 { "Annot_set_oc", _wrap_Annot_set_oc, METH_VARARGS, NULL},
 	 { "Annot_language", _wrap_Annot_language, METH_O, NULL},
 	 { "Annot_set_language", _wrap_Annot_set_language, METH_VARARGS, NULL},
 	 { "Annot__getAP", _wrap_Annot__getAP, METH_O, NULL},
