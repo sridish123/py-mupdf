@@ -2666,7 +2666,7 @@ def CheckMorph(o):
 
 def CheckFont(page, fontname):
     """Return an entry in the page's font list if reference name matches."""
-    for f in page.getFontList():
+    for f in page.get_fonts():
         if f[4] == fontname:
             return f
         if f[3].lower() == fontname.lower():
@@ -2996,17 +2996,18 @@ def repair_mono_font(page, font):
     Notes:
         Some mono-spaced fonts are displayed with a too large character
         distance, e.g. "a b c" instead of "abc". This utility adds an entry
-        "/W[0 65535 w]" to the descendent font(s) of font.
+        "/W[0 65535 w]" to the descendent font(s) of font. The float w is
+        taken to be the width of 0x20 (space).
         This should enforce viewers to use 'w' as the character width.
 
     Args:
         page: fitz.Page object.
         font: fitz.Font object.
     """
-    if not font.flags["mono"]:
+    if not font.flags["mono"]:  # font not flagged as monospaced
         return None
-    doc = page.parent
-    fontlist = page.getFontList()  # list of fonts on page
+    doc = page.parent  # the document
+    fontlist = page.get_fonts()  # list of fonts on page
     xrefs = [  # list of objects referring to font
         f[0]
         for f in fontlist
@@ -4014,12 +4015,12 @@ class Document(object):
 
         return _fitz.Document__deleteObject(self, xref)
 
-    def _getPDFroot(self):
+    def pdf_catalog(self):
         """Get xref of PDF catalog."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document__getPDFroot(self)
+        return _fitz.Document_pdf_catalog(self)
 
     def _getPDFfileid(self):
         """Get PDF file id."""
@@ -4309,12 +4310,12 @@ class Document(object):
             self, xref, bfname, ext, ordering, limit, idx
         )
 
-    def _getPageObjNumber(self, pno):
-        """Get (xref, generation) of page number."""
+    def page_xref(self, pno):
+        """Get xref of page number."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document__getPageObjNumber(self, pno)
+        return _fitz.Document_page_xref(self, pno)
 
     def pageCropBox(self, pno):
         """Get CropBox of page number (without loading page)."""
@@ -4417,19 +4418,19 @@ class Document(object):
 
         return _fitz.Document__getOLRootNumber(self)
 
-    def _getNewXref(self):
+    def get_new_xref(self):
         """Make new xref."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        return _fitz.Document__getNewXref(self)
+        return _fitz.Document_get_new_xref(self)
 
-    def _getXrefLength(self):
+    def xref_length(self):
         """Get length of xref table."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document__getXrefLength(self)
+        return _fitz.Document_xref_length(self)
 
     def getXmlMetadata(self):
         """Get document XML metadata."""
@@ -4438,68 +4439,70 @@ class Document(object):
 
         return _fitz.Document_getXmlMetadata(self)
 
-    def _getXmlMetadataXref(self):
+    def xref_xml_metadata(self):
         """Get xref of document XML metadata."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document__getXmlMetadataXref(self)
+        return _fitz.Document_xref_xml_metadata(self)
 
-    def _delXmlMetadata(self):
+    def del_xml_metadata(self):
         """Delete XML metadata."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        return _fitz.Document__delXmlMetadata(self)
+        return _fitz.Document_del_xml_metadata(self)
 
-    def setXmlMetadata(self, metadata):
-        """Store XML metadata."""
+    def set_xml_metadata(self, metadata):
+        """Store XML document level metadata."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        return _fitz.Document_setXmlMetadata(self, metadata)
+        return _fitz.Document_set_xml_metadata(self, metadata)
 
-    def _getXrefString(self, xref, compressed=0, ascii=0):
+    setXmlMetadata = set_xml_metadata
+
+    def xref_object(self, xref, compressed=0, ascii=0):
         """Get xref object source as a string."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document__getXrefString(self, xref, compressed, ascii)
+        return _fitz.Document_xref_object(self, xref, compressed, ascii)
 
-    def _getTrailerString(self, compressed=0, ascii=0):
+    def pdf_trailer(self, compressed=0, ascii=0):
         """Get PDF trailer as a string."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document__getTrailerString(self, compressed, ascii)
+        return _fitz.Document_pdf_trailer(self, compressed, ascii)
 
-    def _getXrefStreamRaw(self, xref):
+    def xref_stream_raw(self, xref):
         """Get xref stream without decompression."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        return _fitz.Document__getXrefStreamRaw(self, xref)
+        return _fitz.Document_xref_stream_raw(self, xref)
 
-    def _getXrefStream(self, xref):
+    def xref_stream(self, xref):
         """Get decompressed xref stream."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        return _fitz.Document__getXrefStream(self, xref)
+        return _fitz.Document_xref_stream(self, xref)
 
-    def _updateObject(self, xref, text, page=None):
+    def update_object(self, xref, text, page=None):
         """Replace object definition source."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        return _fitz.Document__updateObject(self, xref, text, page)
+        return _fitz.Document_update_object(self, xref, text, page)
 
-    def _updateStream(self, xref=0, stream=None, new=0):
+    def update_stream(self, xref=0, stream=None, new=0):
         """Replace xref stream part."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
 
-        return _fitz.Document__updateStream(self, xref, stream, new)
+        return _fitz.Document_update_stream(self, xref, stream, new)
 
     def _setMetadata(self, text):
         """Set old style metadata."""
@@ -4541,113 +4544,106 @@ class Document(object):
     def _update_toc_item(self, xref, action=None, title=None):
         return _fitz.Document__update_toc_item(self, xref, action, title)
 
-    def layerConfigs(self):
-        """Show optional content configurations."""
+    def get_layers(self):
+        """Show optional OC layers."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_layerConfigs(self)
+        return _fitz.Document_get_layers(self)
 
-    layer_configs = layerConfigs
-
-    def setLayerConfig(self, config, as_default=0):
-        """Activate a optional content configuration."""
+    def switch_layer(self, config, as_default=0):
+        """Activate an OC layer."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_setLayerConfig(self, config, as_default)
+        return _fitz.Document_switch_layer(self, config, as_default)
 
-    set_layer_config = setLayerConfig
-
-    def getOCStates(self, config=-1):
-        """Content of ON, OFF, RBGroups of an OC config."""
+    def get_layer(self, config=-1):
+        """Content of ON, OFF, RBGroups of an OC layer."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_getOCStates(self, config)
+        return _fitz.Document_get_layer(self, config)
 
-    get_oc_states = getOCStates
-
-    def setOCStates(self, config, basestate=None, on=None, off=None, rbgroups=None):
-        """Set ON, OFF, RBGroups of a configuration."""
+    def set_layer(self, config, basestate=None, on=None, off=None, rbgroups=None):
+        """Set the ON, OFF, RBGroups PDF keys of an OC layer."""
         if self.isClosed:
             raise ValueError("document closed")
-        ocgs = set(self.getOCGs().keys())
+        ocgs = set(self.get_ocgs().keys())
+        if ocgs == set():
+            raise ValueError("document has no optional content")
 
-        if on is not None:
+        if on:
             if type(on) not in (list, tuple):
                 raise ValueError("bad type: 'on'")
-            if not set(on) <= ocgs:
-                raise ValueError("bad OCGs in 'on'")
+            s = set(on).difference(ocgs)
+            if s != set():
+                raise ValueError("bad OCGs in 'on': %s" % s)
 
-        if off is not None:
+        if off:
             if type(off) not in (list, tuple):
                 raise ValueError("bad type: 'off'")
-            if not set(off) <= ocgs:
-                raise ValueError("bad OCGs in 'off'")
+            s = set(off).difference(ocgs)
+            if s != set():
+                raise ValueError("bad OCGs in 'off': %s" % s)
 
-        if rbgroups is not None:
+        if rbgroups:
             if type(rbgroups) not in (list, tuple):
                 raise ValueError("bad type: 'rbgroups'")
             for x in rbgroups:
-                if not (type(x) in (list, tuple) and set(x) <= ocgs):
-                    raise ValueError("bad OCGs or item types in 'rbgroups'")
+                if not type(x) in (list, tuple):
+                    raise ValueError("bad RBGroup '%s'" % x)
+                s = set(x).difference(ocgs)
+                if f != set():
+                    raise ValueError("bad OCGs in RBGroup: %s" % s)
 
-        if basestate is not None:
-            basestate = basestate.upper()
+        if basestate:
+            basestate = str(basestate).upper()
             if basestate == "UNCHANGED":
                 basestate = "Unchanged"
             if basestate not in ("ON", "OFF", "Unchanged"):
-                raise ValueError("bad value: 'basestate'")
+                raise ValueError("bad 'basestate'")
 
-        return _fitz.Document_setOCStates(self, config, basestate, on, off, rbgroups)
+        return _fitz.Document_set_layer(self, config, basestate, on, off, rbgroups)
 
-    set_oc_states = setOCStates
-
-    def addLayerConfig(self, name, creator=None, on=None):
-        """Add new optional content configuration."""
+    def add_layer(self, name, creator=None, on=None):
+        """Add a new OC layer."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_addLayerConfig(self, name, creator, on)
+        return _fitz.Document_add_layer(self, name, creator, on)
 
-    add_layer_config = addLayerConfig
-
-    def layerUIConfigs(self):
+    def layer_ui_configs(self):
         """Show OC visibility status modifyable by user."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_layerUIConfigs(self)
+        return _fitz.Document_layer_ui_configs(self)
 
-    layer_ui_configs = layerUIConfigs
-
-    def setLayerUIConfig(self, number, action=0):
+    def set_layer_ui_config(self, number, action=0):
         """Set / unset OC intent configuration."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_setLayerUIConfig(self, number, action)
+        return _fitz.Document_set_layer_ui_config(self, number, action)
 
-    set_layer_ui_config = setLayerUIConfig
-
-    def getOCGs(self):
+    def get_ocgs(self):
         """Show existing optional content groups."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_getOCGs(self)
+        return _fitz.Document_get_ocgs(self)
 
-    get_ocgs = getOCGs
+    getOCGs = get_ocgs
 
-    def addOCG(self, name, config=-1, on=1, intent=None, usage=None):
+    def add_ocg(self, name, config=-1, on=1, intent=None, usage=None):
         """Add new optional content group."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_addOCG(self, name, config, on, intent, usage)
+        return _fitz.Document_add_ocg(self, name, config, on, intent, usage)
 
-    add_ocg = addOCG
+    addOCG = add_ocg
 
     def initData(self):
         if self.isEncrypted:
@@ -4677,13 +4673,10 @@ class Document(object):
         )
 
     outline = property(lambda self: self._outline)
-    _getPageXref = _getPageObjNumber
+    _getPageXref = page_xref
+    pageXref = page_xref
 
-    def pageXref(self, pno):
-        """Return the xref of page number pno."""
-        return self._getPageObjNumber(pno)[0]
-
-    def getPageFontList(self, pno, full=False):
+    def get_page_fonts(self, pno, full=False):
         """Retrieve a list of fonts used on a page."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
@@ -4694,7 +4687,9 @@ class Document(object):
             return [v[:-1] for v in val]
         return val
 
-    def getPageImageList(self, pno, full=False):
+    getPageFontList = get_page_fonts
+
+    def get_page_images(self, pno, full=False):
         """Retrieve a list of images used on a page."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
@@ -4705,7 +4700,9 @@ class Document(object):
             return [v[:-1] for v in val]
         return val
 
-    def getPageXObjectList(self, pno):
+    getPageImageList = get_page_images
+
+    def get_page_xobjects(self, pno):
         """Retrieve a list of XObjects used on a page."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
@@ -4713,6 +4710,8 @@ class Document(object):
             return ()
         val = self._getPageInfo(pno, 3)
         return val
+
+    getPageXObjectList = get_page_xobjects
 
     def copyPage(self, pno, to=-1):
         """Copy a page within a PDF document.
@@ -4815,45 +4814,6 @@ class Document(object):
         """ Save PDF incrementally"""
         return self.save(self.name, incremental=True, encryption=PDF_ENCRYPT_KEEP)
 
-    def xrefLength(self):
-        """Return the length of the xref table."""
-        return self._getXrefLength()
-
-    def get_pdf_object(self, xref, compressed=False, ascii=False):
-        """Return the object definition of an xref."""
-        return self._getXrefString(xref, compressed, ascii)
-
-    def updateObject(self, xref, text, page=None):
-        """Repleace the object at xref with text.
-
-        Optionally reload a page.
-        """
-        return self._updateObject(xref, text, page=page)
-
-    def xrefStream(self, xref):
-        """Return the decompressed stream content of an xref."""
-        return self._getXrefStream(xref)
-
-    def xrefStreamRaw(self, xref):
-        """Return the raw stream content of an xref."""
-        return self._getXrefStreamRaw(xref)
-
-    def updateStream(self, xref, stream, new=False):
-        """Repleace the stream at xref with stream (bytes)."""
-        return self._updateStream(xref, stream, new=new)
-
-    def PDFTrailer(self, compressed=False, ascii=False):
-        """Return the PDF trailer string."""
-        return self._getTrailerString(compressed, ascii)
-
-    def PDFCatalog(self):
-        """Return the xref of the PDF catalog object."""
-        return self._getPDFroot()
-
-    def metadataXML(self):
-        """Get xref of document XML metadata."""
-        return self._getXmlMetadataXref()
-
     def reload_page(self, page):
         """Make a fresh copy of a page."""
         old_annots = {}  # copy annot references to here
@@ -4872,7 +4832,15 @@ class Document(object):
             page._annot_refs[k] = annot
         return page
 
-    xrefObject = get_pdf_object
+    updateObject = update_object
+    updateStream = update_stream
+    xrefStream = xref_stream
+    xrefStreamRaw = xref_stream_raw
+    xrefObject = xref_object
+    xrefLength = xref_length
+    PDFTrailer = pdf_trailer
+    PDFCatalog = pdf_catalog
+    metadataXML = xref_xml_metadata
 
     def __repr__(self):
         m = "closed " if self.isClosed else ""
@@ -5445,6 +5413,25 @@ class Page(object):
         self._set_resource_property(mc, oc)
         return mc
 
+    def get_oc_items(self):
+        """Get OCGs and OCMDs used in the page's contents.
+
+        Returns:
+            List of items (name, xref, type), where type is one of "ocg" / "ocmd",
+            and name is the property name.
+        """
+        rc = []
+        for pname, xref in self._get_resource_properties():
+            text = self.parent.xrefObject(xref, compressed=True)
+            if "/Type/OCG" in text:
+                octype = "ocg"
+            elif "/Type/OCMD" in text:
+                octype = "ocmd"
+            else:
+                continue
+            rc.append((pname, xref, octype))
+        return rc
+
     def annot_names(self):
         """List of names of annotations, fields and links."""
         CheckParent(self)
@@ -5817,11 +5804,13 @@ class Page(object):
     def _getLinkXrefs(self):
         return _fitz.Page__getLinkXrefs(self)
 
-    def _cleanContents(self, sanitize=0):
-        """Clean page /Contents object(s)."""
+    def clean_contents(self, sanitize=1):
+        """Clean page /Contents into one object."""
         CheckParent(self)
+        if not sanitize and not self.is_wrapped:
+            self.wrap_contents()
 
-        return _fitz.Page__cleanContents(self, sanitize)
+        return _fitz.Page_clean_contents(self, sanitize)
 
     def _showPDFpage(
         self,
@@ -5994,39 +5983,50 @@ class Page(object):
 
         return val
 
-    def _getContents(self):
-        """Get xref list of /Contents objects."""
+    def get_contents(self):
+        """Get xrefs of /Contents objects."""
         CheckParent(self)
 
-        return _fitz.Page__getContents(self)
+        return _fitz.Page_get_contents(self)
 
-    def _setContents(self, xref=0):
-        """Set bytes as the (only) /Contents object."""
+    def set_contents(self, xref):
+        """Set an xref as the (only) /Contents object."""
         CheckParent(self)
 
-        return _fitz.Page__setContents(self, xref)
+        return _fitz.Page_set_contents(self, xref)
 
     @property
-    def _isWrapped(self):
-        """Check if /Contents is wrapped in string pair "q" / "Q"."""
-        cont = self.readContents().split()
-        if len(cont) < 1 or cont[0] != b"q" or cont[-1] != b"Q":
-            return False
+    def is_wrapped(self):
+        """Check if /Contents is wrapped with string pair "q" / "Q"."""
+        if getattr(self, "was_wrapped", False):  # costly checks only once
+            return True
+        cont = self.read_contents().split()
+        if cont == []:  # no contents treated as okay
+            self.was_wrapped = True
+            return True
+        if cont[0] != b"q" or cont[-1] != b"Q":
+            return False  # potential "geometry" issue
+        self.was_wrapped = True  # cheap check next time
         return True
 
-    def _wrapContents(self):
+    _isWrapped = is_wrapped
+
+    def wrap_contents(self):
+        if self.is_wrapped:  # avoid unnecessary wrapping
+            return
         TOOLS._insert_contents(self, b"q\n", False)
         TOOLS._insert_contents(self, b"\nQ", True)
+        self.was_wrapped = True  # indicate not needed again
 
-    wrapContents = _wrapContents
+    wrapContents = wrap_contents
 
     def links(self, kinds=None):
         """Generator over the links of a page.
 
         Args:
-            kinds: (tuple) link kinds to subselect from. If none,
-                    all links are returned. E.g. kinds=(LINK_URI,)
-                    will only yield URI links.
+            kinds: (list) link kinds to subselect from. If none,
+                   all links are returned. E.g. kinds=[LINK_URI]
+                   will only yield URI links.
         """
         all_links = self.getLinks()
         for link in all_links:
@@ -6037,9 +6037,9 @@ class Page(object):
         """Generator over the annotations of a page.
 
         Args:
-            types: (tuple) annotation types to subselect from. If none,
-                    all annotations are returned. E.g. types=(PDF_ANNOT_LINE,)
-                    will only yield line annotations.
+            types: (list) annotation types to subselect from. If none,
+                   all annotations are returned. E.g. types=[PDF_ANNOT_LINE]
+                   will only yield line annotations.
         """
         annot = self.firstAnnot
         while annot:
@@ -6051,8 +6051,8 @@ class Page(object):
         """Generator over the widgets of a page.
 
         Args:
-            types: (tuple) field types to subselect from. If none,
-                    all fields are returned. E.g. types=(PDF_WIDGET_TYPE_TEXT,)
+            types: (list) field types to subselect from. If none,
+                    all fields are returned. E.g. types=[PDF_WIDGET_TYPE_TEXT]
                     will only yield text fields.
         """
         widget = self.firstWidget
@@ -6096,7 +6096,7 @@ class Page(object):
     def xref(self):
         """PDF xref number of page."""
         CheckParent(self)
-        return self.parent._getPageXref(self.number)[0]
+        return self.parent.page_xref(self.number)
 
     def _erase(self):
         self._reset_annot_refs()
@@ -6113,30 +6113,34 @@ class Page(object):
     def __del__(self):
         self._erase()
 
-    def getFontList(self, full=False):
+    def get_fonts(self, full=False):
         """List of fonts defined in the page object."""
         CheckParent(self)
-        return self.parent.getPageFontList(self.number, full=full)
+        return self.parent.get_page_fonts(self.number, full=full)
 
-    def getImageList(self, full=False):
+    getFontList = get_fonts
+
+    def get_images(self, full=False):
         """List of images defined in the page object."""
         CheckParent(self)
-        return self.parent.getPageImageList(self.number, full=full)
+        return self.parent.get_page_images(self.number, full=full)
+
+    getImageList = get_images
 
     def readContents(self):
-        """All /Contents streams concatenated in one bytes object."""
+        """All /Contents streams concatenated to one bytes object."""
+        return TOOLS._get_all_contents(self)
+
+    def read_contents(self):
+        """All /Contents streams concatenated to one bytes object."""
         return TOOLS._get_all_contents(self)
 
     @property
     def MediaBoxSize(self):
         return Point(self.MediaBox.width, self.MediaBox.height)
 
-    def cleanContents(self, sanitize=True):
-        if not sanitize and not self._isWrapped:
-            self.wrapContents()
-        self._cleanContents(sanitize)
-
-    getContents = _getContents
+    cleanContents = clean_contents
+    getContents = get_contents
 
 
 # Register Page in _fitz:
@@ -6610,8 +6614,6 @@ class Annot(object):
 
         return val
 
-    APNMatrix = apn_matrix
-
     @property
     def apn_bbox(self):
         """annotation appearance bbox"""
@@ -6624,15 +6626,11 @@ class Annot(object):
 
         return val
 
-    APNBBox = apn_bbox
-
     def set_apn_matrix(self, matrix):
         """Set annotation appearance matrix."""
         CheckParent(self)
 
         return _fitz.Annot_set_apn_matrix(self, matrix)
-
-    setAPNMatrix = set_apn_matrix
 
     def set_apn_bbox(self, bbox):
 
@@ -6646,23 +6644,17 @@ class Annot(object):
 
         return _fitz.Annot_set_apn_bbox(self, bbox)
 
-    setAPNBBox = set_apn_bbox
-
     def blendMode(self):
         """annotation BlendMode"""
         CheckParent(self)
 
         return _fitz.Annot_blendMode(self)
 
-    blendmode = property(blendMode, doc="annotation BlendMode")
-
     def set_blendmode(self, blend_mode):
         """Set annotation BlendMode."""
         CheckParent(self)
 
         return _fitz.Annot_set_blendmode(self, blend_mode)
-
-    setBlendMode = set_blendmode
 
     def get_oc(self):
         """Get annotation optional content reference."""
@@ -6691,14 +6683,14 @@ class Annot(object):
         return _fitz.Annot_has_popup(self)
 
     def set_popup(self, rect):
-        """Set the 'Popup' of annotation."""
+        """Create annotation 'Popup' or update rectangle."""
         CheckParent(self)
 
         return _fitz.Annot_set_popup(self, rect)
 
     @property
     def popup_rect(self):
-        """Rectangle of the annotation's 'Popup'."""
+        """annotation 'Popup' rectangle"""
         CheckParent(self)
 
         val = _fitz.Annot_popup_rect(self)
@@ -6710,13 +6702,13 @@ class Annot(object):
 
     @property
     def popup_xref(self):
-        """xref of the annotation's 'Popup'."""
+        """annotation 'Popup' xref"""
         CheckParent(self)
 
         return _fitz.Annot_popup_xref(self)
 
     def set_oc(self, oc=0):
-        """Set annotation optional content xref."""
+        """Set / remove annotation OC xref."""
         CheckParent(self)
 
         return _fitz.Annot_set_oc(self, oc)
@@ -6757,12 +6749,10 @@ class Annot(object):
         return val
 
     def get_textpage(self, clip=None, flags=0):
-        """Get annotation TextPage."""
+        """Make annotation TextPage."""
         CheckParent(self)
 
         return _fitz.Annot_get_textpage(self, clip, flags)
-
-    getTextPage = get_textpage
 
     def set_name(self, name):
         """Set /Name (icon) of annotation."""
@@ -6770,23 +6760,17 @@ class Annot(object):
 
         return _fitz.Annot_set_name(self, name)
 
-    setName = set_name
-
     def set_rect(self, rect):
         """Set annotation rectangle."""
         CheckParent(self)
 
         return _fitz.Annot_set_rect(self, rect)
 
-    setRect = set_rect
-
     def set_rotation(self, rotate=0):
         """Set annotation rotation."""
         CheckParent(self)
 
         return _fitz.Annot_set_rotation(self, rotate)
-
-    setRotation = set_rotation
 
     @property
     def rotation(self):
@@ -6872,12 +6856,10 @@ class Annot(object):
         dt = self.border["dashes"]  # get the dashes spec
         bwidth = self.border["width"]  # get border line width
         stroke = self.colors["stroke"]  # get the stroke color
-        if fill_color is not None and type in (PDF_ANNOT_FREE_TEXT, PDF_ANNOT_REDACT):
+        if fill_color != None:
             fill = fill_color
         else:
             fill = self.colors["fill"]
-            if not fill:
-                fill = None
 
         rect = None  # self.rect  # prevent MuPDF fiddling with it
         apnmat = self.apn_matrix  # prevent MuPDF fiddling with it
@@ -7000,7 +6982,7 @@ class Annot(object):
                 if item == b"BT":  # update text color
                     ap_tab[i + 1] = color_string(tcol, "f")
                     continue
-                if fill is None:
+                if not fill:
                     if item.endswith((b" re")) and ap_tab[i + 1] == b"f":
                         ap_tab[i + 1] = b"n"
 
@@ -7018,7 +7000,7 @@ class Annot(object):
                 if type == PDF_ANNOT_POLYGON:
                     ap = ap + bfill + b"b"  # close, fill, and stroke
                 elif type == PDF_ANNOT_POLY_LINE:
-                    ap = ap + bfill + b"B"  # fill and stroke
+                    ap = ap + b"S"  # stroke
             else:
                 if type == PDF_ANNOT_POLYGON:
                     ap = ap + b"s"  # close and stroke
@@ -7127,24 +7109,18 @@ class Annot(object):
 
         return _fitz.Annot_set_colors(self, colors, fill, stroke)
 
-    setColors = set_colors
-
     @property
-    def lineEnds(self):
+    def line_ends(self):
         """Line end codes."""
         CheckParent(self)
 
-        return _fitz.Annot_lineEnds(self)
-
-    line_ends = lineEnds
+        return _fitz.Annot_line_ends(self)
 
     def set_line_ends(self, start, end):
         """Set line end codes."""
         CheckParent(self)
 
         return _fitz.Annot_set_line_ends(self, start, end)
-
-    setLineEnds = set_line_ends
 
     @property
     def type(self):
@@ -7166,23 +7142,17 @@ class Annot(object):
 
         return _fitz.Annot_set_opacity(self, opacity)
 
-    setOpacity = set_opacity
-
     def fileInfo(self):
         """Attached file information."""
         CheckParent(self)
 
         return _fitz.Annot_fileInfo(self)
 
-    file_info = property(fileInfo, doc="Attached file information")
-
     def get_file(self):
-        """Attached file content."""
+        """Retrieve attached file content."""
         CheckParent(self)
 
         return _fitz.Annot_get_file(self)
-
-    fileGet = get_file
 
     def get_sound(self):
         """Retrieve sound stream."""
@@ -7190,15 +7160,11 @@ class Annot(object):
 
         return _fitz.Annot_get_sound(self)
 
-    soundGet = get_sound
-
     def update_file(self, buffer=None, filename=None, ufilename=None, desc=None):
         """Update attached file."""
         CheckParent(self)
 
         return _fitz.Annot_update_file(self, buffer, filename, ufilename, desc)
-
-    fileUpd = update_file
 
     @property
     def info(self):
@@ -7231,8 +7197,6 @@ class Annot(object):
             self, info, content, title, creationDate, modDate, subject
         )
 
-    setInfo = set_info
-
     @property
     def border(self):
         """Border information."""
@@ -7251,8 +7215,6 @@ class Annot(object):
 
         return _fitz.Annot_set_border(self, border, width, style, dashes)
 
-    setBorder = set_border
-
     @property
     def flags(self):
         """Flags field."""
@@ -7260,13 +7222,11 @@ class Annot(object):
 
         return _fitz.Annot_flags(self)
 
-    def _cleanContents(self, sanitize=0):
-        """Clean appearance contents object."""
+    def clean_contents(self, sanitize=1):
+        """Clean appearance contents stream."""
         CheckParent(self)
 
-        return _fitz.Annot__cleanContents(self, sanitize)
-
-    clean_contents = _cleanContents
+        return _fitz.Annot_clean_contents(self, sanitize)
 
     def set_flags(self, flags):
         """Set annotation flags."""
@@ -7274,10 +7234,8 @@ class Annot(object):
 
         return _fitz.Annot_set_flags(self, flags)
 
-    setFlags = set_flags
-
     def delete_responses(self):
-        """Delete responding annotations."""
+        """Delete 'Popup' and responding annotations."""
         CheckParent(self)
 
         return _fitz.Annot_delete_responses(self)
@@ -7312,7 +7270,24 @@ class Annot(object):
 
         return _fitz.Annot_get_pixmap(self, matrix, colorspace, alpha)
 
+    blendmode = property(blendMode, doc="annotation BlendMode")
+    file_info = property(fileInfo, doc="Attached file information")
+    fileGet = get_file
+    fileUpd = update_file
     getPixmap = get_pixmap
+    getTextPage = get_textpage
+    lineEnds = line_ends
+    setBlendMode = set_blendmode
+    setBorder = set_border
+    setColors = set_colors
+    setFlags = set_flags
+    setInfo = set_info
+    setLineEnds = set_line_ends
+    setName = set_name
+    setOpacity = set_opacity
+    setRect = set_rect
+    setRotation = set_rotation
+    soundGet = get_sound
 
     def _erase(self):
         try:

@@ -13,18 +13,8 @@ This is a collection of functions to extend PyMupdf.
 """
 
 
-def writeText(
-    page,
-    rect=None,
-    writers=None,
-    opacity=None,
-    color=None,
-    overlay=True,
-    keep_proportion=True,
-    rotate=0,
-    oc=0,
-):
-    """Write the text of one or TextWriter objects.
+def writeText(page, **kwargs):
+    """Write the text of one or more TextWriter objects.
 
     Args:
         rect: target rectangle. If None, the union of the text writers is used.
@@ -34,6 +24,17 @@ def writeText(
         rotate: arbitrary rotation angle.
         oc: the xref of an optional content object
     """
+    if type(page) is not Page:
+        raise ValueError("bad page parameter")
+    rect = kwargs.get("rect")
+    writers = kwargs.get("writers")
+    opacity = kwargs.get("opacity")
+    color = kwargs.get("color")
+    overlay = bool(kwargs.get("overlay", True))
+    keep_proportion = bool(kwargs.get("keep_proportion", True))
+    rotate = int(kwargs.get("rotate", 0))
+    oc = int(kwargs.get("oc", 0))
+
     if not writers:
         raise ValueError("need at least one TextWriter")
     if type(writers) is TextWriter:
@@ -64,18 +65,7 @@ def writeText(
     tpage = None
 
 
-def showPDFpage(
-    page,
-    rect,
-    src,
-    pno=0,
-    overlay=True,
-    keep_proportion=True,
-    rotate=0,
-    oc=0,
-    reuse_xref=0,
-    clip=None,
-):
+def showPDFpage(*args, **kwargs):
     """Show page number 'pno' of PDF 'src' in rectangle 'rect'.
 
     Args:
@@ -89,6 +79,16 @@ def showPDFpage(
     Returns:
         xref of inserted object (for reuse)
     """
+    if len(args) != 3:
+        raise ValueError("bad number of positional parameters")
+    page, rect, src = args
+    pno = int(kwargs.get("pno", 0))
+    overlay = bool(kwargs.get("overlay", True))
+    keep_proportion = bool(kwargs.get("keep_proportion", True))
+    rotate = float(kwargs.get("rotate", 0))
+    oc = int(kwargs.get("oc", 0))
+    reuse_xref = int(kwargs.get("reuse_xref", 0))
+    clip = kwargs.get("clip")
 
     def calc_matrix(sr, tr, keep=True, rotate=0):
         """Calculate transformation matrix from source to target rect.
@@ -138,9 +138,9 @@ def showPDFpage(
         warnings.warn("ignoring 'reuse_xref'", DeprecationWarning)
 
     while pno < 0:  # support negative page numbers
-        pno += len(src)
-    src_page = src[pno]  # load ource page
-    if len(src_page._getContents()) == 0:
+        pno += src.pageCount
+    src_page = src[pno]  # load source page
+    if src_page.get_contents() == []:
         raise ValueError("nothing to show - source page empty")
 
     tar_rect = rect * ~page.transformationMatrix  # target rect in PDF coordinates
@@ -192,18 +192,7 @@ def showPDFpage(
     return xref
 
 
-def insertImage(
-    page,
-    rect,
-    filename=None,
-    pixmap=None,
-    stream=None,
-    mask=None,
-    rotate=0,
-    oc=0,
-    keep_proportion=True,
-    overlay=True,
-):
+def insertImage(*args, **kwargs):
     """Insert an image in a rectangle on the current page.
 
     Notes:
@@ -211,7 +200,7 @@ def insertImage(
     Args:
         rect: (rect-like) where to place the source image
         filename: (str) name of an image file
-        pixmap: (obj) a Pixmap object
+        pixmap: a Pixmap object
         stream: (bytes) an image in memory
         mask: (bytes) enforce this image mask
         rotate: (int) degrees (int multiple of 90)
@@ -219,6 +208,17 @@ def insertImage(
         keep_proportion: (bool) whether to maintain aspect ratio
         overlay: (bool) put in foreground
     """
+    if len(args) != 2:
+        raise ValueError("bad number of positional parameters")
+    page, rect = args
+    filename = kwargs.get("filename")
+    pixmap = kwargs.get("pixmap")
+    stream = kwargs.get("stream")
+    mask = kwargs.get("mask")
+    rotate = int(kwargs.get("rotate", 0))
+    oc = int(kwargs.get("oc", 0))
+    keep_proportion = bool(kwargs.get("keep_proportion", True))
+    overlay = bool(kwargs.get("overlay", True))
 
     def calc_hash(stream):
         m = hashlib.sha1()
@@ -277,7 +277,6 @@ def insertImage(
         return m
 
     # ------------------------------------------------------------------------
-
     CheckParent(page)
     doc = page.parent
     if not doc.isPDF:
@@ -379,7 +378,7 @@ def insertImage(
         doc.InsertedImages[digest] = xref
 
 
-def searchFor(page, text, hit_max=16, quads=False, clip=None, flags=None):
+def searchFor(*args, **kwargs):
     """Search for a string on a page.
 
     Args:
@@ -390,6 +389,13 @@ def searchFor(page, text, hit_max=16, quads=False, clip=None, flags=None):
     Returns:
         a list of rectangles or quads, each containing one occurrence.
     """
+    if len(args) != 2:
+        raise ValueError("bad number of positional parameters")
+    page, text = args
+    quads = kwargs.get("quads")
+    clip = kwargs.get("clip")
+    flags = kwargs.get("flags")
+
     CheckParent(page)
     if flags is None:
         flags = TEXT_DEHYPHENATE
@@ -545,7 +551,7 @@ def getPageText(doc, pno, option="text", clip=None, flags=None):
     return doc[pno].getText(option, clip=clip, flags=flags)
 
 
-def getPixmap(page, matrix=None, colorspace=csRGB, clip=None, alpha=False, annots=True):
+def getPixmap(page, **kw):
     """Create pixmap of page.
 
     Args:
@@ -556,6 +562,12 @@ def getPixmap(page, matrix=None, colorspace=csRGB, clip=None, alpha=False, annot
         annots: (bool) whether to also render annotations
     """
     CheckParent(page)
+    matrix = kw.get("matrix", Identity)
+    colorspace = kw.get("colorspace", csRGB)
+    clip = kw.get("clip")
+    alpha = bool(kw.get("alpha", False))
+    annots = bool(kw.get("annots", True))
+
     if type(colorspace) is str:
         if colorspace.upper() == "GRAY":
             colorspace = csGRAY
@@ -974,7 +986,7 @@ def setToC(doc, toc, collapse=1):
     xref[0] = doc._getOLRootNumber()  # entry zero is outline root xref#
     if toclen > len(old_xrefs):  # too few old xrefs?
         for i in range((toclen - len(old_xrefs))):
-            xref.append(doc._getNewXref())  # acquire new ones
+            xref.append(doc.get_new_xref())  # acquire new ones
 
     lvltab = {0: 0}  # to store last entry per hierarchy level
 
@@ -1215,7 +1227,7 @@ def getLinkText(page, lnk):
         if lnk["page"] >= 0:
             txt = annot_skel["goto1"]  # annot_goto
             pno = lnk["page"]
-            xref = page.parent._getPageXref(pno)[0]
+            xref = page.parent.page_xref(pno)
             pnt = lnk.get("to", Point(0, 0))  # destination point
             ipnt = pnt * ictm
             annot = txt % (xref, ipnt.x, ipnt.y, rect)
@@ -3426,7 +3438,7 @@ class Shape(object):
             # make /Contents object with dummy stream
             xref = TOOLS._insert_contents(self.page, b" ", overlay)
             # update it with potential compression
-            self.doc.updateStream(xref, self.totalcont)
+            self.doc.update_stream(xref, self.totalcont)
 
         self.lastPoint = None  # clean up ...
         self.rect = None  #
@@ -3602,7 +3614,7 @@ def scrub(
     else:
         xref_limit = doc.xrefLength()
     for xref in range(1, xref_limit):
-        obj = doc.xrefObject(xref)  # get object definition source
+        obj = doc.xref_object(xref)  # get object definition source
         # note: this string is formatted in a fixed, standard way by MuPDF.
 
         if javascript and "/S /JavaScript" in obj:  # a /JavaScript action object?
@@ -3668,11 +3680,11 @@ def scrub(
 
         if hidden_text:
             xref = page.getContents()[0]  # only one b/o cleaning!
-            cont = doc.xrefStream(xref)
+            cont = doc.xref_stream(xref)
             cont_lines = remove_hidden(cont.splitlines())  # remove hidden text
             if cont_lines:  # something was actually removed
                 cont = b"\n".join(cont_lines)
-                doc.updateStream(xref, cont)  # rewrite the page /Contents
+                doc.update_stream(xref, cont)  # rewrite the page /Contents
 
 
 def fillTextbox(
@@ -3855,15 +3867,15 @@ def set_ocmd(doc, xref=0, ocgs=None, policy=None, ve=None):
         Xref of the created or updated OCMD.
     """
 
-    all_ocgs = doc.getOCGs().keys()
+    all_ocgs = set(doc.get_ocgs().keys())
 
     def ve_maker(ve):
-        if len(ve) < 2:
-            raise ValueError("bad format: less than two items, %s" % ve)
+        if type(ve) not in (list, tuple) or len(ve) < 2:
+            raise ValueError("bad 've' format: %s" % ve)
         if ve[0].lower() not in ("and", "or", "not"):
             raise ValueError("bad operand: %s" % ve[0])
         if ve[0].lower() == "not" and len(ve) != 2:
-            raise ValueError("bad format: require one operand, %s" % ve)
+            raise ValueError("bad 've' format: %s" % ve)
         item = "[/%s" % ve[0].title()
         for x in ve[1:]:
             if type(x) is int:
@@ -3876,18 +3888,16 @@ def set_ocmd(doc, xref=0, ocgs=None, policy=None, ve=None):
         return item
 
     text = "<</Type/OCMD"
-    if ocgs and type(ocgs) in (list, tuple):
-        ocgs_str = "/OCGs["
-        for item in ocgs:
-            if item not in all_ocgs:
-                raise ValueError("bad OCG %i" % item)
-            ocgs_str += "%i 0 R " % item
-        ocgs_str[-1] = "]"
-        text += ocgs_str
-    if not policy:
-        policy = "/P/AnyOn"
-    else:
-        policy = policy.lower()
+
+    if ocgs and type(ocgs) in (list, tuple):  # some OCGs are provided
+        s = set(ocgs).difference(all_ocgs)  # contains illegal xrefs
+        if s != set():
+            msg = "bad OCGs: %s" % s
+            raise ValueError(msg)
+        text += "/OCGs[" + " ".join(map(lambda x: "%i 0 R" % x, ocgs)) + "]"
+
+    if policy:
+        policy = str(policy).lower()
         pols = {
             "anyon": "AnyOn",
             "allon": "AllOn",
@@ -3897,50 +3907,58 @@ def set_ocmd(doc, xref=0, ocgs=None, policy=None, ve=None):
         if policy not in ("anyon", "allon", "anyoff", "alloff"):
             raise ValueError("bad policy: %s" % policy)
         text += "/P/%s" % pols[policy]
+
     if ve:
         text += "/VE%s" % ve_maker(ve)
+
     text += ">>"
+
+    # make new object or replace old OCMD (check type first)
     if xref == 0:
-        xref = doc._getNewXref()
-    else:
-        check = doc.xrefObject(xref, compressed=True)
-        if "/Type/OCMD" not in check:
-            raise ValueError("bad xref or not an OCMD")
-    doc.updateObject(xref, text)
+        xref = doc.get_new_xref()
+    elif "/Type/OCMD" not in doc.xref_object(xref, compressed=True):
+        raise ValueError("bad xref or not an OCMD")
+    doc.update_object(xref, text)
     return xref
 
 
 def get_ocmd(doc, xref):
     """Return the definition of an OCMD (optional content membership dictionary).
 
-    Recognizes PDF dict keys /OCGs (array of OCGs), /P (policy string) and /VE
-    (visibility expression, PDF array). Via string manipulytion, this
-    information is converted to a Python dictionary with the keys "ocgs",
-    "policy" and "ve".
+    Recognizes PDF dict keys /OCGs (PDF array of OCGs), /P (policy string) and
+    /VE (visibility expression, PDF array). Via string manipulation, this
+    info is converted to a Python dictionary with keys "xref", "ocgs", "policy"
+    and "ve" - ready to recycle as input for 'set_ocmd()'.
     """
 
-    if xref not in range(doc.xrefLength()):
+    if xref not in range(doc.xref_length()):
         raise ValueError("bad xref")
-    text = doc.xrefObject(xref, compressed=True)
+    text = doc.xref_object(xref, compressed=True)
     if "/Type/OCMD" not in text:
         raise ValueError("bad object type")
     textlen = len(text)
-    p0 = text.find("/OCGs[")
+
+    p0 = text.find("/OCGs[")  # look for /OCGs key
     p1 = text.find("]", p0)
     if p0 < 0 or p1 < 0:  # no OCGs found
         ocgs = None
     else:
         ocgs = text[p0 + 6 : p1].replace("0 R", " ").split()
         ocgs = list(map(int, ocgs))
-    p0 = text.find("/P/")
-    p1 = text.find("ff", p0)
-    if p1 < 0:
-        p1 = text.find("on", p0)
-    if p0 < 0 or p1 < 0:  # no policy found
+
+    p0 = text.find("/P/")  # look for /P policy key
+    if p0 < 0:
         policy = None
     else:
-        policy = text[p0 + 3 : p1 + 2]
-    p0 = text.find("/VE[")
+        p1 = text.find("ff", p0)
+        if p1 < 0:
+            p1 = text.find("on", p0)
+        if p1 < 0:  # some irregular syntax
+            raise ValueError("bad object at xref")
+        else:
+            policy = text[p0 + 3 : p1 + 2]
+
+    p0 = text.find("/VE[")  # look for /VE visibility expression key
     if p0 < 0:  # no visibility expression found
         ve = None
     else:
@@ -3948,12 +3966,13 @@ def get_ocmd(doc, xref):
         p1 = p0
         while lp < 1 or lp != rp:
             p1 += 1
-            if not p1 < textlen:
+            if not p1 < textlen:  # some irregular syntax
                 raise ValueError("bad object at xref")
             if text[p1] == "[":
                 lp += 1
             if text[p1] == "]":
                 rp += 1
+        # p1 now positioned at the last "]"
         ve = text[p0 + 3 : p1 + 1]  # the PDF /VE array
         ve = (
             ve.replace("/And", '"and",')
@@ -3961,5 +3980,9 @@ def get_ocmd(doc, xref):
             .replace("/Or", '"or",')
         )
         ve = ve.replace(" 0 R]", "]").replace(" 0 R", ",").replace("][", "],[")
-        ve = json.loads(ve)
+        try:
+            ve = json.loads(ve)
+        except:
+            print("bad /VE key: ", ve)
+            raise
     return {"xref": xref, "ocgs": ocgs, "policy": policy, "ve": ve}
