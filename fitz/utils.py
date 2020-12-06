@@ -392,9 +392,9 @@ def searchFor(*args, **kwargs):
     if len(args) != 2:
         raise ValueError("bad number of positional parameters")
     page, text = args
-    quads = kwargs.get("quads")
+    quads = kwargs.get("quads", 0)
     clip = kwargs.get("clip")
-    flags = kwargs.get("flags")
+    flags = kwargs.get("flags", TEXT_DEHYPHENATE)
 
     CheckParent(page)
     if flags is None:
@@ -465,8 +465,7 @@ def getTextbox(page, rect):
 
 def getTextSelection(page, p1, p2, clip=None):
     CheckParent(page)
-    flags = TEXT_PRESERVE_LIGATURES | TEXT_PRESERVE_WHITESPACE
-    tp = page.getTextPage(clip=clip, flags=flags)
+    tp = page.getTextPage(clip=clip, flags=TEXT_DEHYPHENATE)
     rc = tp.extractSelection(p1, p2)
     del tp
     return rc

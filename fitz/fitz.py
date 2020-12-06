@@ -2931,8 +2931,24 @@ def annot_postprocess(page, annot):
     annot.thisown = True
 
 
+def sRGB_to_rgb(srgb):
+    """Convert sRGB color code to an RGB color triple.
+
+    There is **no error checking** for performance reasons!
+
+    Args:
+        srgb: (int) RRGGBB (red, green, blue), each color in range(255).
+    Returns:
+        Tuple (red, green, blue) each item in intervall 0 <= item <= 255.
+    """
+    r = srgb >> 16
+    g = (srgb - (r << 16)) >> 8
+    b = srgb - (r << 16) - (g << 8)
+    return (r, g, b)
+
+
 def sRGB_to_pdf(srgb):
-    """Convert sRGB color code to PDF color triple.
+    """Convert sRGB color code to a PDF color triple.
 
     There is **no error checking** for performance reasons!
 
@@ -2941,10 +2957,8 @@ def sRGB_to_pdf(srgb):
     Returns:
         Tuple (red, green, blue) each item in intervall 0 <= item <= 1.
     """
-    r = srgb >> 16
-    g = (srgb - (r << 16)) >> 8
-    b = srgb - (r << 16) - (g << 8)
-    return (r / 255.0, g / 255.0, b / 255.0)
+    t = sRGB_to_rgb(srgb)
+    return t[0] / 255.0, t[1] / 255.0, t[2] / 255.0
 
 
 def make_table(rect=(0, 0, 1, 1), cols=1, rows=1):
@@ -4977,24 +4991,22 @@ class Page(object):
         CheckParent(self)
         doc = self.parent
         if doc.isClosed or doc.isEncrypted:
-            raise ValueError("doc is closed or encrypted")
+            raise ValueError("document closed or encrypted")
         inf_rect = Rect(1, 1, -1, -1)
         if type(name) in (list, tuple):
             if not type(name[-1]) is int:
                 raise ValueError("need a full page image list item")
             item = name
-            if item[-1] != 0:
-                raise ValueError("unsupported image item")
         else:
             imglist = [
-                i
-                for i in doc.getPageImageList(self.number, True)
-                if i[-1] == 0 and name == i[-3]
+                i for i in doc.getPageImageList(self.number, True) if name == i[-3]
             ]
             if len(imglist) == 1:
                 item = imglist[0]
-            else:
+            elif imglist == []:
                 raise ValueError("no valid image found")
+            else:
+                raise ValueError("found more than one image of that name.")
 
         val = _fitz.Page_getImageBbox(self, name)
 

@@ -5186,15 +5186,6 @@ fz_stext_page *JM_new_stext_page_from_page(fz_context *ctx, fz_page *page, fz_re
 }
 
 
-//-----------------------------------------------------------------------------
-// Replace MuPDF error rune with character 0xB7
-//-----------------------------------------------------------------------------
-PyObject *JM_repl_char()
-{
-    const char data[2] = {194, 183};
-    return PyUnicode_FromStringAndSize(data, 2);
-}
-
 //---------------------------------------------------------------------------
 // APPEND non-ascii runes in unicode escape format to fz_buffer
 //---------------------------------------------------------------------------
@@ -5210,39 +5201,58 @@ void JM_append_rune(fz_context *ctx, fz_buffer *buff, int ch)
 }
 
 
-// Create the char rect from its quad. This aims to stabilize against fonts
-// with incorrect font bboxes.
-static fz_rect
-JM_char_bbox(fz_stext_char *ch, fz_stext_line *line)
+// re-compute char quad if ascender/descender values are wrong
+static fz_quad
+JM_char_quad(fz_context *ctx, fz_stext_line *line, fz_stext_char *ch)
 {
-    fz_rect r = fz_rect_from_quad(ch->quad);
-    if (line->dir.y == 0) {  // horizontal
-        if (r.y0 + ch->size <= r.y1) {
-            return r;
-        } else {
-            if (line->dir.x > 0) { // top-down: y1 correct
-                r.y0 = r.y1 - ch->size;
-            } else {  // bottom-up: y0 correct
-                r.y1 = r.y0 + ch->size;
-            }
-            return r;
-        }
+    if (line->wmode) {  // never touch vertical write mode
+        return ch->quad;
     }
-    if (line->dir.x == 0) {  // vertical
-        if (r.x0 + ch->size <= r.x1) {
-            return r;
-        } else {
-            if (line->dir.y < 0) {  // bottom-up: x1 correct
-                r.x0 = r.x1 - ch->size;
-            } else {  // top-down: x0 correct
-                r.x1 = r.x0 + ch->size;
-            }
-            return r;
-        }
+    float asc = fz_font_ascender(ctx, ch->font);
+    float dsc = fz_font_descender(ctx, ch->font);
+    if (asc - dsc >= 1) {  // no problem
+        return ch->quad;
     }
+    /*
+    Re-compute quad with adjusted ascender / descender:
+    Move ch->origin to (0,0) and de-rotate, then adjust the corners,
+    re-rotate and move back to ch->origin location.
+    */
+    float c, s, fsize = ch->size;
+    fz_matrix trm1, trm2, xlate1, xlate2;
+    fz_quad quad;
+    fz_rect bbox = fz_font_bbox(ctx, ch->font);
+    dsc = MIN(dsc, bbox.y0);  // adjust descender
+    asc = 1 + dsc;  // adjust ascender to fontsize height
+    c = line->dir.x;  // cosine
+    s = line->dir.y;  // sine
+    trm1 = fz_make_matrix(c, -s, s, c, 0, 0);  // derotate
+    trm2 = fz_make_matrix(c, s, -s, c, 0, 0);  // rotate
+    xlate1 = fz_make_matrix(1, 0, 0, 1, -ch->origin.x, -ch->origin.y);
+    xlate2 = fz_make_matrix(1, 0, 0, 1, ch->origin.x, ch->origin.y);
+    quad = fz_transform_quad(ch->quad, xlate1);  // move origin to (0,0)
+    quad.ul = fz_transform_vector(quad.ul, trm1);  // rotate corners
+    quad.ur = fz_transform_vector(quad.ur, trm1);  // around (0,0)
+    quad.ll = fz_transform_vector(quad.ll, trm1);
+    quad.lr = fz_transform_vector(quad.lr, trm1);
+    quad.ul.y = -asc * fsize;  // adjust vertical coordinates
+    quad.ll.y = -dsc * fsize;
+    quad.ur.y = quad.ul.y;
+    quad.lr.y = quad.ll.y;
+    quad.ul = fz_transform_vector(quad.ul, trm2);  // rotate back
+    quad.ur = fz_transform_vector(quad.ur, trm2);
+    quad.ll = fz_transform_vector(quad.ll, trm2);
+    quad.lr = fz_transform_vector(quad.lr, trm2);
+    quad = fz_transform_quad(quad, xlate2);  // translate to char origin pos.
+    return quad;
+}
 
-    if ((r.y1 - r.y0) <= FLT_EPSILON) r.y0 = r.y1 - ch->size;
-    if ((r.x1 - r.x0) <= FLT_EPSILON) r.x0 = r.x1 - ch->size;
+
+// return rect of char quad
+static fz_rect
+JM_char_bbox(fz_context *ctx, fz_stext_line *line, fz_stext_char *ch)
+{
+    fz_rect r = fz_rect_from_quad(JM_char_quad(ctx, line, ch));
     return r;
 }
 
@@ -5271,7 +5281,7 @@ JM_new_buffer_from_stext_page(fz_context *ctx, fz_stext_page *page)
                 {
                     if (fz_is_empty_rect(fz_intersect_rect(line->bbox, rect))) continue;
                     for (ch = line->first_char; ch; ch = ch->next) {
-                        if (!fz_contains_rect(rect, JM_char_bbox(ch, line))) continue;
+                        if (!fz_contains_rect(rect, JM_char_bbox(gctx, line, ch))) continue;
                         fz_append_rune(ctx, buf, ch->c);
                     }
                     fz_append_byte(ctx, buf, '\n');
@@ -5317,24 +5327,24 @@ static void on_highlight_char(fz_context *ctx, void *arg, fz_stext_line *line, f
     struct highlight *hits = arg;
     float vfuzz = ch->size * hits->vfuzz;
     float hfuzz = ch->size * hits->hfuzz;
-
+    fz_quad ch_quad = JM_char_quad(ctx, line, ch);
     if (hits->len > 0) {
         PyObject *quad = PySequence_ITEM(hits->quads, hits->len - 1);
         fz_quad end = JM_quad_from_py(quad);
         Py_DECREF(quad);
-        if (hdist(&line->dir, &end.lr, &ch->quad.ll) < hfuzz
-            && vdist(&line->dir, &end.lr, &ch->quad.ll) < vfuzz
-            && hdist(&line->dir, &end.ur, &ch->quad.ul) < hfuzz
-            && vdist(&line->dir, &end.ur, &ch->quad.ul) < vfuzz)
+        if (hdist(&line->dir, &end.lr, &ch_quad.ll) < hfuzz
+            && vdist(&line->dir, &end.lr, &ch_quad.ll) < vfuzz
+            && hdist(&line->dir, &end.ur, &ch_quad.ul) < hfuzz
+            && vdist(&line->dir, &end.ur, &ch_quad.ul) < vfuzz)
         {
-            end.ur = ch->quad.ur;
-            end.lr = ch->quad.lr;
+            end.ur = ch_quad.ur;
+            end.lr = ch_quad.lr;
             quad = JM_py_from_quad(end);
             PyList_SetItem(hits->quads, hits->len - 1, quad);
             return;
         }
     }
-    LIST_APPEND_DROP(hits->quads, JM_py_from_quad(ch->quad));
+    LIST_APPEND_DROP(hits->quads, JM_py_from_quad(ch_quad));
     hits->len++;
 }
 
@@ -5439,7 +5449,7 @@ JM_search_stext_page(fz_context *ctx, fz_stext_page *page, const char *needle)
                 if (fz_is_empty_rect(fz_intersect_rect(line->bbox, rect))) continue;
                 for (ch = line->first_char; ch; ch = ch->next)
                 {
-                    if (!fz_contains_rect(rect, JM_char_bbox(ch, line))) continue;
+                    if (!fz_contains_rect(rect, JM_char_bbox(gctx, line, ch))) continue;
 try_new_match:
                     if (!inside)
                     {
@@ -5504,7 +5514,7 @@ JM_print_stext_page_as_text(fz_context *ctx, fz_output *out, fz_stext_page *page
                 last_char = 0;
                 for (ch = line->first_char; ch; ch = ch->next)
                 {
-                    if (!fz_contains_rect(rect, JM_char_bbox(ch, line))) continue;
+                    if (!fz_contains_rect(rect, JM_char_bbox(gctx, line, ch))) continue;
                     last_char = ch->c;
                     fz_write_rune(ctx, out, ch->c);
                 }
@@ -5583,7 +5593,7 @@ JM_make_spanlist(fz_context *ctx, PyObject *line_dict,
 
     for (ch = line->first_char; ch; ch = ch->next) {
 //start-trace
-        fz_rect r = JM_char_bbox(ch, line);
+        fz_rect r = JM_char_bbox(gctx, line, ch);
         // if (fz_is_empty_rect(fz_intersect_rect(tp_rect, r))) continue;
         if (!fz_contains_rect(tp_rect, r)) continue;
 
@@ -13997,13 +14007,13 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
                                     last_y0 = linerect.y0;
                             */
                             for (ch = line->first_char; ch; ch = ch->next) {
-                                fz_rect cbbox = JM_char_bbox(ch, line);
+                                fz_rect cbbox = JM_char_bbox(gctx, line, ch);
                                 if (!fz_contains_rect(tp_rect, cbbox)) {
                                     continue;
                                 }
                                 JM_append_rune(gctx, res, ch->c);
                                 last_char = ch->c;
-                                linerect = fz_union_rect(linerect, JM_char_bbox(ch, line));
+                                linerect = fz_union_rect(linerect, JM_char_bbox(gctx, line, ch));
                             }
                             if (last_char != 10) {
                                 fz_append_byte(gctx, res, 10);
@@ -14066,7 +14076,7 @@ SWIGINTERN PyObject *TextPage_extractWORDS(struct TextPage *self){
                         fz_clear_buffer(gctx, buff);      // reset word buffer
                         buflen = 0;                       // reset char counter
                         for (ch = line->first_char; ch; ch = ch->next) {
-                            fz_rect cbbox = JM_char_bbox(ch, line);
+                            fz_rect cbbox = JM_char_bbox(gctx, line, ch);
                             if (!fz_contains_rect(tp_rect, cbbox)) {
                                 continue;
                             }
@@ -14083,7 +14093,7 @@ SWIGINTERN PyObject *TextPage_extractWORDS(struct TextPage *self){
                             JM_append_rune(gctx, buff, ch->c);
                             buflen++;
                             // enlarge word bbox
-                            wbbox = fz_union_rect(wbbox, JM_char_bbox(ch, line));
+                            wbbox = fz_union_rect(wbbox, JM_char_bbox(gctx, line, ch));
                         }
                         if (buflen) {
                             word_n = JM_append_word(gctx, lines, buff, &wbbox,
