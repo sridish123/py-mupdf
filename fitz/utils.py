@@ -405,7 +405,15 @@ def searchFor(*args, **kwargs):
     return rlist
 
 
-def searchPageFor(doc, pno, text, hit_max=16, quads=False, clip=None, flags=None):
+def searchPageFor(
+    doc,
+    pno,
+    text,
+    hit_max=16,
+    quads=False,
+    clip=None,
+    flags=TEXT_DEHYPHENATE,
+):
     """Search for a string on a page.
 
     Args:
@@ -418,7 +426,12 @@ def searchPageFor(doc, pno, text, hit_max=16, quads=False, clip=None, flags=None
         a list of rectangles or quads, each containing an occurrence.
     """
 
-    return doc[pno].searchFor(text, quads=quads, clip=clip, flags=flags)
+    return doc[pno].searchFor(
+        text,
+        quads=quads,
+        clip=clip,
+        flags=flags,
+    )
 
 
 def getTextBlocks(page, clip=None, flags=None):
@@ -512,7 +525,8 @@ def getText(page, option="text", clip=None, flags=None):
     if option == "blocks":
         return getTextBlocks(page, clip=clip, flags=flags)
     CheckParent(page)
-
+    if clip != None:
+        clip = fitz.Rect(clip)
     tp = page.getTextPage(clip=clip, flags=flags)  # TextPage with or without images
 
     if option == "json":
@@ -2493,6 +2507,35 @@ def getColorHSV(name):
     return (H, S, V)
 
 
+def _get_font_properties(doc, xref):
+    fontname, ext, stype, buffer = doc.extractFont(xref)
+    asc = 0.8
+    dsc = -0.2
+    if ext == "":
+        return fontname, ext, stype, asc, dsc
+
+    if buffer:
+        font = fitz.Font(fontbuffer=buffer)
+        asc = font.ascender
+        dsc = font.descender
+        bbox = font.bbox
+        if asc - dsc < 1:
+            if bbox.y0 < dsc:
+                dsc = bbox.y0
+            asc = 1 - dsc
+        font = None
+        buffer = None
+        return fontname, ext, stype, asc, dsc
+    try:
+        font = fitz.Font(fontname)
+        asc = font.ascender
+        dsc = font.descender
+        font = None
+    except:
+        pass
+    return fontname, ext, stype, asc, dsc
+
+
 def getCharWidths(doc, xref, limit=256, idx=0):
     """Get list of glyph information of a font.
 
@@ -2509,8 +2552,14 @@ def getCharWidths(doc, xref, limit=256, idx=0):
     """
     fontinfo = CheckFontInfo(doc, xref)
     if fontinfo is None:  # not recorded yet: create it
-        name, ext, stype, _ = doc.extractFont(xref, info_only=True)
-        fontdict = {"name": name, "type": stype, "ext": ext}
+        name, ext, stype, asc, dsc = _get_font_properties(doc, xref)
+        fontdict = {
+            "name": name,
+            "type": stype,
+            "ext": ext,
+            "ascender": asc,
+            "descender": dsc,
+        }
 
         if ext == "":
             raise ValueError("xref is not a font")
@@ -3136,6 +3185,15 @@ class Shape(object):
         simple = fontdict["simple"]
         glyphs = fontdict["glyphs"]
         bfname = fontdict["name"]
+        ascender = fontdict["ascender"]
+        descender = fontdict["descender"]
+        if ascender - descender <= 1:
+            lheight_factor = 1.2
+
+        else:
+            lheight_factor = ascender - descender
+
+        lheight = fontsize * lheight_factor
 
         # create a list from buffer, split into its lines
         if type(buffer) in (list, tuple):
@@ -3174,7 +3232,7 @@ class Shape(object):
             blen = fontsize
 
         text = ""  # output buffer
-        lheight = fontsize * 1.2  # line height
+
         if CheckMorph(morph):
             m1 = Matrix(
                 1, 0, 0, 1, morph[0].x + self.x, self.height - morph[0].y - self.y
@@ -3188,7 +3246,7 @@ class Shape(object):
         # adjust for text orientation / rotation
         # ---------------------------------------------------------------------------
         progr = 1  # direction of line progress
-        c_pnt = Point(0, fontsize)  # used for line progress
+        c_pnt = Point(0, fontsize * ascender)  # used for line progress
         if rot == 0:  # normal orientation
             point = rect.tl + c_pnt  # line 1 is 'lheight' below top
             pos = point.y + self.y  # y of first line
@@ -3196,7 +3254,7 @@ class Shape(object):
             maxpos = rect.y1 + self.y  # lines must not be below this
 
         elif rot == 90:  # rotate counter clockwise
-            c_pnt = Point(fontsize, 0)  # progress in x-direction
+            c_pnt = Point(fontsize * ascender, 0)  # progress in x-direction
             point = rect.bl + c_pnt  # line 1 'lheight' away from left
             pos = point.x + self.x  # position of first line
             maxwidth = rect.height  # pixels available in one line
@@ -3204,7 +3262,7 @@ class Shape(object):
             cm += cmp90
 
         elif rot == 180:  # text upside down
-            c_pnt = -Point(0, fontsize)  # progress upwards in y direction
+            c_pnt = -Point(0, fontsize * ascender)  # progress upwards in y direction
             point = rect.br + c_pnt  # line 1 'lheight' above bottom
             pos = point.y + self.y  # position of first line
             maxwidth = rect.width  # pixels available in one line
@@ -3213,7 +3271,7 @@ class Shape(object):
             cm += cm180
 
         else:  # rotate clockwise (270 or -90)
-            c_pnt = -Point(fontsize, 0)  # progress from right to left
+            c_pnt = -Point(fontsize * ascender, 0)  # progress from right to left
             point = rect.tr + c_pnt  # line 1 'lheight' left of right
             pos = point.x + self.x  # position of first line
             maxwidth = rect.height  # pixels available in one line
@@ -3288,7 +3346,7 @@ class Shape(object):
         text_t = text.splitlines()  # split text in lines again
         for i, t in enumerate(text_t):
             pl = maxwidth - pixlen(t)  # length of empty line part
-            pnt = point + c_pnt * (i * 1.2)  # text start of line
+            pnt = point + c_pnt * (i * lheight_factor)  # text start of line
             if align == 1:  # center: right shift by half width
                 if rot in (0, 180):
                     pnt = pnt + Point(pl / 2, 0) * progr
@@ -3710,6 +3768,13 @@ def fillTextbox(
     if type(font) is not Font:
         font = Font("helv")
 
+    asc = font.ascender
+    dsc = font.descender
+    if asc - dsc <= 1:
+        lheight = 1.2
+    else:
+        lheight = asc - dsc
+
     tolerance = fontsize * 0.25
     width = rect.width - tolerance  # available horizontal space
 
@@ -3721,7 +3786,7 @@ def fillTextbox(
         if not pos in rect:
             raise ValueError("'pos' must be inside 'rect'")
     else:  # default is just below rect top-left
-        pos = rect.tl + (tolerance, fontsize * 1.3)
+        pos = rect.tl + (tolerance, fontsize * asc)
 
     # calculate displacement factor for alignment
     if align == fitz.TEXT_ALIGN_CENTER:
@@ -3788,7 +3853,7 @@ def fillTextbox(
             start = pos
             width = rect.x1 - pos.x
         else:
-            start = Point(rect.x0 + tolerance, pos.y + fontsize * 1.3 * line_ctr)
+            start = Point(rect.x0 + tolerance, pos.y + fontsize * lheight * line_ctr)
             width = rect.width - tolerance
 
         if start.y > rect.y1:  # landed below rectangle area
