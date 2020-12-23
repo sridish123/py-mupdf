@@ -5,15 +5,25 @@ import math
 import os
 import warnings
 import json
+import typing
 from fitz import *
 
+OptRect = typing.Optional["rect_like"]
+OptPoint = typing.Optional["point_like"]
+OptMatrix = typing.Optional["matrix_like"]
+OptInt = typing.Optional[int]
+OptFloat = typing.Optional[float]
+OptStr = typing.Optional[str]
+OptDict = typing.Optional[dict]
+OptSequence = typing.Optional[typing.Sequence]
+OptColorspace = typing.Optional[Colorspace]
 
 """
 This is a collection of functions to extend PyMupdf.
 """
 
 
-def writeText(page, **kwargs):
+def writeText(page: Page, **kwargs) -> None:
     """Write the text of one or more TextWriter objects.
 
     Args:
@@ -65,7 +75,7 @@ def writeText(page, **kwargs):
     tpage = None
 
 
-def showPDFpage(*args, **kwargs):
+def showPDFpage(*args, **kwargs) -> int:
     """Show page number 'pno' of PDF 'src' in rectangle 'rect'.
 
     Args:
@@ -197,7 +207,7 @@ def showPDFpage(*args, **kwargs):
     return xref
 
 
-def insertImage(*args, **kwargs):
+def insertImage(*args, **kwargs) -> None:
     """Insert an image in a rectangle on the current page.
 
     Notes:
@@ -383,7 +393,7 @@ def insertImage(*args, **kwargs):
         doc.InsertedImages[digest] = xref
 
 
-def searchFor(*args, **kwargs):
+def searchFor(*args, **kwargs) -> list:
     """Search for a string on a page.
 
     Args:
@@ -411,14 +421,14 @@ def searchFor(*args, **kwargs):
 
 
 def searchPageFor(
-    doc,
-    pno,
-    text,
-    hit_max=16,
-    quads=False,
-    clip=None,
-    flags=TEXT_DEHYPHENATE,
-):
+    doc: Document,
+    pno: int,
+    text: str,
+    hit_max: int = 0,
+    quads: bool = False,
+    clip: OptRect = None,
+    flags: int = TEXT_DEHYPHENATE,
+) -> list:
     """Search for a string on a page.
 
     Args:
@@ -439,7 +449,11 @@ def searchPageFor(
     )
 
 
-def getTextBlocks(page, clip=None, flags=None):
+def getTextBlocks(
+    page: Page,
+    clip: OptRect = None,
+    flags: OptInt = None,
+) -> list:
     """Return the text blocks on a page.
 
     Notes:
@@ -459,7 +473,11 @@ def getTextBlocks(page, clip=None, flags=None):
     return blocks
 
 
-def getTextWords(page, clip=None, flags=None):
+def getTextWords(
+    page: Page,
+    clip: OptRect = None,
+    flags: OptInt = None,
+) -> list:
     """Return the text words as a list with the bbox for each word.
 
     Args:
@@ -474,14 +492,22 @@ def getTextWords(page, clip=None, flags=None):
     return words
 
 
-def getTextbox(page, rect):
+def getTextbox(
+    page: Page,
+    rect: "rect_like",
+) -> str:
     rc = page.getText("text", clip=rect, flags=0)
     if rc.endswith("\n"):
         rc = rc[:-1]
     return rc
 
 
-def getTextSelection(page, p1, p2, clip=None):
+def getTextSelection(
+    page: Page,
+    p1: "point_like",
+    p2: "point_like",
+    clip: OptRect = None,
+):
     CheckParent(page)
     tp = page.getTextPage(clip=clip, flags=TEXT_DEHYPHENATE)
     rc = tp.extractSelection(p1, p2)
@@ -489,7 +515,12 @@ def getTextSelection(page, p1, p2, clip=None):
     return rc
 
 
-def getText(page, option="text", clip=None, flags=None):
+def getText(
+    page: Page,
+    option: str = "text",
+    clip: OptRect = None,
+    flags: OptInt = None,
+):
     """Extract text from a page or an annotation.
 
     This is a unifying wrapper for various methods of the TextPage class.
@@ -555,7 +586,13 @@ def getText(page, option="text", clip=None, flags=None):
     return t
 
 
-def getPageText(doc, pno, option="text", clip=None, flags=None):
+def getPageText(
+    doc: Document,
+    pno: int,
+    option: str = "text",
+    clip: OptRect = None,
+    flags: OptInt = None,
+) -> typing.Any:
     """Extract a document page's text by page number.
 
     Notes:
@@ -569,7 +606,7 @@ def getPageText(doc, pno, option="text", clip=None, flags=None):
     return doc[pno].getText(option, clip=clip, flags=flags)
 
 
-def getPixmap(page, **kw):
+def getPixmap(page: Page, **kw) -> Pixmap:
     """Create pixmap of page.
 
     Args:
@@ -605,8 +642,14 @@ def getPixmap(page, **kw):
 
 
 def getPagePixmap(
-    doc, pno, matrix=None, colorspace=csRGB, clip=None, alpha=False, annots=True
-):
+    doc: Document,
+    pno: int,
+    matrix: "matrix_like" = Identity,
+    colorspace: OptColorspace = csRGB,
+    clip: OptRect = None,
+    alpha: bool = False,
+    annots: bool = True,
+) -> Pixmap:
     """Create pixmap of document page by page number.
 
     Notes:
@@ -624,7 +667,7 @@ def getPagePixmap(
     )
 
 
-def getLinkDict(ln):
+def getLinkDict(ln) -> dict:
     nl = {"kind": ln.dest.kind, "xref": 0}
     try:
         nl["from"] = ln.rect
@@ -671,7 +714,7 @@ def getLinkDict(ln):
     return nl
 
 
-def getLinks(page):
+def getLinks(page: Page) -> list:
     """Create a list of all links contained in a PDF page.
 
     Notes:
@@ -700,7 +743,10 @@ def getLinks(page):
     return links
 
 
-def getToC(doc, simple=True):
+def getToC(
+    doc: Document,
+    simple: bool = True,
+) -> list:
     """Create a table of contents.
 
     Args:
@@ -751,7 +797,10 @@ def getToC(doc, simple=True):
     return recurse(olItem, liste, lvl)
 
 
-def delTOC_item(doc, idx):
+def delTOC_item(
+    doc: Document,
+    idx: int,
+) -> None:
     """Delete TOC / bookmark item by index."""
     toc = doc.getTOC()
     xref = doc.outlineXref(idx)
@@ -761,17 +810,17 @@ def delTOC_item(doc, idx):
 
 
 def setTOC_item(
-    doc,
-    idx,
-    dest_dict=None,
-    kind=None,
-    pno=None,
-    uri=None,
-    title=None,
-    to=None,
-    filename=None,
-    zoom=0,
-):
+    doc: Document,
+    idx: int,
+    dest_dict: OptDict = None,
+    kind: OptInt = None,
+    pno: OptInt = None,
+    uri: OptStr = None,
+    title: OptStr = None,
+    to: OptPoint = None,
+    filename: OptStr = None,
+    zoom: int = 0,
+) -> None:
     """Update TOC item by index.
 
     It allows changing the item's title and link destination.
@@ -843,7 +892,7 @@ def setTOC_item(
     return doc._update_toc_item(xref, action=action[2:], title=title)
 
 
-def getRectArea(*args):
+def getRectArea(*args) -> float:
     """Calculate area of rectangle.\nparameter is one of 'px' (default), 'in', 'cm', or 'mm'."""
     rect = args[0]
     if len(args) > 1:
@@ -855,7 +904,7 @@ def getRectArea(*args):
     return f * rect.width * rect.height
 
 
-def setMetadata(doc, m):
+def setMetadata(doc: Document, m: dict) -> None:
     """Set PDF /Info object.
 
     Args:
@@ -895,7 +944,7 @@ def setMetadata(doc, m):
     return
 
 
-def getDestStr(xref, ddict):
+def getDestStr(xref: int, ddict: dict) -> str:
     """Calculate the PDF action string.
 
     Notes:
@@ -953,7 +1002,11 @@ def getDestStr(xref, ddict):
     return ""
 
 
-def setToC(doc, toc, collapse=1):
+def setToC(
+    doc: Document,
+    toc: list,
+    collapse: int = 1,
+) -> int:
     """Create new outline tree (table of contents, TOC).
 
     Args:
@@ -1115,7 +1168,13 @@ def setToC(doc, toc, collapse=1):
     return toclen
 
 
-def do_links(doc1, doc2, from_page=-1, to_page=-1, start_at=-1):
+def do_links(
+    doc1: Document,
+    doc2: Document,
+    from_page: int = -1,
+    to_page: int = -1,
+    start_at: int = -1,
+) -> None:
     """Insert links contained in copied page range into destination PDF.
 
     Parameter values **must** equal those of method insertPDF(), which must
@@ -1230,7 +1289,7 @@ def do_links(doc1, doc2, from_page=-1, to_page=-1, start_at=-1):
     return
 
 
-def getLinkText(page, lnk):
+def getLinkText(page: Page, lnk: dict) -> str:
     # --------------------------------------------------------------------------
     # define skeletons for /Annots object texts
     # --------------------------------------------------------------------------
@@ -1279,7 +1338,7 @@ def getLinkText(page, lnk):
     return annot
 
 
-def deleteWidget(page, widget):
+def deleteWidget(page: Page, widget: Widget) -> Widget:
     """Delete widget from page and return the next one."""
     CheckParent(page)
     annot = getattr(widget, "_annot", None)
@@ -1295,7 +1354,7 @@ def deleteWidget(page, widget):
     return nextwidget
 
 
-def updateLink(page, lnk):
+def updateLink(page: Page, lnk: dict) -> None:
     """ Update a link on the current page. """
     CheckParent(page)
     annot = getLinkText(page, lnk)
@@ -1306,7 +1365,7 @@ def updateLink(page, lnk):
     return
 
 
-def insertLink(page, lnk, mark=True):
+def insertLink(page: Page, lnk: dict, mark: bool = True) -> None:
     """ Insert a new link for the current page. """
     CheckParent(page)
     annot = getLinkText(page, lnk)
@@ -1318,27 +1377,27 @@ def insertLink(page, lnk, mark=True):
 
 
 def insertTextbox(
-    page,
-    rect,
-    buffer,
-    fontname="helv",
-    fontfile=None,
-    set_simple=0,
-    encoding=0,
-    fontsize=11,
-    color=None,
-    fill=None,
-    expandtabs=1,
-    align=0,
-    rotate=0,
-    render_mode=0,
-    border_width=1,
-    morph=None,
-    overlay=True,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    rect: "rect_like",
+    buffer: typing.Union[str, list],
+    fontname: str = "helv",
+    fontfile: OptStr = None,
+    set_simple: int = 0,
+    encoding: int = 0,
+    fontsize: float = 11,
+    color: OptSequence = None,
+    fill: OptSequence = None,
+    expandtabs: int = 1,
+    align: int = 0,
+    rotate: int = 0,
+    render_mode: int = 0,
+    border_width: float = 1,
+    morph: OptSequence = None,
+    overlay: bool = True,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> float:
     """Insert text into a given rectangle.
 
     Notes:
@@ -3749,7 +3808,7 @@ def scrub(
 
 
 def fillTextbox(
-    writer, rect, text, pos=None, font=None, fontsize=11, align=0, warn=True
+    writer: TextWriter, rect, text, pos=None, font=None, fontsize=11, align=0, warn=True
 ):
     """Fill a rectangle with text.
 
@@ -3922,7 +3981,13 @@ def fillTextbox(
 # ------------------------------------------------------------------------
 # Optional Content functions
 # ------------------------------------------------------------------------
-def set_ocmd(doc, xref=0, ocgs=None, policy=None, ve=None):
+def set_ocmd(
+    doc: Document,
+    xref: int = 0,
+    ocgs: typing.Union[list, None] = None,
+    policy: OptStr = None,
+    ve: typing.Union[list, None] = None,
+) -> int:
     """Create or update an OCMD object in a PDF document.
 
     Args:
@@ -3990,7 +4055,7 @@ def set_ocmd(doc, xref=0, ocgs=None, policy=None, ve=None):
     return xref
 
 
-def get_ocmd(doc, xref):
+def get_ocmd(doc: Document, xref: int) -> dict:
     """Return the definition of an OCMD (optional content membership dictionary).
 
     Recognizes PDF dict keys /OCGs (PDF array of OCGs), /P (policy string) and

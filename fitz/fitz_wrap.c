@@ -3495,7 +3495,8 @@ PyObject *JM_EscapeStrFromBuffer(fz_context *ctx, fz_buffer *buff)
     if (!buff) return EMPTY_STRING;
     unsigned char *s = NULL;
     size_t len = fz_buffer_storage(ctx, buff, &s);
-    PyObject *val = PyUnicode_DecodeRawUnicodeEscape((const char *) s, (Py_ssize_t) len, "replace");
+    //PyObject *val = PyUnicode_DecodeRawUnicodeEscape((const char *) s, (Py_ssize_t) len, "replace");
+    PyObject *val = PyUnicode_DecodeUnicodeEscape((const char *) s, (Py_ssize_t) len, "replace");
     if (!val) {
         val = EMPTY_STRING;
         PyErr_Clear();
@@ -3529,7 +3530,8 @@ PyObject *JM_UnicodeFromStr(const char *c)
 PyObject *JM_EscapeStrFromStr(const char *c)
 {
     if (!c) return EMPTY_STRING;
-    PyObject *val = PyUnicode_DecodeRawUnicodeEscape(c, (Py_ssize_t) strlen(c), "replace");
+    //PyObject *val = PyUnicode_DecodeRawUnicodeEscape(c, (Py_ssize_t) strlen(c), "replace");
+    PyObject *val = PyUnicode_DecodeUnicodeEscape(c, (Py_ssize_t) strlen(c), "replace");
     if (!val) {
         val = EMPTY_STRING;
         PyErr_Clear();
