@@ -79,10 +79,15 @@ def showPDFpage(*args, **kwargs):
     Returns:
         xref of inserted object (for reuse)
     """
-    if len(args) != 3:
+    if len(args) not in (3, 4):
         raise ValueError("bad number of positional parameters")
-    page, rect, src = args
-    pno = int(kwargs.get("pno", 0))
+    pno = None
+    if len(args) == 3:
+        page, rect, src = args
+    else:
+        page, rect, src, pno = args
+    if pno == None:
+        pno = int(kwargs.get("pno", 0))
     overlay = bool(kwargs.get("overlay", True))
     keep_proportion = bool(kwargs.get("keep_proportion", True))
     rotate = float(kwargs.get("rotate", 0))
@@ -1104,7 +1109,7 @@ def setToC(doc, toc, collapse=1):
         if i == 0:  # special: this is the outline root
             txt += "/Type/Outlines"  # so add the /Type entry
         txt += ">>"
-        doc._updateObject(xref[i], txt)  # insert the PDF object
+        doc.update_object(xref[i], txt)  # insert the PDF object
 
     doc.initData()
     return toclen
@@ -1297,7 +1302,7 @@ def updateLink(page, lnk):
     if annot == "":
         raise ValueError("link kind not supported")
 
-    page.parent._updateObject(lnk["xref"], annot, page=page)
+    page.parent.update_object(lnk["xref"], annot, page=page)
     return
 
 
@@ -3189,7 +3194,6 @@ class Shape(object):
         descender = fontdict["descender"]
         if ascender - descender <= 1:
             lheight_factor = 1.2
-
         else:
             lheight_factor = ascender - descender
 
@@ -3718,7 +3722,7 @@ def scrub(
         found_redacts = False
         for annot in page.annots():
             if annot.type[0] == PDF_ANNOT_FILE_ATTACHMENT and attached_files:
-                annot.fileUpd(buffer=b"")  # set file content to empty
+                annot.fileUpd(buffer=b" ")  # set file content to empty
             if reset_responses:
                 annot.delete_responses()
             if annot.type[0] == PDF_ANNOT_REDACT:
