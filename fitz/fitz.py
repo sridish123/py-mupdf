@@ -4607,10 +4607,7 @@ class Document(object):
         return _fitz.Document__update_toc_item(self, xref, action, title)
 
     def _get_page_labels(self) -> AnyType:
-        val = _fitz.Document__get_page_labels(self)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document__get_page_labels(self)
 
     def _set_page_labels(self, labels: str) -> AnyType:
         val = _fitz.Document__set_page_labels(self, labels)
@@ -4627,30 +4624,21 @@ class Document(object):
         if self.isClosed:
             raise ValueError("document closed")
 
-        val = _fitz.Document_get_layers(self)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document_get_layers(self)
 
     def switch_layer(self, config: int, as_default: int = 0) -> AnyType:
         """Activate an OC layer."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        val = _fitz.Document_switch_layer(self, config, as_default)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document_switch_layer(self, config, as_default)
 
     def get_layer(self, config: int = -1) -> AnyType:
         """Content of ON, OFF, RBGroups of an OC layer."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        val = _fitz.Document_get_layer(self, config)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document_get_layer(self, config)
 
     def set_layer(
         self,
@@ -4698,10 +4686,7 @@ class Document(object):
             if basestate not in ("ON", "OFF", "Unchanged"):
                 raise ValueError("bad 'basestate'")
 
-        val = _fitz.Document_set_layer(self, config, basestate, on, off, rbgroups)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document_set_layer(self, config, basestate, on, off, rbgroups)
 
     def add_layer(
         self, name: str, creator: OptStr = None, on: AnyType = None
@@ -4710,40 +4695,28 @@ class Document(object):
         if self.isClosed:
             raise ValueError("document closed")
 
-        val = _fitz.Document_add_layer(self, name, creator, on)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document_add_layer(self, name, creator, on)
 
     def layer_ui_configs(self) -> AnyType:
         """Show OC visibility status modifyable by user."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        val = _fitz.Document_layer_ui_configs(self)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document_layer_ui_configs(self)
 
     def set_layer_ui_config(self, number: int, action: int = 0) -> AnyType:
         """Set / unset OC intent configuration."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        val = _fitz.Document_set_layer_ui_config(self, number, action)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document_set_layer_ui_config(self, number, action)
 
     def get_ocgs(self) -> AnyType:
         """Show existing optional content groups."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        val = _fitz.Document_get_ocgs(self)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document_get_ocgs(self)
 
     getOCGs = get_ocgs
 
@@ -4759,10 +4732,7 @@ class Document(object):
         if self.isClosed:
             raise ValueError("document closed")
 
-        val = _fitz.Document_add_ocg(self, name, config, on, intent, usage)
-        val = val[1:-1]
-
-        return val
+        return _fitz.Document_add_ocg(self, name, config, on, intent, usage)
 
     addOCG = add_ocg
 

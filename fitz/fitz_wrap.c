@@ -10683,16 +10683,29 @@ SWIGINTERN PyObject *Document__get_page_labels(struct Document *self){
 
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
+                rc = PyList_New(0);
                 pdf_obj *pagelabels = pdf_new_name(gctx, "PageLabels");
                 obj = pdf_dict_getl(gctx, pdf_trailer(gctx, pdf),
-                                   PDF_NAME(Root), pagelabels,
-                                   PDF_NAME(Nums), NULL);
+                                   PDF_NAME(Root), pagelabels, NULL);
                 if (!obj) {
-                    rc = PyUnicode_FromString("[]");
                     goto finished;
                 }
-                res = JM_object_to_buffer(gctx, pdf_resolve_indirect(gctx, obj), 1, 0);
-                rc = JM_EscapeStrFromBuffer(gctx, res);
+                pdf_obj *nums = pdf_resolve_indirect(gctx, pdf_dict_get(gctx, obj, PDF_NAME(Nums)));
+                int i, n, pno;
+                if (!nums || !pdf_is_array(gctx, nums)) {
+                    goto finished;
+                }
+                n = pdf_array_len(gctx, nums);
+                for (i = 0; i < n; i += 2) {
+                    pdf_obj *key = pdf_array_get(gctx, nums, i);
+                    pno = pdf_to_int(gctx, key);
+                    pdf_obj *val = pdf_resolve_indirect(gctx, pdf_array_get(gctx, nums, i + 1));
+                    res = JM_object_to_buffer(gctx, val, 1, 0);
+                    const char *c = NULL;
+                    fz_buffer_storage(gctx, res, &c);
+                    LIST_APPEND_DROP(rc, Py_BuildValue("is", pno, c));
+                    fz_clear_buffer(gctx, res);
+                }
                 finished:;
             }
             fz_always(gctx) {
@@ -10700,6 +10713,7 @@ SWIGINTERN PyObject *Document__get_page_labels(struct Document *self){
                 fz_drop_buffer(gctx, res);
             }
             fz_catch(gctx){
+                Py_CLEAR(rc);
                 return NULL;
             }
             return rc;
