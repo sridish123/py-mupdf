@@ -5389,7 +5389,7 @@ class Page(object):
         annot_postprocess(self, annot)
         return annot
 
-    def addPolylineAnnot(self, points: list[point_like]) -> "Annot":
+    def addPolylineAnnot(self, points: list) -> "Annot":
         """Add a 'PolyLine' annotation."""
         old_rotation = annot_preprocess(self)
         try:
@@ -5400,7 +5400,7 @@ class Page(object):
         annot_postprocess(self, annot)
         return annot
 
-    def addPolygonAnnot(self, points: list[point_like]) -> "Annot":
+    def addPolygonAnnot(self, points: list) -> "Annot":
         """Add a 'Polygon' annotation."""
         old_rotation = annot_preprocess(self)
         try:
@@ -5579,7 +5579,7 @@ class Page(object):
         self._set_resource_property(mc, oc)
         return mc
 
-    def get_oc_items(self) -> list[tuple]:
+    def get_oc_items(self) -> list:
         """Get OCGs and OCMDs used in the page's contents.
 
         Returns:

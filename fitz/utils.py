@@ -455,7 +455,7 @@ def getTextBlocks(
     page: Page,
     clip: rect_like = None,
     flags: OptInt = None,
-) -> list[tuple]:
+) -> list:
     """Return the text blocks on a page.
 
     Notes:
@@ -479,7 +479,7 @@ def getTextWords(
     page: Page,
     clip: rect_like = None,
     flags: OptInt = None,
-) -> list[tuple]:
+) -> list:
     """Return the text words as a list with the bbox for each word.
 
     Args:
