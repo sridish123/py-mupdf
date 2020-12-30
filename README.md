@@ -2,7 +2,7 @@
 
 ![logo](https://github.com/pymupdf/PyMuPDF/blob/master/demo/pymupdf.jpg)
 
-Release date: December 20, 2020
+Release date: January 1, 2021
 
 **Travis-CI:** [![Build Status](https://travis-ci.org/JorjMcKie/py-mupdf.svg?branch=master)](https://travis-ci.org/JorjMcKie/py-mupdf)
 
@@ -75,7 +75,7 @@ Before you can do that, you must first build MuPDF. For most platforms, the MuPD
   - Now MuPDF can be generated.
 
 * Please note that you will need the interface generator [SWIG](http://www.swig.org/) when building PyMuPDF from the sources of this repository (please refer to issue #312 for some background on this).
-    - PyMuPDF wheels are being generated using **SWIG v4.0.2**. This version includes important performance improvements by using the new Python vector call method invocation, introduced in Python 3.8.
+    - PyMuPDF wheels are being generated using **SWIG v4.0.1**.
 
 * If you do **not use SWIG**, please download the **sources from PyPI** - they contain sources pre-processed by SWIG, so installation should work like any other Python extension generation on your system.
 

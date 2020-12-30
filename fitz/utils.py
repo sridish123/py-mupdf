@@ -8,15 +8,17 @@ import json
 import typing
 from fitz import *
 
-OptRect = typing.Optional["rect_like"]
-OptPoint = typing.Optional["point_like"]
-OptMatrix = typing.Optional["matrix_like"]
-OptInt = typing.Optional[int]
+point_like = "point_like"
+rect_like = "rect_like"
+matrix_like = "matrix_like"
+quad_like = "quad_like"
+AnyType = typing.Any
+OptInt = typing.Union[int, None]
 OptFloat = typing.Optional[float]
 OptStr = typing.Optional[str]
 OptDict = typing.Optional[dict]
-OptSequence = typing.Optional[typing.Sequence]
-OptColorspace = typing.Optional[Colorspace]
+OptBytes = typing.Optional[typing.ByteString]
+OptSeq = typing.Optional[typing.Sequence]
 
 """
 This is a collection of functions to extend PyMupdf.
@@ -426,7 +428,7 @@ def searchPageFor(
     text: str,
     hit_max: int = 0,
     quads: bool = False,
-    clip: OptRect = None,
+    clip: rect_like = None,
     flags: int = TEXT_DEHYPHENATE,
 ) -> list:
     """Search for a string on a page.
@@ -451,9 +453,9 @@ def searchPageFor(
 
 def getTextBlocks(
     page: Page,
-    clip: OptRect = None,
+    clip: rect_like = None,
     flags: OptInt = None,
-) -> list:
+) -> list[tuple]:
     """Return the text blocks on a page.
 
     Notes:
@@ -475,9 +477,9 @@ def getTextBlocks(
 
 def getTextWords(
     page: Page,
-    clip: OptRect = None,
+    clip: rect_like = None,
     flags: OptInt = None,
-) -> list:
+) -> list[tuple]:
     """Return the text words as a list with the bbox for each word.
 
     Args:
@@ -494,7 +496,7 @@ def getTextWords(
 
 def getTextbox(
     page: Page,
-    rect: "rect_like",
+    rect: rect_like,
 ) -> str:
     rc = page.getText("text", clip=rect, flags=0)
     if rc.endswith("\n"):
@@ -504,9 +506,9 @@ def getTextbox(
 
 def getTextSelection(
     page: Page,
-    p1: "point_like",
-    p2: "point_like",
-    clip: OptRect = None,
+    p1: point_like,
+    p2: point_like,
+    clip: rect_like = None,
 ):
     CheckParent(page)
     tp = page.getTextPage(clip=clip, flags=TEXT_DEHYPHENATE)
@@ -518,7 +520,7 @@ def getTextSelection(
 def getText(
     page: Page,
     option: str = "text",
-    clip: OptRect = None,
+    clip: rect_like = None,
     flags: OptInt = None,
 ):
     """Extract text from a page or an annotation.
@@ -562,7 +564,7 @@ def getText(
         return getTextBlocks(page, clip=clip, flags=flags)
     CheckParent(page)
     if clip != None:
-        clip = fitz.Rect(clip)
+        clip = Rect(clip)
     tp = page.getTextPage(clip=clip, flags=flags)  # TextPage with or without images
 
     if option == "json":
@@ -590,7 +592,7 @@ def getPageText(
     doc: Document,
     pno: int,
     option: str = "text",
-    clip: OptRect = None,
+    clip: rect_like = None,
     flags: OptInt = None,
 ) -> typing.Any:
     """Extract a document page's text by page number.
@@ -644,9 +646,9 @@ def getPixmap(page: Page, **kw) -> Pixmap:
 def getPagePixmap(
     doc: Document,
     pno: int,
-    matrix: "matrix_like" = Identity,
-    colorspace: OptColorspace = csRGB,
-    clip: OptRect = None,
+    matrix: matrix_like = Identity,
+    colorspace: Colorspace = csRGB,
+    clip: rect_like = None,
     alpha: bool = False,
     annots: bool = True,
 ) -> Pixmap:
@@ -784,7 +786,7 @@ def getToC(
             olItem = olItem.next
         return liste
 
-    # check if document is open and not encrypted
+    # ensure document is open
     if doc.isClosed:
         raise ValueError("document closed")
     doc.initData()
@@ -817,7 +819,7 @@ def setTOC_item(
     pno: OptInt = None,
     uri: OptStr = None,
     title: OptStr = None,
-    to: OptPoint = None,
+    to: point_like = None,
     filename: OptStr = None,
     zoom: int = 0,
 ) -> None:
@@ -1378,21 +1380,21 @@ def insertLink(page: Page, lnk: dict, mark: bool = True) -> None:
 
 def insertTextbox(
     page: Page,
-    rect: "rect_like",
+    rect: rect_like,
     buffer: typing.Union[str, list],
     fontname: str = "helv",
     fontfile: OptStr = None,
     set_simple: int = 0,
     encoding: int = 0,
     fontsize: float = 11,
-    color: OptSequence = None,
-    fill: OptSequence = None,
+    color: OptSeq = None,
+    fill: OptSeq = None,
     expandtabs: int = 1,
     align: int = 0,
     rotate: int = 0,
     render_mode: int = 0,
     border_width: float = 1,
-    morph: OptSequence = None,
+    morph: OptSeq = None,
     overlay: bool = True,
     stroke_opacity: float = 1,
     fill_opacity: float = 1,
@@ -1444,24 +1446,24 @@ def insertTextbox(
 
 
 def insertText(
-    page,
-    point,
-    text,
-    fontsize=11,
-    fontname="helv",
-    fontfile=None,
-    set_simple=0,
-    encoding=0,
-    color=None,
-    fill=None,
-    border_width=1,
-    render_mode=0,
-    rotate=0,
-    morph=None,
-    overlay=True,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
+    page: Page,
+    point: point_like,
+    text: typing.Union[str, list],
+    fontsize: float = 11,
+    fontname: str = "helv",
+    fontfile: OptStr = None,
+    set_simple: int = 0,
+    encoding: int = 0,
+    color: OptSeq = None,
+    fill: OptSeq = None,
+    border_width: float = 1,
+    render_mode: int = 0,
+    rotate: int = 0,
+    morph: OptSeq = None,
+    overlay: bool = True,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
 ):
 
     img = page.newShape()
@@ -1488,23 +1490,28 @@ def insertText(
     return rc
 
 
-def newPage(doc, pno=-1, width=595, height=842):
+def newPage(
+    doc: Document,
+    pno: int = -1,
+    width: float = 595,
+    height: float = 842,
+) -> Page:
     """Create and return a new page object."""
     doc._newPage(pno, width=width, height=height)
     return doc[pno]
 
 
 def insertPage(
-    doc,
-    pno,
-    text=None,
-    fontsize=11,
-    width=595,
-    height=842,
-    fontname="helv",
-    fontfile=None,
-    color=None,
-):
+    doc: Document,
+    pno: int,
+    text: typing.Union[str, list, None] = None,
+    fontsize: float = 11,
+    width: float = 595,
+    height: float = 842,
+    fontname: str = "helv",
+    fontfile: OptStr = None,
+    color: OptSeq = None,
+) -> int:
     """Create a new PDF page and insert some text.
 
     Notes:
@@ -1526,20 +1533,20 @@ def insertPage(
 
 
 def drawLine(
-    page,
-    p1,
-    p2,
-    color=None,
-    dashes=None,
-    width=1,
-    lineCap=0,
-    lineJoin=0,
-    overlay=True,
-    morph=None,
-    stroke_opacity=1,
-    fill_opacity=1,
+    page: Page,
+    p1: point_like,
+    p2: point_like,
+    color: OptSeq = None,
+    dashes: OptStr = None,
+    width: float = 1,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    overlay: bool = True,
+    morph: OptSeq = None,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
     oc=0,
-):
+) -> Point:
     """Draw a line from point p1 to point p2."""
     img = page.newShape()
     p = img.drawLine(Point(p1), Point(p2))
@@ -1561,21 +1568,21 @@ def drawLine(
 
 
 def drawSquiggle(
-    page,
-    p1,
-    p2,
-    breadth=2,
-    color=None,
-    dashes=None,
-    width=1,
-    lineCap=0,
-    lineJoin=0,
-    overlay=True,
-    morph=None,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    p1: point_like,
+    p2: point_like,
+    breadth: float = 2,
+    color: OptSeq = None,
+    dashes: OptStr = None,
+    width: float = 1,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    overlay: bool = True,
+    morph: OptSeq = None,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw a squiggly line from point p1 to point p2."""
     img = page.newShape()
     p = img.drawSquiggle(Point(p1), Point(p2), breadth=breadth)
@@ -1597,21 +1604,21 @@ def drawSquiggle(
 
 
 def drawZigzag(
-    page,
-    p1,
-    p2,
-    breadth=2,
-    color=None,
-    dashes=None,
-    width=1,
-    lineCap=0,
-    lineJoin=0,
-    overlay=True,
-    morph=None,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    p1: point_like,
+    p2: point_like,
+    breadth: float = 2,
+    color: OptSeq = None,
+    dashes: OptStr = None,
+    width: float = 1,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    overlay: bool = True,
+    morph: OptSeq = None,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw a zigzag line from point p1 to point p2."""
     img = page.newShape()
     p = img.drawZigzag(Point(p1), Point(p2), breadth=breadth)
@@ -1633,20 +1640,20 @@ def drawZigzag(
 
 
 def drawRect(
-    page,
-    rect,
-    color=None,
-    fill=None,
-    dashes=None,
-    width=1,
-    lineCap=0,
-    lineJoin=0,
-    morph=None,
-    overlay=True,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    rect: rect_like,
+    color: OptSeq = None,
+    fill: OptSeq = None,
+    dashes: OptStr = None,
+    width: float = 1,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    morph: OptSeq = None,
+    overlay: bool = True,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw a rectangle."""
     img = page.newShape()
     Q = img.drawRect(Rect(rect))
@@ -1668,20 +1675,20 @@ def drawRect(
 
 
 def drawQuad(
-    page,
-    quad,
-    color=None,
-    fill=None,
-    dashes=None,
-    width=1,
-    lineCap=0,
-    lineJoin=0,
-    morph=None,
-    overlay=True,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    quad: quad_like,
+    color: OptSeq = None,
+    fill: OptSeq = None,
+    dashes: OptStr = None,
+    width: float = 1,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    morph: OptSeq = None,
+    overlay: bool = True,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw a quadrilateral."""
     img = page.newShape()
     Q = img.drawQuad(Quad(quad))
@@ -1703,21 +1710,21 @@ def drawQuad(
 
 
 def drawPolyline(
-    page,
-    points,
-    color=None,
-    fill=None,
-    dashes=None,
-    width=1,
-    morph=None,
-    lineCap=0,
-    lineJoin=0,
-    overlay=True,
-    closePath=False,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    points: list,
+    color: OptSeq = None,
+    fill: OptSeq = None,
+    dashes: OptStr = None,
+    width: float = 1,
+    morph: OptSeq = None,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    overlay: bool = True,
+    closePath: bool = False,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw multiple connected line segments."""
     img = page.newShape()
     Q = img.drawPolyline(points)
@@ -1740,21 +1747,21 @@ def drawPolyline(
 
 
 def drawCircle(
-    page,
-    center,
-    radius,
-    color=None,
-    fill=None,
-    morph=None,
-    dashes=None,
-    width=1,
-    lineCap=0,
-    lineJoin=0,
-    overlay=True,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    center: point_like,
+    radius: float,
+    color: OptSeq = None,
+    fill: OptSeq = None,
+    morph: OptSeq = None,
+    dashes: OptStr = None,
+    width: float = 1,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    overlay: bool = True,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw a circle given its center and radius."""
     img = page.newShape()
     Q = img.drawCircle(Point(center), radius)
@@ -1775,20 +1782,20 @@ def drawCircle(
 
 
 def drawOval(
-    page,
-    rect,
-    color=None,
-    fill=None,
-    dashes=None,
-    morph=None,
-    width=1,
-    lineCap=0,
-    lineJoin=0,
-    overlay=True,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    rect: typing.Union[rect_like, quad_like],
+    color: OptSeq = None,
+    fill: OptSeq = None,
+    dashes: OptStr = None,
+    morph: OptSeq = None,
+    width: float = 1,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    overlay: bool = True,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw an oval given its containing rectangle or quad."""
     img = page.newShape()
     Q = img.drawOval(rect)
@@ -1810,23 +1817,23 @@ def drawOval(
 
 
 def drawCurve(
-    page,
-    p1,
-    p2,
-    p3,
-    color=None,
-    fill=None,
-    dashes=None,
-    width=1,
-    morph=None,
-    closePath=False,
-    lineCap=0,
-    lineJoin=0,
-    overlay=True,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    p1: point_like,
+    p2: point_like,
+    p3: point_like,
+    color: OptSeq = None,
+    fill: OptSeq = None,
+    dashes: OptStr = None,
+    width: float = 1,
+    morph: OptSeq = None,
+    closePath: bool = False,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    overlay: bool = True,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw a special Bezier curve from p1 to p3, generating control points on lines p1 to p2 and p2 to p3."""
     img = page.newShape()
     Q = img.drawCurve(Point(p1), Point(p2), Point(p3))
@@ -1849,24 +1856,24 @@ def drawCurve(
 
 
 def drawBezier(
-    page,
-    p1,
-    p2,
-    p3,
-    p4,
-    color=None,
-    fill=None,
-    dashes=None,
-    width=1,
-    morph=None,
-    closePath=False,
-    lineCap=0,
-    lineJoin=0,
-    overlay=True,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    p1: point_like,
+    p2: point_like,
+    p3: point_like,
+    p4: point_like,
+    color: OptSeq = None,
+    fill: OptSeq = None,
+    dashes: OptStr = None,
+    width: float = 1,
+    morph: OptStr = None,
+    closePath: bool = False,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    overlay: bool = True,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw a general cubic Bezier curve from p1 to p4 using control points p2 and p3."""
     img = page.newShape()
     Q = img.drawBezier(Point(p1), Point(p2), Point(p3), Point(p4))
@@ -1889,24 +1896,24 @@ def drawBezier(
 
 
 def drawSector(
-    page,
-    center,
-    point,
-    beta,
-    color=None,
-    fill=None,
-    dashes=None,
-    fullSector=True,
-    morph=None,
-    width=1,
-    closePath=False,
-    lineCap=0,
-    lineJoin=0,
-    overlay=True,
-    stroke_opacity=1,
-    fill_opacity=1,
-    oc=0,
-):
+    page: Page,
+    center: point_like,
+    point: point_like,
+    beta: float,
+    color: OptSeq = None,
+    fill: OptSeq = None,
+    dashes: OptStr = None,
+    fullSector: bool = True,
+    morph: OptSeq = None,
+    width: float = 1,
+    closePath: bool = False,
+    lineCap: int = 0,
+    lineJoin: int = 0,
+    overlay: bool = True,
+    stroke_opacity: float = 1,
+    fill_opacity: float = 1,
+    oc: int = 0,
+) -> Point:
     """Draw a circle sector given circle center, one arc end point and the angle of the arc.
 
     Parameters:
@@ -1949,7 +1956,7 @@ def drawSector(
 # ----------------------------------------------------------------------
 
 
-def getColorList():
+def getColorList() -> list:
     """
     Returns a list of just the colour names used by this module.
     :rtype: list of strings
@@ -1958,7 +1965,7 @@ def getColorList():
     return [x[0] for x in getColorInfoList()]
 
 
-def getColorInfoList():
+def getColorInfoList() -> list:
     """
     Returns the list of colour name/value tuples used by this module.
     :rtype: list of tuples
@@ -2513,14 +2520,14 @@ def getColorInfoList():
     ]
 
 
-def getColorInfoDict():
+def getColorInfoDict() -> dict:
     d = {}
     for item in getColorInfoList():
         d[item[0].lower()] = item[1:]
     return d
 
 
-def getColor(name):
+def getColor(name: str) -> tuple:
     """Retrieve RGB color in PDF format by name.
 
     Returns:
@@ -2533,7 +2540,7 @@ def getColor(name):
         return (1, 1, 1)
 
 
-def getColorHSV(name):
+def getColorHSV(name: str) -> tuple:
     """Retrieve the hue, saturation, value triple of a color name.
 
     Returns:
@@ -2571,7 +2578,7 @@ def getColorHSV(name):
     return (H, S, V)
 
 
-def _get_font_properties(doc, xref):
+def _get_font_properties(doc: Document, xref: int) -> tuple:
     fontname, ext, stype, buffer = doc.extractFont(xref)
     asc = 0.8
     dsc = -0.2
@@ -2579,7 +2586,7 @@ def _get_font_properties(doc, xref):
         return fontname, ext, stype, asc, dsc
 
     if buffer:
-        font = fitz.Font(fontbuffer=buffer)
+        font = Font(fontbuffer=buffer)
         asc = font.ascender
         dsc = font.descender
         bbox = font.bbox
@@ -2591,7 +2598,7 @@ def _get_font_properties(doc, xref):
         buffer = None
         return fontname, ext, stype, asc, dsc
     try:
-        font = fitz.Font(fontname)
+        font = Font(fontname)
         asc = font.ascender
         dsc = font.descender
         font = None
@@ -2600,7 +2607,12 @@ def _get_font_properties(doc, xref):
     return fontname, ext, stype, asc, dsc
 
 
-def getCharWidths(doc, xref, limit=256, idx=0):
+def getCharWidths(
+    doc: Document,
+    xref: int,
+    limit: int = 256,
+    idx: int = 0,
+) -> list:
     """Get list of glyph information of a font.
 
     Notes:
@@ -2712,7 +2724,7 @@ class Shape(object):
                 alfa = -alfa
         return alfa
 
-    def __init__(self, page):
+    def __init__(self, page: Page):
         CheckParent(page)
         self.page = page
         self.doc = page.parent
@@ -2753,7 +2765,7 @@ class Shape(object):
                 self.rect.x1 = max(self.rect.x1, x.x1)
                 self.rect.y1 = max(self.rect.y1, x.y1)
 
-    def drawLine(self, p1, p2):
+    def drawLine(self, p1: point_like, p2: point_like) -> Point:
         """Draw a line between two points."""
         p1 = Point(p1)
         p2 = Point(p2)
@@ -2767,7 +2779,7 @@ class Shape(object):
         self.lastPoint = p2
         return self.lastPoint
 
-    def drawPolyline(self, points):
+    def drawPolyline(self, points: list) -> Point:
         """Draw several connected line segments."""
         for i, p in enumerate(points):
             if i == 0:
@@ -2781,7 +2793,13 @@ class Shape(object):
         self.lastPoint = Point(points[-1])
         return self.lastPoint
 
-    def drawBezier(self, p1, p2, p3, p4):
+    def drawBezier(
+        self,
+        p1: point_like,
+        p2: point_like,
+        p3: point_like,
+        p4: point_like,
+    ) -> Point:
         """Draw a standard cubic Bezier curve."""
         p1 = Point(p1)
         p2 = Point(p2)
@@ -2799,7 +2817,7 @@ class Shape(object):
         self.lastPoint = p4
         return self.lastPoint
 
-    def drawOval(self, tetra):
+    def drawOval(self, tetra: typing.Union[quad_like, rect_like]) -> Point:
         """Draw an ellipse inside a tetrapod."""
         if len(tetra) != 4:
             raise ValueError("invalid arg length")
@@ -2823,7 +2841,7 @@ class Shape(object):
         self.lastPoint = ml
         return self.lastPoint
 
-    def drawCircle(self, center, radius):
+    def drawCircle(self, center: point_like, radius: float) -> Point:
         """Draw a circle given its center and radius."""
         if not radius > EPSILON:
             raise ValueError("radius must be postive")
@@ -2831,7 +2849,12 @@ class Shape(object):
         p1 = center - (radius, 0)
         return self.drawSector(center, p1, 360, fullSector=False)
 
-    def drawCurve(self, p1, p2, p3):
+    def drawCurve(
+        self,
+        p1: point_like,
+        p2: point_like,
+        p3: point_like,
+    ) -> Point:
         """Draw a curve between points using one control point."""
         kappa = 0.55228474983
         p1 = Point(p1)
@@ -2841,7 +2864,13 @@ class Shape(object):
         k2 = p3 + (p2 - p3) * kappa
         return self.drawBezier(p1, k1, k2, p3)
 
-    def drawSector(self, center, point, beta, fullSector=True):
+    def drawSector(
+        self,
+        center: point_like,
+        point: point_like,
+        beta: float,
+        fullSector: bool = True,
+    ) -> Point:
         """Draw a circle sector."""
         center = Point(center)
         point = Point(point)
@@ -2909,7 +2938,7 @@ class Shape(object):
         self.lastPoint = Q
         return self.lastPoint
 
-    def drawRect(self, rect):
+    def drawRect(self, rect: rect_like) -> Point:
         """Draw a rectangle."""
         r = Rect(rect)
         self.draw_cont += "%g %g %g %g re\n" % JM_TUPLE(
@@ -2919,12 +2948,17 @@ class Shape(object):
         self.lastPoint = r.tl
         return self.lastPoint
 
-    def drawQuad(self, quad):
+    def drawQuad(self, quad: quad_like) -> Point:
         """Draw a Quad."""
         q = Quad(quad)
         return self.drawPolyline([q.ul, q.ll, q.lr, q.ur, q.ul])
 
-    def drawZigzag(self, p1, p2, breadth=2):
+    def drawZigzag(
+        self,
+        p1: point_like,
+        p2: point_like,
+        breadth: float = 2,
+    ) -> Point:
         """Draw a zig-zagged line from p1 to p2."""
         p1 = Point(p1)
         p2 = Point(p2)
@@ -2948,7 +2982,12 @@ class Shape(object):
         self.drawPolyline([p1] + points + [p2])  # add start and end points
         return p2
 
-    def drawSquiggle(self, p1, p2, breadth=2):
+    def drawSquiggle(
+        self,
+        p1: point_like,
+        p2: point_like,
+        breadth=2,
+    ) -> Point:
         """Draw a squiggly line from p1 to p2."""
         p1 = Point(p1)
         p2 = Point(p2)
@@ -2985,23 +3024,23 @@ class Shape(object):
     # ==============================================================================
     def insertText(
         self,
-        point,
-        buffer,
-        fontsize=11,
-        fontname="helv",
-        fontfile=None,
-        set_simple=0,
-        encoding=0,
-        color=None,
-        fill=None,
-        render_mode=0,
-        border_width=1,
-        rotate=0,
-        morph=None,
-        stroke_opacity=1,
-        fill_opacity=1,
-        oc=0,
-    ):
+        point: point_like,
+        buffer: typing.Union[str, list],
+        fontsize: float = 11,
+        fontname: str = "helv",
+        fontfile: OptStr = None,
+        set_simple: bool = 0,
+        encoding: int = 0,
+        color: OptSeq = None,
+        fill: OptSeq = None,
+        render_mode: int = 0,
+        border_width: float = 1,
+        rotate: int = 0,
+        morph: OptSeq = None,
+        stroke_opacity: float = 1,
+        fill_opacity: float = 1,
+        oc: int = 0,
+    ) -> int:
 
         # ensure 'text' is a list of strings, worth dealing with
         if not bool(buffer):
@@ -3156,25 +3195,25 @@ class Shape(object):
     # ==============================================================================
     def insertTextbox(
         self,
-        rect,
-        buffer,
-        fontname="helv",
-        fontfile=None,
-        fontsize=11,
-        set_simple=0,
-        encoding=0,
-        color=None,
-        fill=None,
-        expandtabs=1,
-        border_width=1,
-        align=0,
-        render_mode=0,
-        rotate=0,
-        morph=None,
-        stroke_opacity=1,
-        fill_opacity=1,
-        oc=0,
-    ):
+        rect: rect_like,
+        buffer: typing.Union[str, list],
+        fontname: OptStr = "helv",
+        fontfile: OptStr = None,
+        fontsize: float = 11,
+        set_simple: bool = 0,
+        encoding: int = 0,
+        color: OptSeq = None,
+        fill: OptSeq = None,
+        expandtabs: int = 1,
+        border_width: float = 1,
+        align: int = 0,
+        render_mode: int = 0,
+        rotate: int = 0,
+        morph: OptSeq = None,
+        stroke_opacity: float = 1,
+        fill_opacity: float = 1,
+        oc: int = 0,
+    ) -> float:
         """Insert text into a given rectangle.
 
         Args:
@@ -3459,19 +3498,19 @@ class Shape(object):
 
     def finish(
         self,
-        width=1,
-        color=None,
-        fill=None,
-        lineCap=0,
-        lineJoin=0,
-        dashes=None,
-        even_odd=False,
-        morph=None,
-        closePath=True,
-        fill_opacity=1,
-        stroke_opacity=1,
-        oc=0,
-    ):
+        width: float = 1,
+        color: OptSeq = None,
+        fill: OptSeq = None,
+        lineCap: int = 0,
+        lineJoin: int = 0,
+        dashes: OptStr = None,
+        even_odd: bool = False,
+        morph: OptSeq = None,
+        closePath: bool = True,
+        fill_opacity: float = 1,
+        stroke_opacity: float = 1,
+        oc: int = 0,
+    ) -> None:
         """Finish the current drawing segment.
 
         Notes:
@@ -3546,13 +3585,12 @@ class Shape(object):
         self.lastPoint = None
         return
 
-    def commit(self, overlay=True):
+    def commit(self, overlay: bool = True) -> None:
         """Update the page's /Contents object with Shape data. The argument controls whether data appear in foreground (default) or background."""
         CheckParent(self.page)  # doc may have died meanwhile
         self.totalcont += self.text_cont
 
-        if not fitz_py2:  # need bytes if Python > 2
-            self.totalcont = bytes(self.totalcont, "utf-8")
+        self.totalcont = self.totalcont.encode()
 
         if self.totalcont != b"":
             # make /Contents object with dummy stream
@@ -3568,8 +3606,14 @@ class Shape(object):
         return
 
 
-def apply_redactions(page, images=2):
-    """Apply the redaction annotations of the page."""
+def apply_redactions(page: Page, images: int = 2) -> bool:
+    """Apply the redaction annotations of the page.
+
+    Args:
+        page: the PDF page.
+        images: 0 - ignore images, 1 - remove complete overlapping image,
+                2 - blank out overlapping image parts.
+    """
 
     def center_rect(annot_rect, text, font, fsize):
         """Calculate minimal sub-rectangle for the overlay text.
@@ -3654,20 +3698,20 @@ def apply_redactions(page, images=2):
 # Acrobat 'sanitize' function
 # ------------------------------------------------------------------------------
 def scrub(
-    doc,
-    attached_files=True,
-    clean_pages=True,
-    embedded_files=True,
-    hidden_text=True,
-    javascript=True,
-    metadata=True,
-    redactions=True,
-    redact_images=0,
-    remove_links=True,
-    reset_fields=True,
-    reset_responses=True,
-    xml_metadata=True,
-):
+    doc: Document,
+    attached_files: bool = True,
+    clean_pages: bool = True,
+    embedded_files: bool = True,
+    hidden_text: bool = True,
+    javascript: bool = True,
+    metadata: bool = True,
+    redactions: bool = True,
+    redact_images: int = 0,
+    remove_links: bool = True,
+    reset_fields: bool = True,
+    reset_responses: bool = True,
+    xml_metadata: bool = True,
+) -> None:
     def remove_hidden(cont_lines):
         """Remove hidden text from a PDF page.
 
@@ -3808,8 +3852,15 @@ def scrub(
 
 
 def fillTextbox(
-    writer: TextWriter, rect, text, pos=None, font=None, fontsize=11, align=0, warn=True
-):
+    writer: TextWriter,
+    rect: rect_like,
+    text: typing.Union[str, list],
+    pos: point_like = None,
+    font: typing.Optional[Font] = None,
+    fontsize: float = 11,
+    align: int = 0,
+    warn: bool = True,
+) -> tuple:
     """Fill a rectangle with text.
 
     Args:
@@ -3824,7 +3875,7 @@ def fillTextbox(
     """
     textlen = lambda x: font.text_length(x, fontsize)  # just for abbreviation
 
-    rect = fitz.Rect(rect)
+    rect = Rect(rect)
     if rect.isEmpty or rect.isInfinite:
         raise ValueError("fill rect must be finite and not empty.")
 
@@ -3852,9 +3903,9 @@ def fillTextbox(
         pos = rect.tl + (tolerance, fontsize * asc)
 
     # calculate displacement factor for alignment
-    if align == fitz.TEXT_ALIGN_CENTER:
+    if align == TEXT_ALIGN_CENTER:
         factor = 0.5
-    elif align == fitz.TEXT_ALIGN_RIGHT:
+    elif align == TEXT_ALIGN_RIGHT:
         factor = 1.0
     else:
         factor = 0
@@ -3952,7 +4003,7 @@ def fillTextbox(
                 exhausted = True  # and turn on switch
 
         # finished preparing a line
-        if align != fitz.TEXT_ALIGN_JUSTIFY:  # trivial alignments
+        if align != TEXT_ALIGN_JUSTIFY:  # trivial alignments
             fin_len = sum(len_line) + (len(line) - 1) * len_space
             d = (width - fin_len) * factor  # takes care of alignment
             start.x += d
