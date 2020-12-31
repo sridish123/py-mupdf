@@ -805,7 +805,7 @@ def delTOC_item(
 ) -> None:
     """Delete TOC / bookmark item by index."""
     toc = doc.getTOC()
-    xref = doc.outlineXref(idx)
+    xref = doc.outline_xref(idx)
     if xref == 0:
         raise ValueError("bad TOC item number")
     doc._remove_toc_item(xref)
@@ -844,7 +844,7 @@ def setTOC_item(
         name: (str) a destination name for LINK_NAMED.
         zoom: (float) a zoom factor for the target location (LINK_GOTO).
     """
-    xref = doc.outlineXref(idx)
+    xref = doc.outline_xref(idx)
     if xref == 0:
         raise ValueError("bad TOC item number")
     page_xref = 0
@@ -859,7 +859,29 @@ def setTOC_item(
         action = getDestStr(page_xref, dest_dict)
         if not action.startswith("/A"):
             raise ValueError("bad bookmark dest")
-        return doc._update_toc_item(xref, action=action[2:], title=title)
+        color = dest_dict.get("color")
+        if color:
+            if (
+                not getattr(color, "__len__")
+                or color.__len__() != 3
+                or min(color) < 0
+                or max(color) > 1
+            ):
+                raise ValueError("bad color value")
+            color = list(map(float, color))
+
+        bold = dest_dict.get("bold", False)
+        italic = dest_dict.get("italic", False)
+        flags = italic + 2 * bold
+        expand = dest_dict.get("expand", True)
+        return doc._update_toc_item(
+            xref,
+            action=action[2:],
+            title=title,
+            color=color,
+            flags=flags,
+            expand=expand,
+        )
 
     if kind == LINK_NONE:  # delete bookmark item
         return doc.delTOC_item(idx)

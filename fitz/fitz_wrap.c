@@ -2783,6 +2783,7 @@ static swig_module_info swig_module = {swig_types, 15, 0, 0, 0, 0};
 // << freetype includes --------------------------------------------------
 
 void JM_delete_widget(fz_context *ctx, pdf_page *page, pdf_annot *annot);
+static void JM_get_page_labels(fz_context *ctx, PyObject *liste, pdf_obj *nums);
 // additional headers from MuPDF ----------------------------------------------
 pdf_obj *pdf_lookup_page_loc(fz_context *ctx, pdf_document *doc, int needle, pdf_obj **parentp, int *indexp);
 fz_pixmap *fz_scale_pixmap(fz_context *ctx, fz_pixmap *src, float x, float y, float w, float h, const fz_irect *clip);
@@ -3464,7 +3465,7 @@ JM_py_from_quad(fz_quad quad)
 
 
 
-
+fz_buffer *JM_object_to_buffer(fz_context *ctx, pdf_obj *val, int a, int b);
 int LIST_APPEND_DROP(PyObject *list, PyObject *item)
 {
     if (!list || !PyList_Check(list) || !item) return -2;
@@ -3487,6 +3488,25 @@ int DICT_SETITEMSTR_DROP(PyObject *dict, const char *key, PyObject *value)
     int rc = PyDict_SetItemString(dict, key, value);
     Py_DECREF(value);
     return rc;
+}
+
+
+static void
+JM_get_page_labels(fz_context *ctx, PyObject *liste, pdf_obj *nums)
+{
+    int pno, i, n = pdf_array_len(ctx, nums);
+    char *c = NULL;
+    pdf_obj *val;
+    fz_buffer *res = NULL;
+    for (i = 0; i < n; i += 2) {
+        pdf_obj *key = pdf_resolve_indirect(ctx, pdf_array_get(ctx, nums, i));
+        pno = pdf_to_int(ctx, key);
+        val = pdf_resolve_indirect(ctx, pdf_array_get(ctx, nums, i + 1));
+        res = JM_object_to_buffer(ctx, val, 1, 0);
+        fz_buffer_storage(ctx, res, &c);
+        LIST_APPEND_DROP(liste, Py_BuildValue("is", pno, c));
+        fz_drop_buffer(ctx, res);
+    }
 }
 
 
@@ -10039,19 +10059,27 @@ SWIGINTERN PyObject *Document__delToC(struct Document *self){
             pdf->dirty = 1;
             return xrefs;
         }
-SWIGINTERN int Document_outlineXref(struct Document *self,int index){
-            if (index < 0) return 0;  // nonsense call
-            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
-            if (!pdf) return 0;  // only works for PDF
-            // get the main root
-            pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
-            // get the outline root
-            pdf_obj *olroot = pdf_dict_get(gctx, root, PDF_NAME(Outlines));
-            if (!olroot) return 0;  // no outlines / some problem
-            // first outline
-            pdf_obj *first = pdf_dict_get(gctx, olroot, PDF_NAME(First));
-            if (!first) return 0;
-            return JM_outline_xref(gctx, first, index);
+SWIGINTERN PyObject *Document_outline_xref(struct Document *self,int index){
+            int xref = 0;
+            fz_try(gctx) {
+                if (index < 0) goto finished;  // nonsense call
+                pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
+                ASSERT_PDF(pdf);
+                // get the main root
+                pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
+                // get the outline root
+                pdf_obj *olroot = pdf_dict_get(gctx, root, PDF_NAME(Outlines));
+                if (!olroot) goto finished;  // no outlines / some problem
+                // first outline
+                pdf_obj *first = pdf_dict_get(gctx, olroot, PDF_NAME(First));
+                if (!first) goto finished;
+                xref = JM_outline_xref(gctx, first, index);
+                finished:;
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return Py_BuildValue("i", xref);
         }
 SWIGINTERN PyObject *Document_isStream(struct Document *self,int xref){
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
@@ -10651,10 +10679,12 @@ SWIGINTERN PyObject *Document__remove_toc_item(struct Document *self,int xref){
             }
             Py_RETURN_NONE;
         }
-SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,char *action,char *title){
+SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,char *action,char *title,int flags,int expand,PyObject *color){
             // "update" bookmark by letting it point to nowhere
             pdf_obj *item = NULL;
             pdf_obj *obj = NULL;
+            Py_ssize_t i;
+            float f;
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
             fz_try(gctx) {
                 item = pdf_new_indirect(gctx, pdf, xref, 0);
@@ -10666,6 +10696,24 @@ SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,ch
                     obj = JM_pdf_obj_from_str(gctx, pdf, action);
                     pdf_dict_put_drop(gctx, item, PDF_NAME(A), obj);
                 }
+                pdf_dict_put_int(gctx, item, PDF_NAME(F), flags);
+                if (EXISTS(color)) {
+                    pdf_obj *c = pdf_new_array(gctx, pdf, 3);
+                    for (i = 0; i < 3; i++) {
+                        JM_FLOAT_ITEM(color, i, &f);
+                        pdf_array_push_real(gctx, c, f);
+                    }
+                    pdf_dict_put_drop(gctx, item, PDF_NAME(C), c);
+                } else if (color != Py_None) {
+                    pdf_dict_del(gctx, item, PDF_NAME(C));
+                }
+                if (pdf_dict_get(gctx, item, PDF_NAME(Count))) {
+                    i = pdf_dict_get_int(gctx, item, PDF_NAME(Count));
+                    if ( i < 0 && expand || i > 0 && !expand) {
+                        i = i * (-1);
+                        pdf_dict_put_int(gctx, item, PDF_NAME(Count), i);
+                    }
+                }
             }
             fz_always(gctx) {
                 pdf_drop_obj(gctx, item);
@@ -10676,9 +10724,10 @@ SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,ch
             Py_RETURN_NONE;
         }
 SWIGINTERN PyObject *Document__get_page_labels(struct Document *self){
-            pdf_obj *obj = NULL;
+            pdf_obj *obj, *nums, *kids;
             PyObject *rc = NULL;
             fz_buffer *res = NULL;
+            int i, n;
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
 
             fz_try(gctx) {
@@ -10690,32 +10739,40 @@ SWIGINTERN PyObject *Document__get_page_labels(struct Document *self){
                 if (!obj) {
                     goto finished;
                 }
-                pdf_obj *nums = pdf_resolve_indirect(gctx, pdf_dict_get(gctx, obj, PDF_NAME(Nums)));
-                if (!nums) {
-                    nums = pdf_resolve_indirect(gctx,
-                           pdf_dict_getl(gctx, obj, PDF_NAME(Kids), PDF_NAME(Nums), NULL)
-                           );
-                }
-                int i, n, pno;
-                if (!nums || !pdf_is_array(gctx, nums)) {
+                // simple case: direct /Nums object
+                nums = pdf_resolve_indirect(gctx,
+                       pdf_dict_get(gctx, obj, PDF_NAME(Nums)));
+                if (nums) {
+                    JM_get_page_labels(gctx, rc, nums);
                     goto finished;
                 }
-                n = pdf_array_len(gctx, nums);
-                for (i = 0; i < n; i += 2) {
-                    pdf_obj *key = pdf_resolve_indirect(gctx, pdf_array_get(gctx, nums, i));
-                    pno = pdf_to_int(gctx, key);
-                    pdf_obj *val = pdf_resolve_indirect(gctx, pdf_array_get(gctx, nums, i + 1));
-                    res = JM_object_to_buffer(gctx, val, 1, 0);
-                    const char *c = NULL;
-                    fz_buffer_storage(gctx, res, &c);
-                    LIST_APPEND_DROP(rc, Py_BuildValue("is", pno, c));
-                    fz_clear_buffer(gctx, res);
+                // case: /Kids/Nums
+                nums = pdf_resolve_indirect(gctx,
+                           pdf_dict_getl(gctx, obj, PDF_NAME(Kids), PDF_NAME(Nums), NULL)
+                );
+                if (nums) {
+                    JM_get_page_labels(gctx, rc, nums);
+                    goto finished;
+                }
+                // case: /Kids is an array of multiple /Nums
+                kids = pdf_resolve_indirect(gctx,
+                       pdf_dict_get(gctx, obj, PDF_NAME(Kids)));
+                if (!kids || !pdf_is_array(gctx, kids)) {
+                    goto finished;
+                }
+
+                n = pdf_array_len(gctx, kids);
+                for (i = 0; i < n; i++) {
+                    nums = pdf_resolve_indirect(gctx,
+                           pdf_dict_get(gctx,
+                           pdf_array_get(gctx, kids, i),
+                           PDF_NAME(Nums)));
+                    JM_get_page_labels(gctx, rc, nums);
                 }
                 finished:;
             }
             fz_always(gctx) {
                 PyErr_Clear();
-                fz_drop_buffer(gctx, res);
             }
             fz_catch(gctx){
                 Py_CLEAR(rc);
@@ -14084,20 +14141,7 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
                         int last_char = 0;
                         for (line = block->u.t.first_line; line; line = line->next) {
                             line_n++;
-                            if (fz_is_empty_rect(fz_intersect_rect(tp_rect, line->bbox)) &&
-                                !fz_is_infinite_rect(tp_rect)) {
-                                continue;
-                            }
                             fz_rect linerect = fz_empty_rect;
-                            /* append line no. 2 with new-line
-                                    if (line_n > 0) {
-                                        if (linerect.y0 != last_y0)
-                                            fz_append_byte(gctx, res, 10);
-                                        else
-                                            fz_append_byte(gctx, res, 32);
-                                    }
-                                    last_y0 = linerect.y0;
-                            */
                             for (ch = line->first_char; ch; ch = ch->next) {
                                 fz_rect cbbox = JM_char_bbox(gctx, line, ch);
                                 if (!fz_contains_rect(tp_rect, cbbox) && 
@@ -14106,7 +14150,7 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
                                 }
                                 JM_append_rune(gctx, res, ch->c);
                                 last_char = ch->c;
-                                linerect = fz_union_rect(linerect, JM_char_bbox(gctx, line, ch));
+                                linerect = fz_union_rect(linerect, cbbox);
                             }
                             if (last_char != 10) {
                                 fz_append_byte(gctx, res, 10);
@@ -14114,7 +14158,7 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
                             blockrect = fz_union_rect(blockrect, linerect);
                         }
                         text = JM_EscapeStrFromBuffer(gctx, res);
-                    } else if (fz_contains_rect(tp_rect, block->bbox)) {
+                    } else if (fz_contains_rect(tp_rect, block->bbox) || fz_is_infinite_rect(tp_rect)) {
                         fz_image *img = block->u.i.image;
                         fz_colorspace *cs = img->colorspace;
                         text = PyUnicode_FromFormat("<image: %s, width %d, height %d, bpc %d>", fz_colorspace_name(gctx, cs), img->w, img->h, img->bpc);
@@ -14176,12 +14220,12 @@ SWIGINTERN PyObject *TextPage_extractWORDS(struct TextPage *self){
                                 continue;
                             }
                             if (ch->c == 32 && buflen == 0)
-                                continue;                 // skip spaces at line start
+                                continue;  // skip spaces at line start
                             if (ch->c == 32) {
                                 word_n = JM_append_word(gctx, lines, buff, &wbbox,
                                                         block_n, line_n, word_n);
                                 fz_clear_buffer(gctx, buff);
-                                buflen = 0;               // reset char counter
+                                buflen = 0;  // reset char counter
                                 continue;
                             }
                             // append one unicode character to the word
@@ -17206,7 +17250,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Document_outlineXref(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Document_outline_xref(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Document *arg1 = (struct Document *) 0 ;
   int arg2 ;
@@ -17215,21 +17259,27 @@ SWIGINTERN PyObject *_wrap_Document_outlineXref(PyObject *SWIGUNUSEDPARM(self), 
   int val2 ;
   int ecode2 = 0 ;
   PyObject *swig_obj[2] ;
-  int result;
+  PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Document_outlineXref", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Document_outline_xref", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_outlineXref" "', argument " "1"" of type '" "struct Document *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_outline_xref" "', argument " "1"" of type '" "struct Document *""'"); 
   }
   arg1 = (struct Document *)(argp1);
   ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
   if (!SWIG_IsOK(ecode2)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_outlineXref" "', argument " "2"" of type '" "int""'");
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_outline_xref" "', argument " "2"" of type '" "int""'");
   } 
   arg2 = (int)(val2);
-  result = (int)Document_outlineXref(arg1,arg2);
-  resultobj = SWIG_From_int((int)(result));
+  {
+    result = (PyObject *)Document_outline_xref(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
   return resultobj;
 fail:
   return NULL;
@@ -18121,6 +18171,9 @@ SWIGINTERN PyObject *_wrap_Document__update_toc_item(PyObject *SWIGUNUSEDPARM(se
   int arg2 ;
   char *arg3 = (char *) NULL ;
   char *arg4 = (char *) NULL ;
+  int arg5 = (int) 0 ;
+  int arg6 = (int) 1 ;
+  PyObject *arg7 = (PyObject *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int val2 ;
@@ -18131,10 +18184,14 @@ SWIGINTERN PyObject *_wrap_Document__update_toc_item(PyObject *SWIGUNUSEDPARM(se
   int res4 ;
   char *buf4 = 0 ;
   int alloc4 = 0 ;
-  PyObject *swig_obj[4] ;
+  int val5 ;
+  int ecode5 = 0 ;
+  int val6 ;
+  int ecode6 = 0 ;
+  PyObject *swig_obj[7] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Document__update_toc_item", 2, 4, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Document__update_toc_item", 2, 7, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document__update_toc_item" "', argument " "1"" of type '" "struct Document *""'"); 
@@ -18159,8 +18216,25 @@ SWIGINTERN PyObject *_wrap_Document__update_toc_item(PyObject *SWIGUNUSEDPARM(se
     }
     arg4 = (char *)(buf4);
   }
+  if (swig_obj[4]) {
+    ecode5 = SWIG_AsVal_int(swig_obj[4], &val5);
+    if (!SWIG_IsOK(ecode5)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "Document__update_toc_item" "', argument " "5"" of type '" "int""'");
+    } 
+    arg5 = (int)(val5);
+  }
+  if (swig_obj[5]) {
+    ecode6 = SWIG_AsVal_int(swig_obj[5], &val6);
+    if (!SWIG_IsOK(ecode6)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "Document__update_toc_item" "', argument " "6"" of type '" "int""'");
+    } 
+    arg6 = (int)(val6);
+  }
+  if (swig_obj[6]) {
+    arg7 = swig_obj[6];
+  }
   {
-    result = (PyObject *)Document__update_toc_item(arg1,arg2,arg3,arg4);
+    result = (PyObject *)Document__update_toc_item(arg1,arg2,arg3,arg4,arg5,arg6,arg7);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -27163,7 +27237,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document_extractFont", _wrap_Document_extractFont, METH_VARARGS, NULL},
 	 { "Document_extractImage", _wrap_Document_extractImage, METH_VARARGS, NULL},
 	 { "Document__delToC", _wrap_Document__delToC, METH_O, NULL},
-	 { "Document_outlineXref", _wrap_Document_outlineXref, METH_VARARGS, NULL},
+	 { "Document_outline_xref", _wrap_Document_outline_xref, METH_VARARGS, NULL},
 	 { "Document_isStream", _wrap_Document_isStream, METH_VARARGS, NULL},
 	 { "Document_need_appearances", _wrap_Document_need_appearances, METH_VARARGS, NULL},
 	 { "Document_getSigFlags", _wrap_Document_getSigFlags, METH_O, NULL},
