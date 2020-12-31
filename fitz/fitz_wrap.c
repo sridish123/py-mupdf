@@ -10691,13 +10691,18 @@ SWIGINTERN PyObject *Document__get_page_labels(struct Document *self){
                     goto finished;
                 }
                 pdf_obj *nums = pdf_resolve_indirect(gctx, pdf_dict_get(gctx, obj, PDF_NAME(Nums)));
+                if (!nums) {
+                    nums = pdf_resolve_indirect(gctx,
+                           pdf_dict_getl(gctx, obj, PDF_NAME(Kids), PDF_NAME(Nums), NULL)
+                           );
+                }
                 int i, n, pno;
                 if (!nums || !pdf_is_array(gctx, nums)) {
                     goto finished;
                 }
                 n = pdf_array_len(gctx, nums);
                 for (i = 0; i < n; i += 2) {
-                    pdf_obj *key = pdf_array_get(gctx, nums, i);
+                    pdf_obj *key = pdf_resolve_indirect(gctx, pdf_array_get(gctx, nums, i));
                     pno = pdf_to_int(gctx, key);
                     pdf_obj *val = pdf_resolve_indirect(gctx, pdf_array_get(gctx, nums, i + 1));
                     res = JM_object_to_buffer(gctx, val, 1, 0);
