@@ -10709,7 +10709,7 @@ SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,ch
                 }
                 if (pdf_dict_get(gctx, item, PDF_NAME(Count))) {
                     i = pdf_dict_get_int(gctx, item, PDF_NAME(Count));
-                    if ( i < 0 && expand || i > 0 && !expand) {
+                    if ((i < 0 && expand) || (i > 0 && !expand)) {
                         i = i * (-1);
                         pdf_dict_put_int(gctx, item, PDF_NAME(Count), i);
                     }
@@ -10786,8 +10786,7 @@ SWIGINTERN PyObject *Document__set_page_labels(struct Document *self,char *label
                 ASSERT_PDF(pdf);
                 pdf_obj *pagelabels = pdf_new_name(gctx, "PageLabels");
                 pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
-                pdf_dict_del(gctx, root, pagelabels, PDF_NAME(Kids));
-                pdf_dict_del(gctx, root, pagelabels, PDF_NAME(Nums));
+                pdf_dict_del(gctx, root, pagelabels);
                 pdf_obj *plobject = pdf_new_array(gctx, pdf, 0);
                 pdf_dict_putl_drop(gctx, root, plobject, pagelabels, PDF_NAME(Nums), NULL);
             }
