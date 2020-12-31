@@ -10786,6 +10786,8 @@ SWIGINTERN PyObject *Document__set_page_labels(struct Document *self,char *label
                 ASSERT_PDF(pdf);
                 pdf_obj *pagelabels = pdf_new_name(gctx, "PageLabels");
                 pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
+                pdf_dict_del(gctx, root, pagelabels, PDF_NAME(Kids));
+                pdf_dict_del(gctx, root, pagelabels, PDF_NAME(Nums));
                 pdf_obj *plobject = pdf_new_array(gctx, pdf, 0);
                 pdf_dict_putl_drop(gctx, root, plobject, pagelabels, PDF_NAME(Nums), NULL);
             }
