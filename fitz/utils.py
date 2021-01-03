@@ -738,10 +738,11 @@ def getLinks(page: Page) -> list:
         links.append(nl)
         ln = ln.next
     if len(links) > 0:
-        linkxrefs = page._getLinkXrefs()
+        linkxrefs = [x for x in page.annot_xrefs() if x[1] == PDF_ANNOT_LINK]
         if len(linkxrefs) == len(links):
             for i in range(len(linkxrefs)):
-                links[i]["xref"] = linkxrefs[i]
+                links[i]["xref"] = linkxrefs[i][0]
+                links[i]["id"] = linkxrefs[i][2]
     return links
 
 
@@ -799,19 +800,16 @@ def getToC(
     return recurse(olItem, liste, lvl)
 
 
-def delTOC_item(
+def del_toc_item(
     doc: Document,
     idx: int,
 ) -> None:
     """Delete TOC / bookmark item by index."""
-    toc = doc.getTOC()
-    xref = doc.outline_xref(idx)
-    if xref == 0:
-        raise ValueError("bad TOC item number")
+    xref = doc.get_outline_xrefs()[idx]
     doc._remove_toc_item(xref)
 
 
-def setTOC_item(
+def set_toc_item(
     doc: Document,
     idx: int,
     dest_dict: OptDict = None,
@@ -844,9 +842,7 @@ def setTOC_item(
         name: (str) a destination name for LINK_NAMED.
         zoom: (float) a zoom factor for the target location (LINK_GOTO).
     """
-    xref = doc.outline_xref(idx)
-    if xref == 0:
-        raise ValueError("bad TOC item number")
+    xref = doc.get_outline_xrefs()[idx]
     page_xref = 0
     if type(dest_dict) is dict:
         if dest_dict["kind"] == LINK_GOTO:
@@ -873,7 +869,7 @@ def setTOC_item(
         bold = dest_dict.get("bold", False)
         italic = dest_dict.get("italic", False)
         flags = italic + 2 * bold
-        expand = dest_dict.get("expand", True)
+        expand = dest_dict.get("expand")
         return doc._update_toc_item(
             xref,
             action=action[2:],
@@ -884,7 +880,7 @@ def setTOC_item(
         )
 
     if kind == LINK_NONE:  # delete bookmark item
-        return doc.delTOC_item(idx)
+        return doc.del_toc_item(idx)
     if kind is None and title is None:  # treat as no-op
         return None
     if kind is None:  # only update title text
@@ -1125,10 +1121,14 @@ def setToC(
         d["title"] = title
         d["parent"] = lvltab[lvl - 1]
         d["xref"] = xref[i + 1]
+        d["color"] = dest_dict.get("color")
+        d["flags"] = dest_dict.get("italic", 0) + 2 * dest_dict.get("bold", 0)
         lvltab[lvl] = i + 1
         parent = olitems[lvltab[lvl - 1]]  # the parent entry
 
-        if collapse and lvl > collapse:  # suppress expansion
+        if (
+            dest_dict.get("collapse") or collapse and lvl > collapse
+        ):  # suppress expansion
             parent["count"] -= 1  # make /Count negative
         else:
             parent["count"] += 1  # positive /Count
@@ -1183,6 +1183,12 @@ def setToC(
             txt += "/Title" + ol["title"]
         except:
             pass
+
+        if ol["color"] and len(ol["color"]) == 3:
+            txt += "/C[ %g %g %g]" % tuple(ol["color"])
+        if ol["flags"] > 0:
+            txt += "/F %i" % ol["flags"]
+
         if i == 0:  # special: this is the outline root
             txt += "/Type/Outlines"  # so add the /Type entry
         txt += ">>"
@@ -1320,7 +1326,6 @@ def getLinkText(page: Page, lnk: dict) -> str:
     ctm = page.transformationMatrix
     ictm = ~ctm
     r = lnk["from"]
-    height = page.rect.height
     rect = "%g %g %g %g" % tuple(r * ictm)
 
     annot = ""
@@ -1358,6 +1363,27 @@ def getLinkText(page: Page, lnk: dict) -> str:
     elif lnk["kind"] == LINK_NAMED:
         txt = annot_skel["named"]  # annot_named
         annot = txt % (lnk["name"], rect)
+    if not annot:
+        return annot
+
+    # add a /NM PDF key to the object definition
+    link_names = dict(  # existing ids and their xref
+        [(x[0], x[2]) for x in page.annot_xrefs() if x[1] == PDF_ANNOT_LINK]
+    )
+
+    old_name = lnk.get("id", "")  # id value in the argument
+
+    if old_name and (lnk["xref"], old_name) in link_names.items():
+        name = old_name  # no new name if this is an update only
+    else:
+        i = 0
+        while True:
+            name = "fitzlink-%i" % i
+            if name not in link_names.values():
+                break
+            i += 1
+    # add /NM key to object definition
+    annot = annot.replace("/Link", "/Link/NM(%s)" % name)
 
     return annot
 
@@ -1395,7 +1421,6 @@ def insertLink(page: Page, lnk: dict, mark: bool = True) -> None:
     annot = getLinkText(page, lnk)
     if annot == "":
         raise ValueError("link kind not supported")
-
     page._addAnnot_FromString([annot])
     return
 
@@ -1409,6 +1434,7 @@ def insertTextbox(
     set_simple: int = 0,
     encoding: int = 0,
     fontsize: float = 11,
+    lineheight: OptFloat = None,
     color: OptSeq = None,
     fill: OptSeq = None,
     expandtabs: int = 1,
@@ -1432,6 +1458,7 @@ def insertTextbox(
         fontname: a Base-14 font, font name or '/name'
         fontfile: name of a font file
         fontsize: font size
+        lineheight: overwrite the font property
         color: RGB color triple
         expandtabs: handles tabulators with string function
         align: left, center, right, justified
@@ -1446,6 +1473,7 @@ def insertTextbox(
         rect,
         buffer,
         fontsize=fontsize,
+        lineheight=lineheight,
         fontname=fontname,
         fontfile=fontfile,
         set_simple=set_simple,
@@ -1472,6 +1500,7 @@ def insertText(
     point: point_like,
     text: typing.Union[str, list],
     fontsize: float = 11,
+    lineheight: OptFloat = None,
     fontname: str = "helv",
     fontfile: OptStr = None,
     set_simple: int = 0,
@@ -1493,6 +1522,7 @@ def insertText(
         point,
         text,
         fontsize=fontsize,
+        lineheight=lineheight,
         fontname=fontname,
         fontfile=fontfile,
         set_simple=set_simple,
@@ -3049,6 +3079,7 @@ class Shape(object):
         point: point_like,
         buffer: typing.Union[str, list],
         fontsize: float = 11,
+        lineheight: OptFloat = None,
         fontname: str = "helv",
         fontfile: OptStr = None,
         set_simple: bool = 0,
@@ -3096,6 +3127,15 @@ class Shape(object):
         ordering = fontdict["ordering"]
         simple = fontdict["simple"]
         bfname = fontdict["name"]
+        ascender = fontdict["ascender"]
+        descender = fontdict["descender"]
+        if lineheight:
+            lheight = fontsize * lineheight
+        elif ascender - descender <= 1:
+            lheight = fontsize * 1.2
+        else:
+            lheight = fontsize * (ascender - descender)
+
         if maxcode > 255:
             glyphs = self.doc.getCharWidths(xref, maxcode + 1)
         else:
@@ -3119,7 +3159,7 @@ class Shape(object):
         morphing = CheckMorph(morph)
         rot = rotate
         if rot % 90 != 0:
-            raise ValueError("rotate not multiple of 90")
+            raise ValueError("rotate no int multiple of 90")
 
         while rot < 0:
             rot += 360
@@ -3132,7 +3172,7 @@ class Shape(object):
         cm180 = "-1 0 0 -1 0 0 cm\n"  # rotates by 180 deg.
         height = self.height
         width = self.width
-        lheight = fontsize * 1.2  # line height
+
         # setting up for standard rotation directions
         # case rotate = 0
         if morphing:
@@ -3222,6 +3262,7 @@ class Shape(object):
         fontname: OptStr = "helv",
         fontfile: OptStr = None,
         fontsize: float = 11,
+        lineheight: OptFloat = None,
         set_simple: bool = 0,
         encoding: int = 0,
         color: OptSeq = None,
@@ -3244,6 +3285,7 @@ class Shape(object):
             fontname -- a Base-14 font, font name or '/name'
             fontfile -- name of a font file
             fontsize -- font size
+            lineheight -- overwrite the font property
             color -- RGB stroke color triple
             fill -- RGB fill color triple
             render_mode -- text rendering control
@@ -3312,12 +3354,13 @@ class Shape(object):
         bfname = fontdict["name"]
         ascender = fontdict["ascender"]
         descender = fontdict["descender"]
-        if ascender - descender <= 1:
-            lheight_factor = 1.2
-        else:
-            lheight_factor = ascender - descender
 
-        lheight = fontsize * lheight_factor
+        if lineheight:
+            lheight = fontsize * lineheight
+        elif ascender - descender <= 1:
+            lheight = fontsize * 1.2
+        else:
+            lheight = fontsize * (ascender - descender)
 
         # create a list from buffer, split into its lines
         if type(buffer) in (list, tuple):
@@ -3880,6 +3923,7 @@ def fillTextbox(
     pos: point_like = None,
     font: typing.Optional[Font] = None,
     fontsize: float = 11,
+    lineheight: OptFloat = None,
     align: int = 0,
     warn: bool = True,
 ) -> tuple:
@@ -3892,6 +3936,7 @@ def fillTextbox(
         pos: point-like start position of first word.
         font: Font object (default Font('helv')).
         fontsize: the fontsize.
+        lineheight: overwrite the font property
         align: (int) 0 = left, 1 = center, 2 = right, 3 = justify
         warn: (bool) just warn on text overflow, else raise exception.
     """
@@ -3906,10 +3951,13 @@ def fillTextbox(
 
     asc = font.ascender
     dsc = font.descender
-    if asc - dsc <= 1:
-        lheight = 1.2
+    if not lineheight:
+        if asc - dsc <= 1:
+            lheight = 1.2
+        else:
+            lheight = asc - dsc
     else:
-        lheight = asc - dsc
+        lheight = lineheight
 
     tolerance = fontsize * 0.25
     width = rect.width - tolerance  # available horizontal space

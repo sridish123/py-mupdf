@@ -3711,6 +3711,20 @@ class Document(object):
     def _dropOutline(self, ol: "Outline") -> None:
         return _fitz.Document__dropOutline(self, ol)
 
+    def get_outline_xrefs(self) -> AnyType:
+        """Get list of outline xref numbers."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_get_outline_xrefs(self)
+
+    def get_outline_tuples(self) -> AnyType:
+        """Get list of outline xref numbers."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_get_outline_tuples(self)
+
     def _embeddedFileNames(self, namelist: AnyType) -> AnyType:
         """Get list of embedded file names."""
         if self.isClosed:
@@ -4410,15 +4424,6 @@ class Document(object):
 
         return val
 
-    def outline_xref(self, index: int) -> AnyType:
-        """Get outline xref by index."""
-        if self.isClosed:
-            raise ValueError("document closed")
-
-        return _fitz.Document_outline_xref(self, index)
-
-    outlineXref = outline_xref
-
     def isStream(self, xref: int = 0) -> AnyType:
         """Check if xref is a stream object."""
         if self.isClosed:
@@ -4609,7 +4614,7 @@ class Document(object):
         action: OptStr = None,
         title: OptStr = None,
         flags: int = 0,
-        expand: int = 1,
+        expand: AnyType = None,
         color: AnyType = None,
     ) -> AnyType:
         return _fitz.Document__update_toc_item(
@@ -5841,9 +5846,12 @@ class Page(object):
             val.parent = weakref.proxy(self)  # owning page object
             self._annot_refs[id(val)] = val
             if self.parent.isPDF:
-                val.xref = self._getLinkXrefs()[0]
+                link_id = [x for x in self.annot_xrefs() if x[1] == PDF_ANNOT_LINK][0]
+                val.xref = link_id[0]
+                val.id = link_id[2]
             else:
                 val.xref = 0
+                val.id = ""
 
         return val
 
@@ -5954,9 +5962,6 @@ class Page(object):
         CheckParent(self)
 
         return _fitz.Page__addAnnot_FromString(self, linklist)
-
-    def _getLinkXrefs(self) -> AnyType:
-        return _fitz.Page__getLinkXrefs(self)
 
     def clean_contents(self, sanitize: int = 1) -> AnyType:
         """Clean page /Contents into one object."""
@@ -7600,11 +7605,18 @@ class Link(object):
             val.parent = self.parent  # copy owning page from prev link
             val.parent._annot_refs[id(val)] = val
             if self.xref > 0:  # prev link has an xref
-                link_xrefs = self.parent._getLinkXrefs()
+                link_xrefs = [
+                    x[0] for x in self.parent.annot_xrefs() if x[1] == PDF_ANNOT_LINK
+                ]
+                link_ids = [
+                    x[2] for x in self.parent.annot_xrefs() if x[1] == PDF_ANNOT_LINK
+                ]
                 idx = link_xrefs.index(self.xref)
                 val.xref = link_xrefs[idx + 1]
+                val.id = link_ids[idx + 1]
             else:
                 val.xref = 0
+                val.id = ""
 
         return val
 
