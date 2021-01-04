@@ -2797,6 +2797,7 @@ PyObject *JM_mupdf_warnings_store;
 PyObject *JM_mupdf_show_errors;
 
 
+
 fz_context *gctx;
 static int JM_UNIQUE_ID = 0;
 
@@ -5097,16 +5098,16 @@ PyObject *JM_get_annot_xref_list(fz_context *ctx, pdf_page *page)
 // Add a unique /NM key to an annotation or widget.
 // Append a number to 'stem' such that the result is a unique name.
 //------------------------------------------------------------------------
+static char JM_annot_id_stem[50] = "fitz";
 void JM_add_annot_id(fz_context *ctx, pdf_annot *annot, char *stem)
 {
     fz_try(ctx) {
         PyObject *names = NULL;
         names = JM_get_annot_id_list(ctx, annot->page);
-
         int i = 0;
         PyObject *stem_id = NULL;
         while (1) {
-            stem_id = PyUnicode_FromFormat("%s-%d", stem, i);
+            stem_id = PyUnicode_FromFormat("%s-%s%d", JM_annot_id_stem, stem, i);
             if (!PySequence_Contains(names, stem_id)) break;
             i += 1;
             Py_DECREF(stem_id);
@@ -10688,7 +10689,7 @@ SWIGINTERN PyObject *Document__remove_toc_item(struct Document *self,int xref){
             }
             Py_RETURN_NONE;
         }
-SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,char *action,char *title,int flags,PyObject *expand,PyObject *color){
+SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,char *action,char *title,int flags,PyObject *collapse,PyObject *color){
             // "update" bookmark by letting it point to nowhere
             pdf_obj *item = NULL;
             pdf_obj *obj = NULL;
@@ -10716,10 +10717,10 @@ SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,ch
                 } else if (color != Py_None) {
                     pdf_dict_del(gctx, item, PDF_NAME(C));
                 }
-                if (expand != Py_None) {
+                if (collapse != Py_None) {
                     if (pdf_dict_get(gctx, item, PDF_NAME(Count))) {
                         i = pdf_dict_get_int(gctx, item, PDF_NAME(Count));
-                        if ((i < 0 && expand == Py_True) || (i > 0 && expand == Py_False)) {
+                        if ((i < 0 && collapse == Py_False) || (i > 0 && collapse == Py_True)) {
                             i = i * (-1);
                             pdf_dict_put_int(gctx, item, PDF_NAME(Count), i);
                         }
@@ -11289,7 +11290,7 @@ SWIGINTERN struct Annot *Page__add_caret_annot(struct Page *self,PyObject *point
                     r = fz_make_rect(p.x, p.y, p.x + r.x1 - r.x0, p.y + r.y1 - r.y0);
                     pdf_set_annot_rect(gctx, annot, r);
                 }
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
             }
             fz_catch(gctx) {
@@ -11325,7 +11326,7 @@ SWIGINTERN struct Annot *Page__add_redact_annot(struct Page *self,PyObject *quad
                     pdf_dict_put_text_string(gctx,annot->obj, PDF_NAME(DA), da_str);
                     pdf_dict_put_int(gctx, annot->obj, PDF_NAME(Q), (int64_t) align);
                 }
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
             }
             fz_catch(gctx) {
@@ -11343,7 +11344,7 @@ SWIGINTERN struct Annot *Page__add_line_annot(struct Page *self,PyObject *p1,PyO
                 fz_point a = JM_point_from_py(p1);
                 fz_point b = JM_point_from_py(p2);
                 pdf_set_annot_line(gctx, annot, a, b);
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
             }
             fz_catch(gctx) {
@@ -11370,7 +11371,7 @@ SWIGINTERN struct Annot *Page__add_text_annot(struct Page *self,PyObject *point,
                 if (icon) {
                     pdf_set_annot_icon_name(gctx, annot, icon);
                 }
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
                 pdf_set_annot_rect(gctx, annot, r);
                 pdf_set_annot_flags(gctx, annot, flags);
@@ -11421,7 +11422,7 @@ SWIGINTERN struct Annot *Page__add_ink_annot(struct Page *self,PyObject *list){
                 pdf_dict_put_drop(gctx, annot->obj, PDF_NAME(InkList), inklist);
                 inklist = NULL;
                 pdf_dirty_annot(gctx, annot);
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
             }
 
@@ -11457,7 +11458,7 @@ SWIGINTERN struct Annot *Page__add_stamp_annot(struct Page *self,PyObject *rect,
                 pdf_dict_put(gctx, annot->obj, PDF_NAME(Name), name);
                 pdf_set_annot_contents(gctx, annot,
                         pdf_dict_get_name(gctx, annot->obj, PDF_NAME(Name)));
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
             }
             fz_catch(gctx) {
@@ -11494,7 +11495,7 @@ SWIGINTERN struct Annot *Page__add_file_annot(struct Page *self,PyObject *point,
                                     filename, uf, d, 1);
                 pdf_dict_put(gctx, annot->obj, PDF_NAME(FS), val);
                 pdf_dict_put_text_string(gctx, annot->obj, PDF_NAME(Contents), filename);
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
                 pdf_set_annot_rect(gctx, annot, r);
                 pdf_set_annot_flags(gctx, annot, flags);
@@ -11525,7 +11526,7 @@ SWIGINTERN struct Annot *Page__add_text_marker(struct Page *self,PyObject *quads
                     Py_DECREF(item);
                     pdf_add_annot_quad_point(gctx, annot, q);
                 }
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
             }
             fz_always(gctx) {
@@ -11549,7 +11550,7 @@ SWIGINTERN struct Annot *Page__add_square_or_circle(struct Page *self,PyObject *
                     THROWMSG(gctx, "rect must be finite and not empty");
                 annot = pdf_create_annot(gctx, page, annot_type);
                 pdf_set_annot_rect(gctx, annot, r);
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
             }
             fz_catch(gctx) {
@@ -11576,7 +11577,7 @@ SWIGINTERN struct Annot *Page__add_multiline(struct Page *self,PyObject *points,
                     pdf_add_annot_vertex(gctx, annot, point);
                 }
 
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
             }
             fz_catch(gctx) {
@@ -11610,7 +11611,7 @@ SWIGINTERN struct Annot *Page__add_freetext_annot(struct Page *self,PyObject *re
 
                 // insert the default appearance string
                 JM_make_annot_DA(gctx, annot, ntcol, tcol, fontname, fontsize);
-                JM_add_annot_id(gctx, annot, "fitzannot");
+                JM_add_annot_id(gctx, annot, "A");
                 pdf_update_annot(gctx, annot);
             }
             fz_catch(gctx) {
@@ -11675,7 +11676,7 @@ SWIGINTERN struct Annot *Page__addWidget(struct Page *self,int field_type,char *
             fz_try(gctx) {
                 annot = JM_create_widget(gctx, pdf, page, field_type, field_name);
                 if (!annot) THROWMSG(gctx, "could not create widget");
-                JM_add_annot_id(gctx, annot, "fitzwidget");
+                JM_add_annot_id(gctx, annot, "W");
             }
             fz_catch(gctx) {
                 return NULL;
@@ -14502,6 +14503,13 @@ SWIGINTERN PyObject *Tools_set_icc(struct Tools *self,int on){
                 return NULL;
             }
             Py_RETURN_NONE;
+        }
+SWIGINTERN char *Tools_set_annot_stem(struct Tools *self,char *stem){
+            if (!stem) {
+                return JM_annot_id_stem;
+            }
+            memcpy(&JM_annot_id_stem, stem, strlen(stem)+1);
+            return JM_annot_id_stem;
         }
 SWIGINTERN PyObject *Tools_set_small_glyph_heights(struct Tools *self,PyObject *on){
             if (!on || on == Py_None) {
@@ -26028,6 +26036,41 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Tools_set_annot_stem(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Tools *arg1 = (struct Tools *) 0 ;
+  char *arg2 = (char *) NULL ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  PyObject *swig_obj[2] ;
+  char *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Tools_set_annot_stem", 1, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools_set_annot_stem" "', argument " "1"" of type '" "struct Tools *""'"); 
+  }
+  arg1 = (struct Tools *)(argp1);
+  if (swig_obj[1]) {
+    res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Tools_set_annot_stem" "', argument " "2"" of type '" "char *""'");
+    }
+    arg2 = (char *)(buf2);
+  }
+  result = (char *)Tools_set_annot_stem(arg1,arg2);
+  resultobj = SWIG_FromCharPtr((const char *)result);
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Tools_set_small_glyph_heights(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
@@ -27469,6 +27512,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Font_swiginit", Font_swiginit, METH_VARARGS, NULL},
 	 { "Tools_gen_id", _wrap_Tools_gen_id, METH_O, NULL},
 	 { "Tools_set_icc", _wrap_Tools_set_icc, METH_VARARGS, NULL},
+	 { "Tools_set_annot_stem", _wrap_Tools_set_annot_stem, METH_VARARGS, NULL},
 	 { "Tools_set_small_glyph_heights", _wrap_Tools_set_small_glyph_heights, METH_VARARGS, NULL},
 	 { "Tools_store_shrink", _wrap_Tools_store_shrink, METH_VARARGS, NULL},
 	 { "Tools_store_size", _wrap_Tools_store_size, METH_O, NULL},
@@ -28349,51 +28393,51 @@ SWIG_init(void) {
   //------------------------------------------------------------------------
   // init global constants
   //------------------------------------------------------------------------
-  dictkey_align = PyString_InternFromString("align");
-  dictkey_bbox = PyString_InternFromString("bbox");
-  dictkey_blocks = PyString_InternFromString("blocks");
-  dictkey_bpc = PyString_InternFromString("bpc");
-  dictkey_c = PyString_InternFromString("c");
-  dictkey_chars = PyString_InternFromString("chars");
-  dictkey_color = PyString_InternFromString("color");
-  dictkey_colorspace = PyString_InternFromString("colorspace");
-  dictkey_content = PyString_InternFromString("content");
-  dictkey_creationDate = PyString_InternFromString("creationDate");
-  dictkey_cs_name = PyString_InternFromString("cs-name");
-  dictkey_da = PyString_InternFromString("da");
-  dictkey_dashes = PyString_InternFromString("dashes");
-  dictkey_desc = PyString_InternFromString("desc");
-  dictkey_dir = PyString_InternFromString("dir");
-  dictkey_effect = PyString_InternFromString("effect");
-  dictkey_ext = PyString_InternFromString("ext");
-  dictkey_filename = PyString_InternFromString("filename");
-  dictkey_fill = PyString_InternFromString("fill");
-  dictkey_flags = PyString_InternFromString("flags");
-  dictkey_font = PyString_InternFromString("font");
-  dictkey_height = PyString_InternFromString("height");
-  dictkey_id = PyString_InternFromString("id");
-  dictkey_image = PyString_InternFromString("image");
-  dictkey_length = PyString_InternFromString("length");
-  dictkey_lines = PyString_InternFromString("lines");
-  dictkey_modDate = PyString_InternFromString("modDate");
-  dictkey_name = PyString_InternFromString("name");
-  dictkey_number = PyString_InternFromString("number");
-  dictkey_origin = PyString_InternFromString("origin");
-  dictkey_size = PyString_InternFromString("size");
-  dictkey_smask = PyString_InternFromString("smask");
-  dictkey_spans = PyString_InternFromString("spans");
-  dictkey_stroke = PyString_InternFromString("stroke");
-  dictkey_style = PyString_InternFromString("style");
-  dictkey_subject = PyString_InternFromString("subject");
-  dictkey_text = PyString_InternFromString("text");
-  dictkey_title = PyString_InternFromString("title");
-  dictkey_type = PyString_InternFromString("type");
-  dictkey_ufilename = PyString_InternFromString("ufilename");
-  dictkey_width = PyString_InternFromString("width");
-  dictkey_wmode = PyString_InternFromString("wmode");
-  dictkey_xref = PyString_InternFromString("xref");
-  dictkey_xres = PyString_InternFromString("xres");
-  dictkey_yres = PyString_InternFromString("yres");
+  dictkey_align = PyUnicode_InternFromString("align");
+  dictkey_bbox = PyUnicode_InternFromString("bbox");
+  dictkey_blocks = PyUnicode_InternFromString("blocks");
+  dictkey_bpc = PyUnicode_InternFromString("bpc");
+  dictkey_c = PyUnicode_InternFromString("c");
+  dictkey_chars = PyUnicode_InternFromString("chars");
+  dictkey_color = PyUnicode_InternFromString("color");
+  dictkey_colorspace = PyUnicode_InternFromString("colorspace");
+  dictkey_content = PyUnicode_InternFromString("content");
+  dictkey_creationDate = PyUnicode_InternFromString("creationDate");
+  dictkey_cs_name = PyUnicode_InternFromString("cs-name");
+  dictkey_da = PyUnicode_InternFromString("da");
+  dictkey_dashes = PyUnicode_InternFromString("dashes");
+  dictkey_desc = PyUnicode_InternFromString("desc");
+  dictkey_dir = PyUnicode_InternFromString("dir");
+  dictkey_effect = PyUnicode_InternFromString("effect");
+  dictkey_ext = PyUnicode_InternFromString("ext");
+  dictkey_filename = PyUnicode_InternFromString("filename");
+  dictkey_fill = PyUnicode_InternFromString("fill");
+  dictkey_flags = PyUnicode_InternFromString("flags");
+  dictkey_font = PyUnicode_InternFromString("font");
+  dictkey_height = PyUnicode_InternFromString("height");
+  dictkey_id = PyUnicode_InternFromString("id");
+  dictkey_image = PyUnicode_InternFromString("image");
+  dictkey_length = PyUnicode_InternFromString("length");
+  dictkey_lines = PyUnicode_InternFromString("lines");
+  dictkey_modDate = PyUnicode_InternFromString("modDate");
+  dictkey_name = PyUnicode_InternFromString("name");
+  dictkey_number = PyUnicode_InternFromString("number");
+  dictkey_origin = PyUnicode_InternFromString("origin");
+  dictkey_size = PyUnicode_InternFromString("size");
+  dictkey_smask = PyUnicode_InternFromString("smask");
+  dictkey_spans = PyUnicode_InternFromString("spans");
+  dictkey_stroke = PyUnicode_InternFromString("stroke");
+  dictkey_style = PyUnicode_InternFromString("style");
+  dictkey_subject = PyUnicode_InternFromString("subject");
+  dictkey_text = PyUnicode_InternFromString("text");
+  dictkey_title = PyUnicode_InternFromString("title");
+  dictkey_type = PyUnicode_InternFromString("type");
+  dictkey_ufilename = PyUnicode_InternFromString("ufilename");
+  dictkey_width = PyUnicode_InternFromString("width");
+  dictkey_wmode = PyUnicode_InternFromString("wmode");
+  dictkey_xref = PyUnicode_InternFromString("xref");
+  dictkey_xres = PyUnicode_InternFromString("xres");
+  dictkey_yres = PyUnicode_InternFromString("yres");
   
   SWIG_Python_SetConstant(d, "EPSILON",SWIG_From_double((double)(1e-5)));
   SWIG_Python_SetConstant(d, "PDF_ANNOT_TEXT",SWIG_From_int((int)(0)));

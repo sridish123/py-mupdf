@@ -857,26 +857,20 @@ def set_toc_item(
             raise ValueError("bad bookmark dest")
         color = dest_dict.get("color")
         if color:
-            if (
-                not getattr(color, "__len__")
-                or color.__len__() != 3
-                or min(color) < 0
-                or max(color) > 1
-            ):
-                raise ValueError("bad color value")
             color = list(map(float, color))
-
+            if len(color) != 3 or min(color) < 0 or max(color) > 1:
+                raise ValueError("bad color value")
         bold = dest_dict.get("bold", False)
         italic = dest_dict.get("italic", False)
         flags = italic + 2 * bold
-        expand = dest_dict.get("expand")
+        collapse = dest_dict.get("collapse")
         return doc._update_toc_item(
             xref,
             action=action[2:],
             title=title,
             color=color,
             flags=flags,
-            expand=expand,
+            collapse=collapse,
         )
 
     if kind == LINK_NONE:  # delete bookmark item
@@ -1377,8 +1371,9 @@ def getLinkText(page: Page, lnk: dict) -> str:
         name = old_name  # no new name if this is an update only
     else:
         i = 0
+        stem = TOOLS.set_annot_stem() + "-L%i"
         while True:
-            name = "fitzlink-%i" % i
+            name = stem % i
             if name not in link_names.values():
                 break
             i += 1
@@ -3356,11 +3351,12 @@ class Shape(object):
         descender = fontdict["descender"]
 
         if lineheight:
-            lheight = fontsize * lineheight
+            lheight_factor = lineheight
         elif ascender - descender <= 1:
-            lheight = fontsize * 1.2
+            lheight_factor = 1.2
         else:
-            lheight = fontsize * (ascender - descender)
+            lheight_factor = ascender - descender
+        lheight = fontsize * lheight_factor
 
         # create a list from buffer, split into its lines
         if type(buffer) in (list, tuple):

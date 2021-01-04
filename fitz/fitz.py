@@ -4614,11 +4614,11 @@ class Document(object):
         action: OptStr = None,
         title: OptStr = None,
         flags: int = 0,
-        expand: AnyType = None,
+        collapse: AnyType = None,
         color: AnyType = None,
     ) -> AnyType:
         return _fitz.Document__update_toc_item(
-            self, xref, action, title, flags, expand, color
+            self, xref, action, title, flags, collapse, color
         )
 
     def _get_page_labels(self) -> AnyType:
@@ -8219,6 +8219,11 @@ class Tools(object):
         """Set ICC color handling on or off."""
 
         return _fitz.Tools_set_icc(self, on)
+
+    def set_annot_stem(self, stem: OptStr = None) -> str:
+        """Get / set prefix for annotations."""
+
+        return _fitz.Tools_set_annot_stem(self, stem)
 
     def set_small_glyph_heights(self, on: AnyType = None) -> AnyType:
         """Set / unset small glyph heights."""
