@@ -3718,12 +3718,12 @@ class Document(object):
 
         return _fitz.Document_get_outline_xrefs(self)
 
-    def get_outline_tuples(self) -> AnyType:
-        """Get list of outline xref numbers."""
+    def _extend_toc_items(self, items: AnyType) -> AnyType:
+        """Add color info to all items of an extended TOC list."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_get_outline_tuples(self)
+        return _fitz.Document__extend_toc_items(self, items)
 
     def _embeddedFileNames(self, namelist: AnyType) -> AnyType:
         """Get list of embedded file names."""
@@ -8221,7 +8221,7 @@ class Tools(object):
         return _fitz.Tools_set_icc(self, on)
 
     def set_annot_stem(self, stem: OptStr = None) -> str:
-        """Get / set prefix for annotations."""
+        """Get / set id prefix for annotations."""
 
         return _fitz.Tools_set_annot_stem(self, stem)
 

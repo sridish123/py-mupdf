@@ -4064,23 +4064,6 @@ PyObject *JM_outline_xrefs(fz_context *ctx, pdf_obj *obj, PyObject *xrefs)
 }
 
 
-PyObject *JM_outline_tuples(fz_context *ctx, pdf_obj *obj, PyObject *xrefs, int lvl)
-{
-    pdf_obj *first, *parent, *thisobj;
-    if (!obj) return xrefs;
-    thisobj = obj;
-    while (thisobj) {
-        LIST_APPEND_DROP(xrefs, Py_BuildValue("ii", lvl, pdf_to_num(ctx, thisobj)));
-        first = pdf_dict_get(ctx, thisobj, PDF_NAME(First));  // try go down
-        if (first) xrefs = JM_outline_tuples(ctx, first, xrefs, lvl + 1);
-        thisobj = pdf_dict_get(ctx, thisobj, PDF_NAME(Next));  // try go next
-        parent = pdf_dict_get(ctx, thisobj, PDF_NAME(Parent));  // get parent
-        if (!thisobj) thisobj = parent;  // goto parent if no next
-    }
-    return xrefs;
-}
-
-
 //-----------------------------------------------------------------------------
 // Return the contents of a font file, identified by xref
 //-----------------------------------------------------------------------------
@@ -8868,12 +8851,14 @@ SWIGINTERN PyObject *Document_get_outline_xrefs(struct Document *self){
             }
             return xrefs;
         }
-SWIGINTERN PyObject *Document_get_outline_tuples(struct Document *self){
-            PyObject *xrefs = PyList_New(0);
+SWIGINTERN PyObject *Document__extend_toc_items(struct Document *self,PyObject *items){
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *)self);
-            if (!pdf) {
-                return xrefs;
-            }
+            pdf_obj *bm, *col;
+            int count, flags;
+            PyObject *item=NULL, *itemdict=NULL, *xrefs, *bold, *italic, *collapse;
+            bold = PyUnicode_FromString("bold");
+            italic = PyUnicode_FromString("italic");
+            collapse = PyUnicode_FromString("collapse");
             fz_try(gctx) {
                 pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
                 if (!root) goto finished;
@@ -8881,13 +8866,64 @@ SWIGINTERN PyObject *Document_get_outline_tuples(struct Document *self){
                 if (!olroot) goto finished;
                 pdf_obj *first = pdf_dict_get(gctx, olroot, PDF_NAME(First));
                 if (!first) goto finished;
-                xrefs = JM_outline_tuples(gctx, first, xrefs, 1);
+                xrefs = PyList_New(0);
+                xrefs = JM_outline_xrefs(gctx, first, xrefs);
+                Py_ssize_t i, n = PySequence_Size(xrefs);
+                if (!n) goto finished;
+                int xref;
+
+                // update all TOC item dictionaries
+                for (i = 0; i < n; i++) {
+                    JM_INT_ITEM(xrefs, i, &xref);
+                    item = PySequence_ITEM(items, i);
+                    itemdict = PySequence_ITEM(item, 3);
+                    if (!itemdict || !PyDict_Check(itemdict)) {
+                        THROWMSG(gctx, "need non-simple TOC format");
+                    }
+                    PyDict_SetItem(itemdict, dictkey_xref, PySequence_ITEM(xrefs, i));
+                    bm = pdf_load_object(gctx, pdf, xref);
+                    flags = pdf_to_int(gctx, (pdf_dict_get(gctx, bm, PDF_NAME(F))));
+                    if (flags == 1) {
+                        PyDict_SetItem(itemdict, italic, Py_True);
+                    } else if (flags == 2) {
+                        PyDict_SetItem(itemdict, bold, Py_True);
+                    } else if (flags == 3) {
+                        PyDict_SetItem(itemdict, italic, Py_True);
+                        PyDict_SetItem(itemdict, bold, Py_True);
+                    }
+                    count = pdf_to_int(gctx, (pdf_dict_get(gctx, bm, PDF_NAME(Count))));
+                    if (count < 0) {
+                        PyDict_SetItem(itemdict, collapse, Py_True);
+                    } else if (count > 0) {
+                        PyDict_SetItem(itemdict, collapse, Py_False);
+                    }
+                    col = pdf_dict_get(gctx, bm, PDF_NAME(C));
+                    if (pdf_is_array(gctx, col) && pdf_array_len(gctx, col) == 3) {
+                        PyObject *color = PyTuple_New(3);
+                        PyTuple_SET_ITEM(color, 0, Py_BuildValue("f", pdf_to_real(gctx, pdf_array_get(gctx, col, 0))));
+                        PyTuple_SET_ITEM(color, 1, Py_BuildValue("f", pdf_to_real(gctx, pdf_array_get(gctx, col, 1))));
+                        PyTuple_SET_ITEM(color, 2, Py_BuildValue("f", pdf_to_real(gctx, pdf_array_get(gctx, col, 2))));
+                        DICT_SETITEM_DROP(itemdict, dictkey_color, color);
+                    }
+                    PyList_SetItem(item, 3, itemdict);
+                    PyList_SetItem(items, i, item);
+                    pdf_drop_obj(gctx, bm);
+                    bm = NULL;
+                }
                 finished:;
+            }
+            fz_always(gctx) {
+                Py_CLEAR(xrefs);
+                Py_CLEAR(bold);
+                Py_CLEAR(italic);
+                Py_CLEAR(collapse);
+                pdf_drop_obj(gctx, bm);
+                PyErr_Clear();
             }
             fz_catch(gctx) {
                 return NULL;
             }
-            return xrefs;
+            Py_RETURN_NONE;
         }
 SWIGINTERN PyObject *Document__embeddedFileNames(struct Document *self,PyObject *namelist){
             fz_document *doc = (fz_document *) self;
@@ -10846,7 +10882,7 @@ SWIGINTERN PyObject *Document_switch_layer(struct Document *self,int config,int 
                                    PDF_NAME(Root), PDF_NAME(OCProperties), PDF_NAME(Configs), NULL);
                 if (!pdf_is_array(gctx, cfgs) || !pdf_array_len(gctx, cfgs)) {
                     if (config < 1) goto finished;
-                    THROWMSG(gctx, "bad config number");
+                    THROWMSG(gctx, "bad layer number");
                 }
                 if (config < 0) goto finished;
                 pdf_select_layer_config(gctx, pdf, config);
@@ -14508,7 +14544,9 @@ SWIGINTERN char *Tools_set_annot_stem(struct Tools *self,char *stem){
             if (!stem) {
                 return JM_annot_id_stem;
             }
-            memcpy(&JM_annot_id_stem, stem, strlen(stem)+1);
+            size_t len = strlen(stem) + 1;
+            if (len > 50) len = 50;
+            memcpy(&JM_annot_id_stem, stem, len);
             return JM_annot_id_stem;
         }
 SWIGINTERN PyObject *Tools_set_small_glyph_heights(struct Tools *self,PyObject *on){
@@ -15089,23 +15127,24 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Document_get_outline_tuples(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_Document__extend_toc_items(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Document *arg1 = (struct Document *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  PyObject *swig_obj[1] ;
+  PyObject *swig_obj[2] ;
   PyObject *result = 0 ;
   
-  if (!args) SWIG_fail;
-  swig_obj[0] = args;
+  if (!SWIG_Python_UnpackTuple(args, "Document__extend_toc_items", 2, 2, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_get_outline_tuples" "', argument " "1"" of type '" "struct Document *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document__extend_toc_items" "', argument " "1"" of type '" "struct Document *""'"); 
   }
   arg1 = (struct Document *)(argp1);
+  arg2 = swig_obj[1];
   {
-    result = (PyObject *)Document_get_outline_tuples(arg1);
+    result = (PyObject *)Document__extend_toc_items(arg1,arg2);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -27212,7 +27251,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document__loadOutline", _wrap_Document__loadOutline, METH_O, NULL},
 	 { "Document__dropOutline", _wrap_Document__dropOutline, METH_VARARGS, NULL},
 	 { "Document_get_outline_xrefs", _wrap_Document_get_outline_xrefs, METH_O, NULL},
-	 { "Document_get_outline_tuples", _wrap_Document_get_outline_tuples, METH_O, NULL},
+	 { "Document__extend_toc_items", _wrap_Document__extend_toc_items, METH_VARARGS, NULL},
 	 { "Document__embeddedFileNames", _wrap_Document__embeddedFileNames, METH_VARARGS, NULL},
 	 { "Document__embeddedFileDel", _wrap_Document__embeddedFileDel, METH_VARARGS, NULL},
 	 { "Document__embeddedFileInfo", _wrap_Document__embeddedFileInfo, METH_VARARGS, NULL},

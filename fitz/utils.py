@@ -797,7 +797,10 @@ def getToC(
         return []
     lvl = 1
     liste = []
-    return recurse(olItem, liste, lvl)
+    toc = recurse(olItem, liste, lvl)
+    if doc.isPDF and simple is False:
+        doc._extend_toc_items(toc)
+    return toc
 
 
 def del_toc_item(
@@ -1178,9 +1181,9 @@ def setToC(
         except:
             pass
 
-        if ol["color"] and len(ol["color"]) == 3:
+        if ol.get("color") and len(ol["color"]) == 3:
             txt += "/C[ %g %g %g]" % tuple(ol["color"])
-        if ol["flags"] > 0:
+        if ol.get("flags", 0) > 0:
             txt += "/F %i" % ol["flags"]
 
         if i == 0:  # special: this is the outline root
