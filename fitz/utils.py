@@ -3837,43 +3837,6 @@ def scrub(
     if metadata:
         doc.setMetadata({})  # remove standard metadata
 
-    if not (xml_metadata or javascript):
-        xref_limit = 0
-    else:
-        xref_limit = doc.xrefLength()
-    for xref in range(1, xref_limit):
-        obj = doc.xref_object(xref)  # get object definition source
-        # note: this string is formatted in a fixed, standard way by MuPDF.
-
-        if javascript and "/S /JavaScript" in obj:  # a /JavaScript action object?
-            obj = "<</S/JavaScript/JS()>>"  # replace with a null JavaScript
-            doc.updateObject(xref, obj)  # update this object
-            continue  # no further handling
-
-        if not xml_metadata or "/Metadata" not in obj:
-            continue
-
-        if "/Type /Metadata" in obj:  # delete any metadata object directly
-            doc._deleteObject(xref)
-            continue
-
-        obj_lines = obj.splitlines()
-        new_lines = []  # will receive remaining obj definition lines
-        found = False  # assume /Metadata  not found
-        for line in obj_lines:
-            line = line.strip()
-            if not line.startswith("/Metadata "):
-                new_lines.append(line)  # keep this line
-            else:  # drop this line
-                found = True
-        if found:  # if removed /Metadata key, update object definition
-            doc.updateObject(xref, "\n".join(new_lines))
-
-    # remove embedded files
-    if embedded_files:
-        for name in doc.embeddedFileNames():
-            doc.embeddedFileDel(name)
-
     for page in doc:
         if reset_fields:
             # reset form fields (widgets)
@@ -3898,21 +3861,60 @@ def scrub(
         if redactions and found_redacts:
             page.apply_redactions(images=redact_images)
 
-        if not page.getContents():  # safeguard against empty /Contents
-            continue
-
         if not (clean_pages or hidden_text):
             continue  # done with the page
 
-        page.cleanContents(sanitize=True)
-
+        page.clean_contents()
+        if not page.get_contents():
+            continue
         if hidden_text:
-            xref = page.getContents()[0]  # only one b/o cleaning!
+            xref = page.get_contents()[0]  # only one b/o cleaning!
             cont = doc.xref_stream(xref)
             cont_lines = remove_hidden(cont.splitlines())  # remove hidden text
             if cont_lines:  # something was actually removed
                 cont = b"\n".join(cont_lines)
                 doc.update_stream(xref, cont)  # rewrite the page /Contents
+
+    # pages are scrubbed, now perform document-wide scrubbing
+    # remove embedded files
+    if embedded_files:
+        for name in doc.embeddedFileNames():
+            doc.embeddedFileDel(name)
+
+    if xml_metadata:
+        doc.del_xml_metadata()
+    if not (xml_metadata or javascript):
+        xref_limit = 0
+    else:
+        xref_limit = doc.xrefLength()
+    for xref in range(1, xref_limit):
+        obj = doc.xref_object(xref)  # get object definition source
+        # note: this string is formatted in a standard way by MuPDF.
+
+        if javascript and "/S /JavaScript" in obj:  # a /JavaScript action object?
+            obj = "<</S/JavaScript/JS()>>"  # replace with a null JavaScript
+            doc.update_object(xref, obj)  # update this object
+            continue  # no further handling
+
+        if not xml_metadata or "/Metadata" not in obj:
+            continue
+
+        if "/Type /Metadata" in obj:  # delete any metadata object directly
+            doc.update_stream(xref, b"deleted")
+            doc.update_object(xref, "<<>>")
+            continue
+
+        obj_lines = obj.splitlines()
+        new_lines = []  # will receive remaining obj definition lines
+        found = False  # assume /Metadata  not found
+        for line in obj_lines:
+            line = line.strip()
+            if not line.startswith("/Metadata "):
+                new_lines.append(line)  # keep this line
+            else:  # drop this line
+                found = True
+        if found:  # if removed /Metadata key, update object definition
+            doc.updateObject(xref, "\n".join(new_lines))
 
 
 def fillTextbox(
@@ -4253,23 +4255,24 @@ Writing
 -------
 Supports setting (defining) page labels for PDF documents.
 
-A great Thank You goes to WILLIAM CHAPMAN who contributed the idea and
-significant parts of the following code in the months late December 2020
+A big Thank You goes to WILLIAM CHAPMAN who contributed the idea and
+significant parts of the following code during late December 2020
 through early January 2021.
 """
 
 
 def rule_dict(item):
-    """Make a Python dict from a page label rule.
+    """Make a Python dict from a PDF page label rule.
 
     Args:
         item -- a tuple (pno, rule) with the start page number and the rule
                 string like <</S/D...>>.
     Returns:
-        A dict like {'startpage': int, 'prefix': str, 'style': str, 'firstpagenum': int}.
-
-    Jorj McKie, 2021-01-06
+        A dict like
+        {'startpage': int, 'prefix': str, 'style': str, 'firstpagenum': int}.
     """
+    # Jorj McKie, 2021-01-06
+
     pno, rule = item
     rule = rule[2:-2].split("/")[1:]  # strip "<<" and ">>"
     d = {"startpage": pno, "prefix": "", "firstpagenum": 1}
@@ -4299,11 +4302,10 @@ def get_label_pno(pgNo, labels):
         pgNo: page number, 0-based.
         labels: result of doc._get_page_labels().
     Returns:
-        The label (str) of the page number.
-        Error return is an empty string.
-
-    Jorj McKie, 2021-01-06
+        The label (str) of the page number. Errors return an empty string.
     """
+    # Jorj McKie, 2021-01-06
+
     item = [x for x in labels if x[0] <= pgNo][-1]
     rule = rule_dict(item)
     prefix = rule["prefix"]
@@ -4318,11 +4320,10 @@ def get_label(page):
     Args:
         page: page object.
     Returns:
-        The label (str) of the page as a result
-        of get_label_pno().
-
-    Jorj McKie, 2021-01-06
+        The label (str) of the page. Errors return an empty string.
     """
+    # Jorj McKie, 2021-01-06
+
     labels = page.parent._get_page_labels()
     if not labels:
         return ""
@@ -4331,17 +4332,17 @@ def get_label(page):
 
 
 def get_page_numbers(doc, label, only_one=False):
-    """Return a list of page numbers with tha given label.
+    """Return a list of page numbers with the given label.
 
     Args:
         doc: PDF document object (resp. 'self').
         label: (str) label.
         only_one: (bool) stop searching after first hit.
     Returns:
-        List of page numbers with this label.
-
-    Jorj McKie, 2021-01-06
+        List of page numbers having this label.
     """
+    # Jorj McKie, 2021-01-06
+
     numbers = []
     labels = doc._get_page_labels()
     for i in range(doc.pageCount):
@@ -4354,10 +4355,9 @@ def get_page_numbers(doc, label, only_one=False):
 
 
 def construct_label(style, prefix, pno) -> str:
-    """Construct a label based on the style, prefix and page number.
+    """Construct a label based on style, prefix and page number."""
+    # William Chapman, 2021-01-06
 
-    William Chapman, 2021-01-06
-    """
     n_str = ""
     if style == "D":
         n_str = str(pno)
@@ -4374,10 +4374,9 @@ def construct_label(style, prefix, pno) -> str:
 
 
 def integerToLetter(i) -> str:
-    """Returns letter sequence string for integer i.
+    """Returns letter sequence string for integer i."""
+    # William Chapman, Jorj McKie, 2021-01-06
 
-    William Chapman, Jorj McKie, 2021-01-06
-    """
     ls = string.ascii_uppercase
     m = int((i - 1) / 26)  # how many times over
     n = (i % 26) - 1  # remainder
@@ -4388,10 +4387,9 @@ def integerToLetter(i) -> str:
 
 
 def integerToRoman(num: int) -> str:
-    """Return roman numeral for an integer.
+    """Return roman numeral for an integer."""
+    # William Chapman, Jorj McKie, 2021-01-06
 
-    William Chapman, Jorj McKie, 2021-01-06
-    """
     roman = (
         (1000, "M"),
         (900, "CM"),
@@ -4424,10 +4422,10 @@ def set_page_labels(doc, labels):
 
     Args:
         doc: PDF document (resp. 'self').
-        labels: (list) label dictionaries as created by function 'rule_dict'.
-
-    William Chapman, 2021-01-06
+        labels: list of label dictionaries like:
+        {'startpage': int, 'prefix': str, 'style': str, 'firstpagenum': int}
     """
+    # William Chapman, 2021-01-06
 
     def create_label_str(label):
         """Convert Python label dict to correspnding PDF rule string.
