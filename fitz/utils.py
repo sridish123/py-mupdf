@@ -4344,7 +4344,11 @@ def get_page_numbers(doc, label, only_one=False):
     # Jorj McKie, 2021-01-06
 
     numbers = []
+    if not label:
+        return numbers
     labels = doc._get_page_labels()
+    if labels == []:
+        return numbers
     for i in range(doc.pageCount):
         plabel = get_label_pno(i, labels)
         if plabel == label:
