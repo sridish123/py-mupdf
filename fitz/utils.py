@@ -1,11 +1,11 @@
-from __future__ import division
-
 import io
+import json
 import math
 import os
-import warnings
-import json
+import string
 import typing
+import warnings
+
 from fitz import *
 
 point_like = "point_like"
@@ -4239,3 +4239,228 @@ def get_ocmd(doc: Document, xref: int) -> dict:
             print("bad /VE key: ", ve)
             raise
     return {"xref": xref, "ocgs": ocgs, "policy": policy, "ve": ve}
+
+
+"""
+Handle page labels for PDF documents.
+
+Reading
+-------
+* compute the label of a page
+* find page number(s) having the given label.
+
+Writing
+-------
+Supports setting (defining) page labels for PDF documents.
+
+A great Thank You goes to WILLIAM CHAPMAN who contributed the idea and
+significant parts of the following code in the months late December 2020
+through early January 2021.
+"""
+
+
+def rule_dict(item):
+    """Make a Python dict from a page label rule.
+
+    Args:
+        item -- a tuple (pno, rule) with the start page number and the rule
+                string like <</S/D...>>.
+    Returns:
+        A dict like {'startpage': int, 'prefix': str, 'style': str, 'firstpagenum': int}.
+
+    Jorj McKie, 2021-01-06
+    """
+    pno, rule = item
+    rule = rule[2:-2].split("/")[1:]  # strip "<<" and ">>"
+    d = {"startpage": pno, "prefix": "", "firstpagenum": 1}
+    skip = False
+    for i, item in enumerate(rule):
+        if skip:  # this item has already been processed
+            skip = False  # deactivate skipping again
+            continue
+        if item == "S":  # style specification
+            d["style"] = rule[i + 1]  # next item has the style
+            skip = True  # do not process next item again
+            continue
+        if item.startswith("P"):  # prefix specification: extract the string
+            x = item[1:].replace("(", "").replace(")", "")
+            d["prefix"] = x
+            continue
+        if item.startswith("St"):  # start page number specification
+            x = int(item[2:])
+            d["firstpagenum"] = x
+    return d
+
+
+def get_label_pno(pgNo, labels):
+    """Return the label for this page number.
+
+    Args:
+        pgNo: page number, 0-based.
+        labels: result of doc._get_page_labels().
+    Returns:
+        The label (str) of the page number.
+        Error return is an empty string.
+
+    Jorj McKie, 2021-01-06
+    """
+    item = [x for x in labels if x[0] <= pgNo][-1]
+    rule = rule_dict(item)
+    prefix = rule["prefix"]
+    style = rule["style"]
+    pagenumber = pgNo - rule["startpage"] + rule["firstpagenum"]
+    return construct_label(style, prefix, pagenumber)
+
+
+def get_label(page):
+    """Return the label for this PDF page.
+
+    Args:
+        page: page object.
+    Returns:
+        The label (str) of the page as a result
+        of get_label_pno().
+
+    Jorj McKie, 2021-01-06
+    """
+    labels = page.parent._get_page_labels()
+    if not labels:
+        return ""
+    labels.sort()
+    return get_label_pno(page.number, labels)
+
+
+def get_page_numbers(doc, label, only_one=False):
+    """Return a list of page numbers with tha given label.
+
+    Args:
+        doc: PDF document object (resp. 'self').
+        label: (str) label.
+        only_one: (bool) stop searching after first hit.
+    Returns:
+        List of page numbers with this label.
+
+    Jorj McKie, 2021-01-06
+    """
+    numbers = []
+    labels = doc._get_page_labels()
+    for i in range(doc.pageCount):
+        plabel = get_label_pno(i, labels)
+        if plabel == label:
+            numbers.append(i)
+            if only_one:
+                break
+    return numbers
+
+
+def construct_label(style, prefix, pno) -> str:
+    """Construct a label based on the style, prefix and page number.
+
+    William Chapman, 2021-01-06
+    """
+    n_str = ""
+    if style == "D":
+        n_str = str(pno)
+    if style == "r":
+        n_str = integerToRoman(pno).lower()
+    if style == "R":
+        n_str = integerToRoman(pno).upper()
+    if style == "a":
+        n_str = integerToLetter(pno).lower()
+    if style == "A":
+        n_str = integerToLetter(pno).upper()
+    result = prefix + n_str
+    return result
+
+
+def integerToLetter(i) -> str:
+    """Returns letter sequence string for integer i.
+
+    William Chapman, Jorj McKie, 2021-01-06
+    """
+    ls = string.ascii_uppercase
+    m = int((i - 1) / 26)  # how many times over
+    n = (i % 26) - 1  # remainder
+    str_t = ""
+    for _ in range(0, m + 1):
+        str_t = str_t + ls[n]
+    return str_t
+
+
+def integerToRoman(num: int) -> str:
+    """Return roman numeral for an integer.
+
+    William Chapman, Jorj McKie, 2021-01-06
+    """
+    roman = (
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    )
+
+    def roman_num(num):
+        for r, ltr in roman:
+            x, _ = divmod(num, r)
+            yield ltr * x
+            num -= r * x
+            if num <= 0:
+                break
+
+    return "".join([a for a in roman_num(num)])
+
+
+def set_page_labels(doc, labels):
+    """Add / replace page label definitions in PDF document.
+
+    Args:
+        doc: PDF document (resp. 'self').
+        labels: (list) label dictionaries as created by function 'rule_dict'.
+
+    William Chapman, 2021-01-06
+    """
+
+    def create_label_str(label):
+        """Convert Python label dict to correspnding PDF rule string.
+
+        Args:
+            label: (dict) build rule for the label.
+        Returns:
+            PDF label rule string wrapped in "<<", ">>".
+        """
+        s = "%i<<" % label["startpage"]
+        if label["prefix"] != "":
+            s += "/P(%s)" % label["prefix"]
+        if label["style"] != "":
+            s += "/S/%s" % label["style"]
+        if label["firstpagenum"] > 1:
+            s += "/St %i" % label["firstpagenum"]
+        s += ">>"
+        return s
+
+    def create_nums(labels):
+        """Return concatenated string of all labels rule.
+
+        Args:
+            labels: (list) dictionaries as created by function 'rule_dict'.
+        Returns:
+            PDF compatible string for page label definitions, ready to be
+            enclosed in PDF array 'Nums[...]'.
+        """
+        labels.sort(key=lambda x: x["startpage"])
+        s = "".join([create_label_str(label) for label in labels])
+        return s
+
+    doc._set_page_labels(create_nums(labels))
+
+
+# End of Page Label Code -------------------------------------------------

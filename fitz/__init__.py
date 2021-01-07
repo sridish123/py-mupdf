@@ -1,4 +1,3 @@
-from __future__ import absolute_import, print_function
 import sys
 from fitz.fitz import *
 
@@ -55,6 +54,8 @@ fitz.Document.set_toc_item = fitz.utils.set_toc_item
 fitz.Document.setMetadata = fitz.utils.setMetadata
 fitz.Document.setToC = fitz.utils.setToC
 fitz.Document.tobytes = fitz.Document.write
+fitz.Document.set_page_labels = fitz.utils.set_page_labels
+fitz.Document.get_page_numbers = fitz.utils.get_page_numbers
 
 # ------------------------------------------------------------------------------
 # Page
@@ -116,6 +117,7 @@ fitz.Page.updateLink = fitz.utils.updateLink
 fitz.Page.updte_link = fitz.utils.updateLink
 fitz.Page.write_text = fitz.utils.writeText
 fitz.Page.writeText = fitz.utils.writeText
+fitz.Page.get_label = fitz.utils.get_label
 
 # ------------------------------------------------------------------------------
 # Annot
