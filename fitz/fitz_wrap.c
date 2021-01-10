@@ -5049,11 +5049,11 @@ PyObject *JM_get_annot_id_list(fz_context *ctx, pdf_page *page)
 //------------------------------------------------------------------------
 // return the xrefs and /NM ids of a page's annots, links and fields
 //------------------------------------------------------------------------
-PyObject *JM_get_annot_xref_list(fz_context *ctx, pdf_page *page)
+PyObject *JM_get_annot_xref_list(fz_context *ctx, pdf_obj *page_obj)
 {
     PyObject *names = PyList_New(0);
     pdf_obj *id, *annot_obj = NULL;
-    pdf_obj *annots = pdf_dict_get(ctx, page->obj, PDF_NAME(Annots));
+    pdf_obj *annots = pdf_dict_get(ctx, page_obj, PDF_NAME(Annots));
     if (!annots) return names;
     fz_try(ctx) {
         int i, n = pdf_array_len(ctx, annots);
@@ -9869,6 +9869,23 @@ SWIGINTERN PyObject *Document_page_xref(struct Document *self,int pno){
             }
             return Py_BuildValue("i", xref);
         }
+SWIGINTERN PyObject *Document_page_annot_xrefs(struct Document *self,int pno){
+            fz_document *this_doc = (fz_document *) self;
+            int pageCount = fz_count_pages(gctx, this_doc);
+            int n = pno;
+            while (n < 0) n += pageCount;
+            pdf_document *pdf = pdf_specifics(gctx, this_doc);
+            PyObject *annots = NULL;
+            fz_try(gctx) {
+                if (n >= pageCount) THROWMSG(gctx, "bad page number(s)");
+                ASSERT_PDF(pdf);
+                annots = JM_get_annot_xref_list(gctx, pdf_lookup_page_obj(gctx, pdf, n));
+            }
+            fz_catch(gctx) {
+                return NULL;
+            }
+            return annots;
+        }
 SWIGINTERN PyObject *Document_pageCropBox(struct Document *self,int pno){
             fz_document *this_doc = (fz_document *) self;
             int pageCount = fz_count_pages(gctx, this_doc);
@@ -11702,7 +11719,7 @@ SWIGINTERN PyObject *Page_annot_names(struct Page *self){
 SWIGINTERN PyObject *Page_annot_xrefs(struct Page *self){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             if (!page) Py_RETURN_NONE;
-            return JM_get_annot_xref_list(gctx, page);
+            return JM_get_annot_xref_list(gctx, page->obj);
         }
 SWIGINTERN struct Annot *Page__addWidget(struct Page *self,int field_type,char *field_name){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
@@ -17144,6 +17161,42 @@ SWIGINTERN PyObject *_wrap_Document_page_xref(PyObject *SWIGUNUSEDPARM(self), Py
   arg2 = (int)(val2);
   {
     result = (PyObject *)Document_page_xref(arg1,arg2);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Document_page_annot_xrefs(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Document *arg1 = (struct Document *) 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Document_page_annot_xrefs", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_page_annot_xrefs" "', argument " "1"" of type '" "struct Document *""'"); 
+  }
+  arg1 = (struct Document *)(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_page_annot_xrefs" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = (int)(val2);
+  {
+    result = (PyObject *)Document_page_annot_xrefs(arg1,arg2);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -27297,6 +27350,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document_permissions", _wrap_Document_permissions, METH_O, NULL},
 	 { "Document__getCharWidths", _wrap_Document__getCharWidths, METH_VARARGS, NULL},
 	 { "Document_page_xref", _wrap_Document_page_xref, METH_VARARGS, NULL},
+	 { "Document_page_annot_xrefs", _wrap_Document_page_annot_xrefs, METH_VARARGS, NULL},
 	 { "Document_pageCropBox", _wrap_Document_pageCropBox, METH_VARARGS, NULL},
 	 { "Document__getPageInfo", _wrap_Document__getPageInfo, METH_VARARGS, NULL},
 	 { "Document_extractFont", _wrap_Document_extractFont, METH_VARARGS, NULL},

@@ -102,9 +102,9 @@ except ImportError:
 
 
 VersionFitz = "1.18.0"
-VersionBind = "1.18.6"
-VersionDate = "2021-01-07 07:10:59"
-version = (VersionBind, VersionFitz, "20210107071059")
+VersionBind = "1.18.7"
+VersionDate = "2021-01-09 08:53:43"
+version = (VersionBind, VersionFitz, "20210109085343")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -4383,6 +4383,13 @@ class Document(object):
 
         return _fitz.Document_page_xref(self, pno)
 
+    def page_annot_xrefs(self, pno: int) -> AnyType:
+        """Get list annotations of page number."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_page_annot_xrefs(self, pno)
+
     def pageCropBox(self, pno: int) -> AnyType:
         """Get CropBox of page number (without loading page)."""
         if self.isClosed:
@@ -4879,8 +4886,7 @@ class Document(object):
         old_toc = self.getToC()
         for i, item in enumerate(old_toc):
             if item[2] == pno + 1:
-                xref = self.outline_xref(i)
-                self._remove_toc_item(xref)
+                self.del_toc_item(i)
 
         self._remove_links_to(pno, pno)
         self._deletePage(pno)
@@ -4906,8 +4912,7 @@ class Document(object):
         old_toc = self.getToC()
         for i, item in enumerate(old_toc):
             if f + 1 <= item[2] <= t + 1:
-                xref = self.outline_xref(i)
-                self._remove_toc_item(xref)
+                self.del_toc_item(i)
 
         self._remove_links_to(f, t)
 
