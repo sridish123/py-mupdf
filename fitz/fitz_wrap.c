@@ -5259,12 +5259,15 @@ JM_char_quad(fz_context *ctx, fz_stext_line *line, fz_stext_char *ch)
     quad = fz_transform_quad(ch->quad, xlate1);  // move origin to (0,0)
     quad = fz_transform_quad(quad, trm1);  // de-rotate corners
 
-    // adjust vertical coordinates
-    quad.ll.y = -fsize * dsc / (asc - dsc);
-    quad.ul.y = quad.ll.y - fsize;
-    quad.lr.y = quad.ll.y;
-    quad.ur.y = quad.ul.y;
-    // adjust horizontal coordinates
+    // adjust vertical coordinates if meaningful
+    if ((quad.ll.y - quad.ul.y) > fsize) {
+        quad.ll.y = -fsize * dsc / (asc - dsc);
+        quad.ul.y = quad.ll.y - fsize;
+        quad.lr.y = quad.ll.y;
+        quad.ur.y = quad.ul.y;
+    }
+
+    // adjust crazy horizontal coordinates
     if ((quad.lr.x - quad.ll.x) < FLT_EPSILON) {
         quad.lr.x = quad.ll.x + fwidth * fsize;
         quad.ur.x = quad.lr.x;
@@ -12302,13 +12305,18 @@ SWIGINTERN PyObject *Page__insertFont(struct Page *self,char *fontname,char *bfn
                 if (!exto)
                     exto = JM_UnicodeFromStr(JM_get_fontextension(gctx, pdf, ixref));
 
-                value = Py_BuildValue("[i, {s:O, s:O, s:O, s:O, s:i}]",
+                float asc = fz_font_ascender(gctx, font);
+                float dsc = fz_font_descender(gctx, font);
+                value = Py_BuildValue("[i, {s:O, s:O, s:O, s:O, s:i, s:f, s:f}]",
                                       ixref,
                                       "name", name,        // base font name
                                       "type", subt,        // subtype
                                       "ext", exto,         // file extension
                                       "simple", JM_BOOL(simple), // simple font?
-                                      "ordering", ordering); // CJK font?
+                                      "ordering", ordering, // CJK font?
+                                      "ascender", asc,
+                                      "descender", dsc
+                                      );
                 Py_CLEAR(exto);
                 Py_CLEAR(name);
                 Py_CLEAR(subt);

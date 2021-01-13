@@ -54,6 +54,7 @@ fitz.Document.set_toc_item = fitz.utils.set_toc_item
 fitz.Document.setMetadata = fitz.utils.setMetadata
 fitz.Document.setToC = fitz.utils.setToC
 fitz.Document.tobytes = fitz.Document.write
+fitz.Document.get_page_labels = fitz.utils.get_page_labels
 fitz.Document.set_page_labels = fitz.utils.set_page_labels
 fitz.Document.get_page_numbers = fitz.utils.get_page_numbers
 fitz.Document.has_links = fitz.utils.has_links

@@ -2640,32 +2640,35 @@ def _get_font_properties(doc: Document, xref: int) -> tuple:
         return fontname, ext, stype, asc, dsc
 
     if buffer:
-        font = Font(fontbuffer=buffer)
-        asc = font.ascender
-        dsc = font.descender
-        bbox = font.bbox
-        if asc - dsc < 1:
-            if bbox.y0 < dsc:
-                dsc = bbox.y0
-            asc = 1 - dsc
-        font = None
-        buffer = None
+        try:
+            font = Font(fontbuffer=buffer)
+            asc = font.ascender
+            dsc = font.descender
+            bbox = font.bbox
+            if asc - dsc < 1:
+                if bbox.y0 < dsc:
+                    dsc = bbox.y0
+                asc = 1 - dsc
+        except:
+            asc *= 1.2
+            dsc *= 1.2
         return fontname, ext, stype, asc, dsc
-    try:
-        font = Font(fontname)
-        asc = font.ascender
-        dsc = font.descender
-        font = None
-    except:
-        pass
+    if ext != "n/a":
+        try:
+            font = Font(fontname)
+            asc = font.ascender
+            dsc = font.descender
+        except:
+            asc *= 1.2
+            dsc *= 1.2
+    else:
+        asc *= 1.2
+        dsc *= 1.2
     return fontname, ext, stype, asc, dsc
 
 
 def getCharWidths(
-    doc: Document,
-    xref: int,
-    limit: int = 256,
-    idx: int = 0,
+    doc: Document, xref: int, limit: int = 256, idx: int = 0, fontdict: OptDict = None
 ) -> list:
     """Get list of glyph information of a font.
 
@@ -2682,14 +2685,21 @@ def getCharWidths(
     """
     fontinfo = CheckFontInfo(doc, xref)
     if fontinfo is None:  # not recorded yet: create it
-        name, ext, stype, asc, dsc = _get_font_properties(doc, xref)
-        fontdict = {
-            "name": name,
-            "type": stype,
-            "ext": ext,
-            "ascender": asc,
-            "descender": dsc,
-        }
+        if fontdict is None:
+            name, ext, stype, asc, dsc = _get_font_properties(doc, xref)
+            fontdict = {
+                "name": name,
+                "type": stype,
+                "ext": ext,
+                "ascender": asc,
+                "descender": dsc,
+            }
+        else:
+            name = fontdict["name"]
+            ext = fontdict["ext"]
+            stype = fontdict["type"]
+            ordering = fontdict["ordering"]
+            simple = fontdict["simple"]
 
         if ext == "":
             raise ValueError("xref is not a font")
@@ -3918,7 +3928,7 @@ def scrub(
             else:  # drop this line
                 found = True
         if found:  # if removed /Metadata key, update object definition
-            doc.updateObject(xref, "\n".join(new_lines))
+            doc.update_object(xref, "\n".join(new_lines))
 
 
 def fillTextbox(
@@ -4425,13 +4435,27 @@ def integerToRoman(num: int) -> str:
     return "".join([a for a in roman_num(num)])
 
 
+def get_page_labels(doc):
+    """Return page label definitions in PDF document.
+
+    Args:
+        doc: PDF document (resp. 'self').
+    Returns:
+        A list of dictionaries with the following format:
+        {'startpage': int, 'prefix': str, 'style': str, 'firstpagenum': int}.
+    """
+    # Jorj McKie, 2021-01-10
+    return [rule_dict(item) for item in doc._get_page_labels()]
+
+
 def set_page_labels(doc, labels):
     """Add / replace page label definitions in PDF document.
 
     Args:
         doc: PDF document (resp. 'self').
         labels: list of label dictionaries like:
-        {'startpage': int, 'prefix': str, 'style': str, 'firstpagenum': int}
+        {'startpage': int, 'prefix': str, 'style': str, 'firstpagenum': int},
+        as returned by get_page_labels().
     """
     # William Chapman, 2021-01-06
 
@@ -4454,7 +4478,7 @@ def set_page_labels(doc, labels):
         return s
 
     def create_nums(labels):
-        """Return concatenated string of all labels rule.
+        """Return concatenated string of all labels rules.
 
         Args:
             labels: (list) dictionaries as created by function 'rule_dict'.
@@ -4473,9 +4497,9 @@ def set_page_labels(doc, labels):
 
 
 def has_links(doc: Document) -> bool:
-    """Check whether there links on any page."""
+    """Check whether there are links on any page."""
     if doc.isClosed:
-        raise ValueError("closed document")
+        raise ValueError("document closed")
     if not doc.isPDF:
         raise ValueError("not a PDF")
     s = set()
@@ -4487,9 +4511,9 @@ def has_links(doc: Document) -> bool:
 
 
 def has_annots(doc: Document) -> bool:
-    """Check whether there annotations on any page."""
+    """Check whether there are annotations on any page."""
     if doc.isClosed:
-        raise ValueError("closed document")
+        raise ValueError("document closed")
     if not doc.isPDF:
         raise ValueError("not a PDF")
     s = set()

@@ -6098,12 +6098,13 @@ class Page(object):
             return val
 
         xref = val[0]  # xref of installed font
+        fontdict = val[1]
 
         if CheckFontInfo(doc, xref):  # check again: document already has this font
             return xref  # we are done
 
         # need to create document font info
-        doc.getCharWidths(xref)
+        doc.getCharWidths(xref, fontdict=fontdict)
         return xref
 
     def _insertFont(
@@ -8202,7 +8203,10 @@ class Font(object):
     def __del__(self):
         if type(self) is not Font:
             return None
-        self.__swig_destroy__(self)
+        try:
+            self.__swig_destroy__(self)
+        except:
+            pass
 
 
 # Register Font in _fitz:
