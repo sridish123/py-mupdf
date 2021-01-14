@@ -5140,10 +5140,7 @@ class Page(object):
         if old_rotation != 0:
             self.setRotation(0)
         try:
-            # if clip is None:
-            #    clip = self.rect
             textpage = self._get_text_page(clip, flags=flags)
-
         finally:
             if old_rotation != 0:
                 self.setRotation(old_rotation)

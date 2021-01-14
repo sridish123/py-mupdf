@@ -4322,8 +4322,8 @@ def get_label_pno(pgNo, labels):
 
     item = [x for x in labels if x[0] <= pgNo][-1]
     rule = rule_dict(item)
-    prefix = rule["prefix"]
-    style = rule["style"]
+    prefix = rule.get("prefix", "")
+    style = rule.get("style", "")
     pagenumber = pgNo - rule["startpage"] + rule["firstpagenum"]
     return construct_label(style, prefix, pagenumber)
 
@@ -4379,13 +4379,13 @@ def construct_label(style, prefix, pno) -> str:
     n_str = ""
     if style == "D":
         n_str = str(pno)
-    if style == "r":
+    elif style == "r":
         n_str = integerToRoman(pno).lower()
-    if style == "R":
+    elif style == "R":
         n_str = integerToRoman(pno).upper()
-    if style == "a":
+    elif style == "a":
         n_str = integerToLetter(pno).lower()
-    if style == "A":
+    elif style == "A":
         n_str = integerToLetter(pno).upper()
     result = prefix + n_str
     return result
@@ -4468,11 +4468,11 @@ def set_page_labels(doc, labels):
             PDF label rule string wrapped in "<<", ">>".
         """
         s = "%i<<" % label["startpage"]
-        if label["prefix"] != "":
+        if label.get("prefix", "") != "":
             s += "/P(%s)" % label["prefix"]
-        if label["style"] != "":
+        if label.get("style", "") != "":
             s += "/S/%s" % label["style"]
-        if label["firstpagenum"] > 1:
+        if label.get("firstpagenum", 1) > 1:
             s += "/St %i" % label["firstpagenum"]
         s += ">>"
         return s
