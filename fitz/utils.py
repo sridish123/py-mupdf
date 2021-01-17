@@ -4502,11 +4502,10 @@ def has_links(doc: Document) -> bool:
         raise ValueError("document closed")
     if not doc.isPDF:
         raise ValueError("not a PDF")
-    s = set()
     for i in range(doc.pageCount):
-        s = s.union([True for j in doc.page_annot_xrefs(i) if j[1] == PDF_ANNOT_LINK])
-        if s == {True}:
-            return True
+        for item in doc.page_annot_xrefs(i):
+            if item[1] == PDF_ANNOT_LINK:
+                return True
     return False
 
 
@@ -4516,15 +4515,8 @@ def has_annots(doc: Document) -> bool:
         raise ValueError("document closed")
     if not doc.isPDF:
         raise ValueError("not a PDF")
-    s = set()
     for i in range(doc.pageCount):
-        s = s.union(
-            [
-                True
-                for j in doc.page_annot_xrefs(i)
-                if j[1] not in (PDF_ANNOT_LINK, PDF_ANNOT_WIDGET)
-            ]
-        )
-        if s == {True}:
-            return True
+        for item in doc.page_annot_xrefs(i):
+            if not (item[1] == PDF_ANNOT_LINK or item[1] == PDF_ANNOT_WIDGET):
+                return True
     return False

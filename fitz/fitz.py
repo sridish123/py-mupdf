@@ -3718,6 +3718,29 @@ class Document(object):
 
         return _fitz.Document_get_outline_xrefs(self)
 
+    def xref_get_keys(self, xref: int) -> AnyType:
+        """Get the keys of a PDF dictionary."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_xref_get_keys(self, xref)
+
+    def xref_get_key(self, xref: int, key: str) -> AnyType:
+        """Get the value of a PDF dictionary key."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_xref_get_key(self, xref, key)
+
+    def xref_set_key(
+        self, xref: int, key: str, value: str
+    ) -> AnyType:
+        """Set the value of a PDF dictionary key."""
+        if self.isClosed:
+            raise ValueError("document closed")
+
+        return _fitz.Document_xref_set_key(self, xref, key, value)
+
     def _extend_toc_items(self, items: AnyType) -> AnyType:
         """Add color info to all items of an extended TOC list."""
         if self.isClosed:
@@ -4636,7 +4659,7 @@ class Document(object):
 
         xref = self.pdf_catalog()
         text = self.xref_object(xref, compressed=True)
-        text = text.replace("/Nums[]", "/Nums[%s]" % labels)
+        text = text.replace("/Nums null", "/Nums[%s]" % labels)
         self.update_object(xref, text)
 
         return val
@@ -8060,6 +8083,12 @@ class Font(object):
         is_italic: int = 0,
         is_serif: int = 0,
     ):
+
+        if fontbuffer:
+            if hasattr(fontbuffer, "getvalue"):
+                fontbuffer = fontbuffer.getvalue()
+            if type(fontbuffer) not in (bytes, bytearray):
+                raise ValueError("bad type: 'fontbuffer'")
 
         if fontname:
             if "/" in fontname or "\\" in fontname or "." in fontname:
