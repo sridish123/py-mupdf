@@ -3505,7 +3505,7 @@ static pdf_obj
     PyObject *skey = PyUnicode_FromString(key);  // Python version of dict key
     PyObject *slash = PyUnicode_FromString("/");  // PDF path separator
     PyObject *list = NULL, *newval=NULL, *newstr=NULL, *nullval=NULL;
-    const char replace[] = "fitz: replace me!";
+    const char eyecatcher[] = "fitz: replace me!";
     fz_try(ctx)
     {
         pdf_document *pdf = pdf_get_bound_document(ctx, obj);
@@ -3516,42 +3516,45 @@ static pdf_obj
         Py_DECREF(skey);
         skey = PySequence_GetItem(list, i);
 
-        PySequence_DelItem(list, i);
-        len =  PySequence_Size(list);
-        testkey = pdf_dict_getp(ctx, obj, key);
-        if (!testkey) {  // check sub-paths for indirects
+        PySequence_DelItem(list, i);  // del the last sub-key
+        len =  PySequence_Size(list);  // remaining length
+        testkey = pdf_dict_getp(ctx, obj, key);  // check if key already exists
+        if (!testkey) {
+            /*-----------------------------------------------------------------
+            No, it will be created here. But we cannot allow this happening if
+            indirect objects are referenced. So we check all higher level
+            sub-paths for indirect references.
+            -----------------------------------------------------------------*/
             while (len > 0) {
-                PyObject *t = PyUnicode_Join(slash, list);
+                PyObject *t = PyUnicode_Join(slash, list);  // next high level
                 if (pdf_is_indirect(ctx, pdf_dict_getp(ctx, obj, JM_StrAsChar(t)))) {
                     Py_DECREF(t);
-                    THROWMSG(ctx, "cannot create subdict for path with indirects");
+                    THROWMSG(ctx, "cannot create subdict if path has indirects");
                 }
-                PySequence_DelItem(list, len - 1);
-                len = PySequence_Size(list);
+                PySequence_DelItem(list, len - 1);  // del last sub-key
+                len = PySequence_Size(list);  // remaining length
+                Py_DECREF(t);
             }
         }
-
-        pdf_dict_putp_drop(ctx, obj, key, pdf_new_text_string(ctx, replace));
+        // Insert our eyecatcher. Will create all sub-paths in the chain, or
+        // respectively remove old value of key-path.
+        pdf_dict_putp_drop(ctx, obj, key, pdf_new_text_string(ctx, eyecatcher));
         testkey = pdf_dict_getp(ctx, obj, key);
         if (!pdf_is_string(ctx, testkey)) {
             fz_throw(ctx, FZ_ERROR_GENERIC, "cannot insert value for '%s'", key);
         }
         const char *temp = pdf_to_text_string(ctx, testkey);
-        if (strcmp(temp, replace) != 0) {
+        if (strcmp(temp, eyecatcher) != 0) {
             fz_throw(ctx, FZ_ERROR_GENERIC, "cannot insert value for '%s'", key);
         }
         // read the result as a string
         res = JM_object_to_buffer(ctx, obj, 1, 0);
         PyObject *objstr = JM_EscapeStrFromBuffer(ctx, res);
-        PySys_WriteStdout("objstr: %s\n", JM_StrAsChar(objstr));
 
         // replace 'nullval' by desired 'value'
-        nullval = PyUnicode_FromFormat("/%s(%s)", JM_StrAsChar(skey), replace);
-        PySys_WriteStdout("nullval: %s\n", JM_StrAsChar(nullval));
+        nullval = PyUnicode_FromFormat("/%s(%s)", JM_StrAsChar(skey), eyecatcher);
         newval = PyUnicode_FromFormat("/%s %s", JM_StrAsChar(skey), value);
-        PySys_WriteStdout("newval: %s\n", JM_StrAsChar(newval));
         newstr = PyUnicode_Replace(objstr, nullval, newval, 1);
-        PySys_WriteStdout("newstr: %s\n", JM_StrAsChar(newstr));
 
         // make PDF object from resulting string
         new_obj = JM_pdf_obj_from_str(gctx, pdf, JM_StrAsChar(newstr));
