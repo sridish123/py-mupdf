@@ -4659,7 +4659,7 @@ class Document(object):
 
         xref = self.pdf_catalog()
         text = self.xref_object(xref, compressed=True)
-        text = text.replace("/Nums null", "/Nums[%s]" % labels)
+        text = text.replace("/Nums[]", "/Nums[%s]" % labels)
         self.update_object(xref, text)
 
         return val
@@ -8087,7 +8087,9 @@ class Font(object):
         if fontbuffer:
             if hasattr(fontbuffer, "getvalue"):
                 fontbuffer = fontbuffer.getvalue()
-            if type(fontbuffer) not in (bytes, bytearray):
+            elif type(fontbuffer) is bytearray:
+                fontbuffer = bytes(fontbuffer)
+            if type(fontbuffer) is not bytes:
                 raise ValueError("bad type: 'fontbuffer'")
 
         if fontname:

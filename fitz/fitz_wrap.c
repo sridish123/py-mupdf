@@ -3501,34 +3501,57 @@ static pdf_obj
 *JM_set_object_value(fz_context *ctx, pdf_obj *obj, const char *key, char *value)
 {
     fz_buffer *res = NULL;
-    pdf_obj *new_obj = NULL;
+    pdf_obj *new_obj = NULL, *testkey = NULL;
     PyObject *skey = PyUnicode_FromString(key);  // Python version of dict key
     PyObject *slash = PyUnicode_FromString("/");  // PDF path separator
-    PyObject *list = NULL, *newval, *newstr, *nullval;
+    PyObject *list = NULL, *newval=NULL, *newstr=NULL, *nullval=NULL;
+    const char replace[] = "fitz: replace me!";
     fz_try(ctx)
     {
         pdf_document *pdf = pdf_get_bound_document(ctx, obj);
-
-        // set the key to some recognizable value: '/key[]'
-        pdf_dict_putp_drop(ctx, obj, key, pdf_new_array(ctx, pdf, 0));
-
-        // read the result as a string
-        res = JM_object_to_buffer(ctx, obj, 1, 0);
-        PyObject *objstr = JM_EscapeStrFromBuffer(ctx, res);
-
         // split PDF key at path seps and take last key part
         list = PyUnicode_Split(skey, slash, -1);
-        if (!PySequence_Check(list)) {
-            THROWMSG(ctx, "could not split key at '/'.");
-        }
-        Py_ssize_t i = PySequence_Size(list) - 1;
+        Py_ssize_t len = PySequence_Size(list);
+        Py_ssize_t i = len - 1;
         Py_DECREF(skey);
         skey = PySequence_GetItem(list, i);
 
+        PySequence_DelItem(list, i);
+        len =  PySequence_Size(list);
+        testkey = pdf_dict_getp(ctx, obj, key);
+        if (!testkey) {  // check sub-paths for indirects
+            while (len > 0) {
+                PyObject *t = PyUnicode_Join(slash, list);
+                if (pdf_is_indirect(ctx, pdf_dict_getp(ctx, obj, JM_StrAsChar(t)))) {
+                    Py_DECREF(t);
+                    THROWMSG(ctx, "cannot create subdict for path with indirects");
+                }
+                PySequence_DelItem(list, len - 1);
+                len = PySequence_Size(list);
+            }
+        }
+
+        pdf_dict_putp_drop(ctx, obj, key, pdf_new_text_string(ctx, replace));
+        testkey = pdf_dict_getp(ctx, obj, key);
+        if (!pdf_is_string(ctx, testkey)) {
+            fz_throw(ctx, FZ_ERROR_GENERIC, "cannot insert value for '%s'", key);
+        }
+        const char *temp = pdf_to_text_string(ctx, testkey);
+        if (strcmp(temp, replace) != 0) {
+            fz_throw(ctx, FZ_ERROR_GENERIC, "cannot insert value for '%s'", key);
+        }
+        // read the result as a string
+        res = JM_object_to_buffer(ctx, obj, 1, 0);
+        PyObject *objstr = JM_EscapeStrFromBuffer(ctx, res);
+        PySys_WriteStdout("objstr: %s\n", JM_StrAsChar(objstr));
+
         // replace 'nullval' by desired 'value'
-        nullval = PyUnicode_FromFormat("/%s[]", JM_StrAsChar(skey));
+        nullval = PyUnicode_FromFormat("/%s(%s)", JM_StrAsChar(skey), replace);
+        PySys_WriteStdout("nullval: %s\n", JM_StrAsChar(nullval));
         newval = PyUnicode_FromFormat("/%s %s", JM_StrAsChar(skey), value);
+        PySys_WriteStdout("newval: %s\n", JM_StrAsChar(newval));
         newstr = PyUnicode_Replace(objstr, nullval, newval, 1);
+        PySys_WriteStdout("newstr: %s\n", JM_StrAsChar(newstr));
 
         // make PDF object from resulting string
         new_obj = JM_pdf_obj_from_str(gctx, pdf, JM_StrAsChar(newstr));
@@ -8955,7 +8978,7 @@ SWIGINTERN PyObject *Document_xref_get_key(struct Document *self,int xref,char c
                 obj = pdf_load_object(gctx, pdf, xref);
                 subobj = pdf_dict_getp(gctx, obj, key);
                 if (!subobj) {
-                    rc = Py_BuildValue("[ss]", "null", "null");
+                    rc = Py_BuildValue("ss", "null", "null");
                     goto finished;
                 }
                 char *type;
@@ -8987,7 +9010,7 @@ SWIGINTERN PyObject *Document_xref_get_key(struct Document *self,int xref,char c
                     res = JM_object_to_buffer(gctx, subobj, 1, 0);
                     text = JM_EscapeStrFromBuffer(gctx, res);
                 }
-                rc = Py_BuildValue("[sO]", type, text);
+                rc = Py_BuildValue("sO", type, text);
                 Py_DECREF(text);
                 finished:;
             }
@@ -9005,11 +9028,21 @@ SWIGINTERN PyObject *Document_xref_set_key(struct Document *self,int xref,char c
                 int xreflen = pdf_xref_len(gctx, pdf);
                 if (!INRANGE(xref, 1, xreflen-1))
                     THROWMSG(gctx, "bad xref");
+                if (strlen(value) == 0) {
+                    THROWMSG(gctx, "bad 'value'");
+                }
+                if (strlen(key) == 0) {
+                    THROWMSG(gctx, "bad 'key'");
+                }
                 obj = pdf_load_object(gctx, pdf, xref);
                 new_obj = JM_set_object_value(gctx, obj, key, value);
+                if (!new_obj) {
+                    goto finished;
+                }
                 pdf_drop_obj(gctx, obj);
                 obj = NULL;
                 pdf_update_object(gctx, pdf, xref, new_obj);
+                finished:;
             }
             fz_always(gctx) {
                 pdf_drop_obj(gctx, obj);
@@ -11023,7 +11056,7 @@ SWIGINTERN PyObject *Document__set_page_labels(struct Document *self,char *label
                 pdf_obj *pagelabels = pdf_new_name(gctx, "PageLabels");
                 pdf_obj *root = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Root));
                 pdf_dict_del(gctx, root, pagelabels);
-                pdf_dict_putl_drop(gctx, root, PDF_NULL, pagelabels, PDF_NAME(Nums), NULL);
+                pdf_dict_putl_drop(gctx, root, pdf_new_array(gctx, pdf, 0), pagelabels, PDF_NAME(Nums), NULL);
             }
             fz_always(gctx) {
                 PyErr_Clear();
