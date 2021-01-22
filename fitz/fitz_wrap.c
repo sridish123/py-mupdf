@@ -8477,7 +8477,7 @@ JM_bytesio_write(fz_context *ctx, void *opaque, const void *data, size_t len)
     PyObject *bio = opaque;
     PyObject *b = PyBytes_FromStringAndSize((const char *) data, (Py_ssize_t) len);
     PyObject *name = PyUnicode_FromString("write");
-    PyObject *rc = PyObject_CallMethodOneArg(bio, name, b);
+    PyObject *rc = PyObject_CallMethodObjArgs(bio, name, b, NULL);
     if (!rc) {
         JM_TRACE("BytesIO write failed");
     }
@@ -8493,8 +8493,8 @@ JM_bytesio_truncate(fz_context *ctx, void *opaque)
     PyObject *bio = opaque;
     PyObject *trunc = PyUnicode_FromString("truncate");
     PyObject *tell = PyUnicode_FromString("tell");
-    PyObject *rctell = PyObject_CallMethodNoArgs(bio, tell);
-    PyObject *rc = PyObject_CallMethodOneArg(bio, trunc, rctell);
+    PyObject *rctell = PyObject_CallMethodObjArgs(bio, tell, NULL);
+    PyObject *rc = PyObject_CallMethodObjArgs(bio, trunc, rctell, NULL);
     if (!rc) {
         JM_TRACE("BytesIO truncate failed");
     }
@@ -8510,7 +8510,7 @@ JM_bytesio_tell(fz_context *ctx, void *opaque)
 {  // returns bio.tell() -> int
     PyObject *bio = opaque;
     PyObject *name = PyUnicode_FromString("tell");
-    PyObject *rc = PyObject_CallMethodNoArgs(bio, name);
+    PyObject *rc = PyObject_CallMethodObjArgs(bio, name, NULL);
     if (!rc) {
         JM_TRACE("BytesIO tell failed");
     }
@@ -8528,7 +8528,7 @@ JM_bytesio_seek(fz_context *ctx, void *opaque, int64_t off, int whence)
     PyObject *bio = opaque;
     PyObject *name = PyUnicode_FromString("seek");
     PyObject *pos = PyLong_FromUnsignedLongLong((unsigned long long) off);
-    PyObject *rc = PyObject_CallMethodObjArgs(bio, name, pos, whence);
+    PyObject *rc = PyObject_CallMethodObjArgs(bio, name, pos, whence, NULL);
     if (!rc) {
         JM_TRACE("BytesIO seek failed");
     }
