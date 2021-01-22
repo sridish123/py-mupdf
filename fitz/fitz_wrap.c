@@ -8465,26 +8465,27 @@ fz_device *JM_new_tracedraw_device(fz_context *ctx, PyObject *out)
 
 
 
-void JM_bytesio_write(fz_context *ctx, void *opaque, const void *data, size_t len);
-void JM_bytesio_truncate(fz_context *ctx, void *opaque);
-int64_t JM_bytesio_tell(fz_context *ctx, void *opaque);
-void JM_bytesio_seek(fz_context *ctx, void *opaque, int64_t off, int whence);
-fz_output *JM_new_output_fileptr(fz_context *ctx, PyObject *bio);
-
 static void
 JM_bytesio_write(fz_context *ctx, void *opaque, const void *data, size_t len)
 {  // bio.write(bytes object)
-    PyObject *bio = opaque;
-    PyObject *b = PyBytes_FromStringAndSize((const char *) data, (Py_ssize_t) len);
-    PyObject *name = PyUnicode_FromString("write");
-    PyObject *rc = PyObject_CallMethodObjArgs(bio, name, b, NULL);
-    if (!rc) {
-        JM_TRACE("BytesIO write failed");
+    PyObject *bio = opaque, *b, *name, *rc;
+    fz_try(ctx){
+        b = PyBytes_FromStringAndSize((const char *) data, (Py_ssize_t) len);
+        name = PyUnicode_FromString("write");
+        rc = PyObject_CallMethodObjArgs(bio, name, b, NULL);
+        if (!rc) {
+            THROWMSG(ctx, "could not write to Py file ptr");
+        }
     }
-    Py_DECREF(b);
-    Py_DECREF(name);
-    Py_DECREF(rc);
-    PyErr_Clear();
+    fz_always(ctx) {
+        Py_XDECREF(b);
+        Py_XDECREF(name);
+        Py_XDECREF(rc);
+        PyErr_Clear();
+    }
+    fz_catch(ctx) {
+        fz_rethrow(ctx);
+    }
 }
 
 static void
@@ -8493,31 +8494,47 @@ JM_bytesio_truncate(fz_context *ctx, void *opaque)
     PyObject *bio = opaque;
     PyObject *trunc = PyUnicode_FromString("truncate");
     PyObject *tell = PyUnicode_FromString("tell");
-    PyObject *rctell = PyObject_CallMethodObjArgs(bio, tell, NULL);
-    PyObject *rc = PyObject_CallMethodObjArgs(bio, trunc, rctell, NULL);
-    if (!rc) {
-        JM_TRACE("BytesIO truncate failed");
+    PyObject *rctell= NULL, *rc = NULL;
+    fz_try(ctx) {
+        rctell = PyObject_CallMethodObjArgs(bio, tell, NULL);
+        rc = PyObject_CallMethodObjArgs(bio, trunc, rctell, NULL);
+        if (!rc) {
+            THROWMSG(ctx, "could not truncate Py file ptr");
+        }
     }
-    Py_DECREF(tell);
-    Py_DECREF(trunc);
-    Py_XDECREF(rc);
-    Py_DECREF(rctell);
-    PyErr_Clear();
+    fz_always(ctx) {
+        Py_XDECREF(tell);
+        Py_XDECREF(trunc);
+        Py_XDECREF(rc);
+        Py_XDECREF(rctell);
+        PyErr_Clear();
+    }
+    fz_catch(ctx) {
+        fz_rethrow(ctx);
+    }
 }
 
 static int64_t
 JM_bytesio_tell(fz_context *ctx, void *opaque)
 {  // returns bio.tell() -> int
-    PyObject *bio = opaque;
+    PyObject *bio = opaque, *rc = NULL;
     PyObject *name = PyUnicode_FromString("tell");
-    PyObject *rc = PyObject_CallMethodObjArgs(bio, name, NULL);
-    if (!rc) {
-        JM_TRACE("BytesIO tell failed");
+    int64_t pos = 0;
+    fz_try(ctx) {
+        PyObject *rc = PyObject_CallMethodObjArgs(bio, name, NULL);
+        if (!rc) {
+            THROWMSG(ctx, "could not tell Py file ptr");
+        }
+        pos = (int64_t) PyLong_AsUnsignedLongLong(rc);
     }
-    Py_DECREF(name);
-    int64_t pos = (int64_t) PyLong_AsUnsignedLongLong(rc);
-    Py_XDECREF(rc);
-    PyErr_Clear();
+    fz_always(ctx) {
+        Py_XDECREF(name);
+        Py_XDECREF(rc);
+        PyErr_Clear();
+    }
+    fz_catch(ctx) {
+        fz_rethrow(ctx);
+    }
     return pos;
 }
 
@@ -8525,17 +8542,24 @@ JM_bytesio_tell(fz_context *ctx, void *opaque)
 static void
 JM_bytesio_seek(fz_context *ctx, void *opaque, int64_t off, int whence)
 {  // bio.seek(off, whence=0)
-    PyObject *bio = opaque;
-    PyObject *name = PyUnicode_FromString("seek");
-    PyObject *pos = PyLong_FromUnsignedLongLong((unsigned long long) off);
-    PyObject *rc = PyObject_CallMethodObjArgs(bio, name, pos, whence, NULL);
-    if (!rc) {
-        JM_TRACE("BytesIO seek failed");
+    PyObject *bio = opaque, *rc = NULL;
+    PyObject *name = PyUnicode_FromString("seek"), *pos = NULL;
+    fz_try(ctx) {
+        pos = PyLong_FromUnsignedLongLong((unsigned long long) off);
+        rc = PyObject_CallMethodObjArgs(bio, name, pos, whence, NULL);
+        if (!rc) {
+            THROWMSG(ctx, "could not seek Py file ptr");
+        }
     }
-    Py_XDECREF(rc);
-    Py_DECREF(name);
-    Py_DECREF(pos);
-    PyErr_Clear();
+    fz_always(ctx) {
+        Py_XDECREF(rc);
+        Py_XDECREF(name);
+        Py_XDECREF(pos);
+        PyErr_Clear();
+    }
+    fz_catch(ctx) {
+        fz_rethrow(ctx);
+    }
 }
 
 fz_output *
