@@ -233,7 +233,7 @@ def clean(args):
     outdoc = fitz.open()
     for pno in pages:
         n = pno - 1
-        outdoc.insertPDF(doc, from_page=n, to_page=n)
+        outdoc.insert_pdf(doc, from_page=n, to_page=n)
     outdoc.save(
         args.output,
         garbage=args.garbage,
@@ -266,7 +266,7 @@ def doc_join(args):
         else:  # take all pages
             page_list = range(1, src.pageCount + 1)
         for i in page_list:
-            doc.insertPDF(src, from_page=i - 1, to_page=i - 1)  # copy each source page
+            doc.insert_pdf(src, from_page=i - 1, to_page=i - 1)  # copy each source page
         src.close()
 
     doc.save(args.output, garbage=4, deflate=True)

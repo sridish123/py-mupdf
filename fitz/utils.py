@@ -63,7 +63,7 @@ def writeText(page: Page, **kwargs) -> None:
         writer.writeText(tpage, opacity=opacity, color=color)
     if rect is None:
         rect = clip
-    page.showPDFpage(
+    page.show_pdf_page(
         rect,
         textdoc,
         0,
@@ -77,7 +77,7 @@ def writeText(page: Page, **kwargs) -> None:
     tpage = None
 
 
-def showPDFpage(*args, **kwargs) -> int:
+def show_pdf_page(*args, **kwargs) -> int:
     """Show page number 'pno' of PDF 'src' in rectangle 'rect'.
 
     Args:
@@ -196,7 +196,7 @@ def showPDFpage(*args, **kwargs) -> int:
     pno_id = (isrc, pno)  # id of src[pno]
     xref = doc.ShownPages.get(pno_id, 0)
 
-    xref = page._showPDFpage(
+    xref = page._show_pdf_page(
         src_page,
         overlay=overlay,
         matrix=matrix,
@@ -854,7 +854,7 @@ def set_toc_item(
     if type(dest_dict) is dict:
         if dest_dict["kind"] == LINK_GOTO:
             pno = dest_dict["page"]
-            page_xref = doc.pageXref(pno)
+            page_xref = doc.page_xref(pno)
             page_height = doc.pageCropBox(pno).height
             to = dest_dict.get(to, Point(72, 36))
             to.y = page_height - to.y
@@ -890,7 +890,7 @@ def set_toc_item(
     if kind == LINK_GOTO:
         if pno is None or pno not in range(1, doc.pageCount + 1):
             raise ValueError("bad page number")
-        page_xref = doc.pageXref(pno - 1)
+        page_xref = doc.page_xref(pno - 1)
         page_height = doc.pageCropBox(pno - 1).height
         if to is None:
             to = Point(72, page_height - 38)
@@ -1094,7 +1094,7 @@ def setToC(
         lvl = o[0]  # level
         title = getPDFstr(o[1])  # title
         pno = min(doc.pageCount - 1, max(0, o[2] - 1))  # page number
-        page_xref = doc.pageXref(pno)
+        page_xref = doc.page_xref(pno)
         page_height = doc.pageCropBox(pno).height
         top = Point(72, page_height - 36)
         dest_dict = {"to": top, "kind": LINK_GOTO}  # fall back target
@@ -1208,7 +1208,7 @@ def do_links(
 ) -> None:
     """Insert links contained in copied page range into destination PDF.
 
-    Parameter values **must** equal those of method insertPDF(), which must
+    Parameter values **must** equal those of method insert_pdf(), which must
     have been previously executed.
     """
     # --------------------------------------------------------------------------
@@ -1290,8 +1290,8 @@ def do_links(
     for i in range(len(pno_src)):
         p_src = pno_src[i]
         p_dst = pno_dst[i]
-        old_xref = doc2.pageXref(p_src)
-        new_xref = doc1.pageXref(p_dst)
+        old_xref = doc2.page_xref(p_src)
+        new_xref = doc1.page_xref(p_dst)
         xref_src.append(old_xref)
         xref_dst.append(new_xref)
 
@@ -3788,6 +3788,7 @@ def scrub(
     remove_links: bool = True,
     reset_fields: bool = True,
     reset_responses: bool = True,
+    thumbnails: bool = True,
     xml_metadata: bool = True,
 ) -> None:
     def remove_hidden(cont_lines):
@@ -3889,6 +3890,10 @@ def scrub(
                 cont = b"\n".join(cont_lines)
                 doc.update_stream(xref, cont)  # rewrite the page /Contents
 
+        if thumbnails:  # remove page thumbnails?
+            if doc.xref_get_key(page.xref, "Thumb")[0] != "null":
+                doc.xref_set_key(page.xref, "Thumb", "null")
+
     # pages are scrubbed, now perform document-wide scrubbing
     # remove embedded files
     if embedded_files:
@@ -3902,33 +3907,23 @@ def scrub(
     else:
         xref_limit = doc.xrefLength()
     for xref in range(1, xref_limit):
-        obj = doc.xref_object(xref)  # get object definition source
-        # note: this string is formatted in a standard way by MuPDF.
-
-        if javascript and "/S /JavaScript" in obj:  # a /JavaScript action object?
+        if javascript and doc.xref_get_key(xref, "S")[1] == "/JavaScript":
+            # a /JavaScript action object
             obj = "<</S/JavaScript/JS()>>"  # replace with a null JavaScript
             doc.update_object(xref, obj)  # update this object
             continue  # no further handling
 
-        if not xml_metadata or "/Metadata" not in obj:
+        if not xml_metadata:
             continue
 
-        if "/Type /Metadata" in obj:  # delete any metadata object directly
-            doc.update_stream(xref, b"deleted")
+        if doc.xref_get_key(xref, "Type")[1] == "/Metadata":
+            # delete any metadata object directly
             doc.update_object(xref, "<<>>")
+            doc.update_stream(xref, b"deleted", new=True)
             continue
 
-        obj_lines = obj.splitlines()
-        new_lines = []  # will receive remaining obj definition lines
-        found = False  # assume /Metadata  not found
-        for line in obj_lines:
-            line = line.strip()
-            if not line.startswith("/Metadata "):
-                new_lines.append(line)  # keep this line
-            else:  # drop this line
-                found = True
-        if found:  # if removed /Metadata key, update object definition
-            doc.update_object(xref, "\n".join(new_lines))
+        if doc.xref_get_key(xref, "Metadata")[0] != "null":
+            doc.xref_set_key(xref, "Metadata", "null")
 
 
 def fillTextbox(

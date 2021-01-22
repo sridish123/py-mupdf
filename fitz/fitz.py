@@ -103,8 +103,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.7"
-VersionDate = "2021-01-09 08:53:43"
-version = (VersionBind, VersionFitz, "20210109085343")
+VersionDate = "2021-01-19 04:00:00"
+version = (VersionBind, VersionFitz, "20210119040000")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -3719,14 +3719,14 @@ class Document(object):
         return _fitz.Document_get_outline_xrefs(self)
 
     def xref_get_keys(self, xref: int) -> AnyType:
-        """Get the keys of a PDF dictionary."""
+        """Get the keys of PDF dict object at 'xref'."""
         if self.isClosed:
             raise ValueError("document closed")
 
         return _fitz.Document_xref_get_keys(self, xref)
 
     def xref_get_key(self, xref: int, key: str) -> AnyType:
-        """Get the value of a PDF dictionary key."""
+        """Get PDF dict key value of object at 'xref'."""
         if self.isClosed:
             raise ValueError("document closed")
 
@@ -4171,7 +4171,7 @@ class Document(object):
 
     def save(
         self,
-        filename: str,
+        filename: AnyType,
         garbage: int = 0,
         clean: int = 0,
         deflate: int = 0,
@@ -4188,15 +4188,15 @@ class Document(object):
         user_pw: OptStr = None,
     ) -> AnyType:
 
-        """Save PDF to filename."""
+        """Save PDF to file, pathlib.Path or file pointer."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
         if type(filename) == str:
             pass
-        elif str is bytes and type(filename) == unicode:
-            filename = filename.encode("utf8")
-        else:
+        elif hasattr(filename, "open"):  # assume: pathlib.Path
             filename = str(filename)
+        elif not hasattr(filename, "seek"):  # assume: file pointer
+            raise ValueError("filename must be str, Path or file pointer")
         if filename == self.name and not incremental:
             raise ValueError("save to original must be incremental")
         if self.pageCount < 1:
@@ -4226,43 +4226,44 @@ class Document(object):
 
     def write(
         self,
-        garbage: int = 0,
-        clean: int = 0,
-        deflate: int = 0,
-        deflate_images: int = 0,
-        deflate_fonts: int = 0,
-        ascii: int = 0,
-        expand: int = 0,
-        pretty: int = 0,
-        encryption: int = 1,
-        permissions: int = -1,
-        owner_pw: OptStr = None,
-        user_pw: OptStr = None,
-    ) -> AnyType:
+        garbage=False,
+        clean=False,
+        deflate=False,
+        deflate_images=False,
+        deflate_fonts=False,
+        incremental=False,
+        ascii=False,
+        expand=False,
+        linear=False,
+        pretty=False,
+        encryption=1,
+        permissions=-1,
+        owner_pw=None,
+        user_pw=None,
+    ):
+        from io import BytesIO
 
-        """Write the PDF to a bytes object."""
-        if self.isClosed or self.isEncrypted:
-            raise ValueError("document closed or encrypted")
-        if self.pageCount < 1:
-            raise ValueError("cannot write with zero pages")
-
-        return _fitz.Document_write(
-            self,
-            garbage,
-            clean,
-            deflate,
-            deflate_images,
-            deflate_fonts,
-            ascii,
-            expand,
-            pretty,
-            encryption,
-            permissions,
-            owner_pw,
-            user_pw,
+        bio = BytesIO()
+        self.save(
+            bio,
+            garbage=garbage,
+            clean=clean,
+            deflate=deflate,
+            deflate_images=deflate_images,
+            deflate_fonts=deflate_fonts,
+            incremental=incremental,
+            ascii=ascii,
+            expand=expand,
+            linear=linear,
+            pretty=pretty,
+            encryption=encryption,
+            permissions=permissions,
+            owner_pw=owner_pw,
+            user_pw=user_pw,
         )
+        return bio.getvalue()
 
-    def insertPDF(
+    def insert_pdf(
         self,
         docsrc: "Document",
         from_page: int = -1,
@@ -4315,7 +4316,7 @@ class Document(object):
             _gmap = Graftmap(self)
             self.Graftmaps[isrt] = _gmap
 
-        val = _fitz.Document_insertPDF(
+        val = _fitz.Document_insert_pdf(
             self,
             docsrc,
             from_page,
@@ -4810,7 +4811,6 @@ class Document(object):
 
     outline = property(lambda self: self._outline)
     _getPageXref = page_xref
-    pageXref = page_xref
 
     def get_page_fonts(self, pno: int, full: bool = False) -> list:
         """Retrieve a list of fonts used on a page."""
@@ -4966,16 +4966,6 @@ class Document(object):
             page._annot_refs[k] = annot
         return page
 
-    updateObject = update_object
-    updateStream = update_stream
-    xrefStream = xref_stream
-    xrefStreamRaw = xref_stream_raw
-    xrefObject = xref_object
-    xrefLength = xref_length
-    PDFTrailer = pdf_trailer
-    PDFCatalog = pdf_catalog
-    metadataXML = xref_xml_metadata
-
     def __repr__(self) -> str:
         m = "closed " if self.isClosed else ""
         if self.stream is None:
@@ -5000,7 +4990,7 @@ class Document(object):
 
         return True
 
-    def __getitem__(self, i: int = 0):
+    def __getitem__(self, i: int = 0) -> "Page":
         if i not in self:
             raise IndexError("page not in document")
         return self.loadPage(i)
@@ -5996,7 +5986,7 @@ class Page(object):
 
         return _fitz.Page_clean_contents(self, sanitize)
 
-    def _showPDFpage(
+    def _show_pdf_page(
         self,
         fz_srcpage: "Page",
         overlay: int = 1,
@@ -6007,7 +5997,7 @@ class Page(object):
         graftmap: "Graftmap" = None,
         _imgname: OptStr = None,
     ) -> AnyType:
-        return _fitz.Page__showPDFpage(
+        return _fitz.Page__show_pdf_page(
             self, fz_srcpage, overlay, matrix, xref, oc, clip, graftmap, _imgname
         )
 

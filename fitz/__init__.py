@@ -46,7 +46,6 @@ fitz.Document.new_page = fitz.utils.newPage
 fitz.Document.newPage = fitz.utils.newPage
 fitz.Document.scrub = fitz.utils.scrub
 fitz.Document.search_page_for = fitz.utils.searchPageFor
-fitz.Document.searchPageFor = fitz.utils.searchPageFor
 fitz.Document.set_metadata = fitz.utils.setMetadata
 fitz.Document.set_ocmd = fitz.utils.set_ocmd
 fitz.Document.set_toc = fitz.utils.setToC
@@ -59,6 +58,19 @@ fitz.Document.set_page_labels = fitz.utils.set_page_labels
 fitz.Document.get_page_numbers = fitz.utils.get_page_numbers
 fitz.Document.has_links = fitz.utils.has_links
 fitz.Document.has_annots = fitz.utils.has_annots
+fitz.Document.insertPDF = fitz.Document.insert_pdf
+fitz.Document.pageXref = fitz.Document.page_xref
+fitz.Document.searchPageFor = fitz.utils.searchPageFor
+fitz.Document.xrefStreamRaw = fitz.Document.xref_stream_raw
+fitz.Document.updateObject = fitz.Document.update_object
+fitz.Document.updateStream = fitz.Document.update_stream
+fitz.Document.xrefStream = fitz.Document.xref_stream
+fitz.Document.xrefObject = fitz.Document.xref_object
+fitz.Document.xrefLength = fitz.Document.xref_length
+fitz.Document.PDFTrailer = fitz.Document.pdf_trailer
+fitz.Document.PDFCatalog = fitz.Document.pdf_catalog
+fitz.Document.metadataXML = fitz.Document.xref_xml_metadata
+
 
 # ------------------------------------------------------------------------------
 # Page
@@ -114,10 +126,10 @@ fitz.Page.new_shape = lambda x: fitz.utils.Shape(x)
 fitz.Page.newShape = lambda x: fitz.utils.Shape(x)
 fitz.Page.search = fitz.utils.searchFor
 fitz.Page.searchFor = fitz.utils.searchFor
-fitz.Page.show_pdf_page = fitz.utils.showPDFpage
-fitz.Page.showPDFpage = fitz.utils.showPDFpage
+fitz.Page.show_pdf_page = fitz.utils.show_pdf_page
+fitz.Page.showPDFpage = fitz.utils.show_pdf_page
 fitz.Page.updateLink = fitz.utils.updateLink
-fitz.Page.updte_link = fitz.utils.updateLink
+fitz.Page.update_link = fitz.utils.updateLink
 fitz.Page.write_text = fitz.utils.writeText
 fitz.Page.writeText = fitz.utils.writeText
 fitz.Page.get_label = fitz.utils.get_label
