@@ -7798,7 +7798,7 @@ class TextPage(object):
         """Return page content as a HTML string."""
         return self._extractText(1)
 
-    def extractJSON(self) -> str:
+    def extractJSON(self, cb=None) -> str:
         """Return 'extractDICT' converted to JSON format."""
         import base64
         import json
@@ -7810,10 +7810,13 @@ class TextPage(object):
                 if type(s) in (bytes, bytearray):
                     return base64.b64encode(s).decode()
 
+        if cb is not None:
+            val["width"] = cb.width
+            val["height"] = cb.height
         val = json.dumps(val, separators=(",", ":"), cls=b64encode, indent=1)
         return val
 
-    def extractRAWJSON(self) -> str:
+    def extractRAWJSON(self, cb=None) -> str:
         """Return 'extractRAWDICT' converted to JSON format."""
         import base64
         import json
@@ -7825,6 +7828,9 @@ class TextPage(object):
                 if type(s) in (bytes, bytearray):
                     return base64.b64encode(s).decode()
 
+        if cb is not None:
+            val["width"] = cb.width
+            val["height"] = cb.height
         val = json.dumps(val, separators=(",", ":"), cls=b64encode, indent=1)
         return val
 
@@ -7836,13 +7842,21 @@ class TextPage(object):
         """Return page content as a XHTML string."""
         return self._extractText(4)
 
-    def extractDICT(self) -> dict:
+    def extractDICT(self, cb=None) -> dict:
         """Return page content as a Python dict of images and text spans."""
-        return self._textpage_dict(raw=False)
+        val = self._textpage_dict(raw=False)
+        if cb is not None:
+            val["width"] = cb.width
+            val["height"] = cb.height
+        return val
 
-    def extractRAWDICT(self) -> dict:
+    def extractRAWDICT(self, cb=None) -> dict:
         """Return page content as a Python dict of images and text characters."""
-        return self._textpage_dict(raw=True)
+        val = self._textpage_dict(raw=True)
+        if cb is not None:
+            val["width"] = cb.width
+            val["height"] = cb.height
+        return val
 
     def __del__(self):
         if not type(self) is TextPage:

@@ -569,16 +569,19 @@ def getText(
     CheckParent(page)
     if clip != None:
         clip = Rect(clip)
+        cb = None
+    else:
+        cb = page.CropBox
     tp = page.getTextPage(clip=clip, flags=flags)  # TextPage with or without images
 
     if option == "json":
-        t = tp.extractJSON()
+        t = tp.extractJSON(cb=cb)
     elif option == "rawjson":
-        t = tp.extractRAWJSON()
+        t = tp.extractRAWJSON(cb=cb)
     elif option == "dict":
-        t = tp.extractDICT()
+        t = tp.extractDICT(cb=cb)
     elif option == "rawdict":
-        t = tp.extractRAWDICT()
+        t = tp.extractRAWDICT(cb=cb)
     elif option == "html":
         t = tp.extractHTML()
     elif option == "xml":

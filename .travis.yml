@@ -23,6 +23,7 @@ jobs:
       HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip"
     - export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
   - os: osx
+    osx_image: xcode12.2
     language: shell
     env: PIP=pip3
     before_install:
