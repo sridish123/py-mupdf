@@ -25,7 +25,7 @@ This is a collection of functions to extend PyMupdf.
 """
 
 
-def writeText(page: Page, **kwargs) -> None:
+def write_text(page: Page, **kwargs) -> None:
     """Write the text of one or more TextWriter objects.
 
     Args:
@@ -51,7 +51,7 @@ def writeText(page: Page, **kwargs) -> None:
         raise ValueError("need at least one TextWriter")
     if type(writers) is TextWriter:
         if rotate == 0 and rect is None:
-            writers.writeText(page, opacity=opacity, color=color, overlay=overlay)
+            writers.write_text(page, opacity=opacity, color=color, overlay=overlay)
             return None
         else:
             writers = (writers,)
@@ -60,7 +60,7 @@ def writeText(page: Page, **kwargs) -> None:
     tpage = textdoc.newPage(width=page.rect.width, height=page.rect.height)
     for writer in writers:
         clip |= writer.textRect
-        writer.writeText(tpage, opacity=opacity, color=color)
+        writer.write_text(tpage, opacity=opacity, color=color)
     if rect is None:
         rect = clip
     page.show_pdf_page(
@@ -144,7 +144,7 @@ def show_pdf_page(*args, **kwargs) -> int:
     CheckParent(page)
     doc = page.parent
 
-    if not doc.isPDF or not src.isPDF:
+    if not doc.is_pdf or not src.is_pdf:
         raise ValueError("not a PDF")
 
     rect = page.rect & rect  # intersect with page rectangle
@@ -249,9 +249,10 @@ def insertImage(*args, **kwargs) -> None:
 
         Notes:
             The result is basically a multiplication of four matrices in this
-            sequence: number one moves the image rectangle (always a unit rect!) to (0,0), number two rotates as desired, number three
-            scales using the width-height-ratio, and number four moves to the
-            target rect.
+            sequence: number one moves the image rectangle (always a unit rect!)
+                      to (0,0), number two rotates as desired, number three
+                      scales using the width-height-ratio, and number four moves
+                      to the target rect.
         Args:
             fw, fh: width / height ratio factors 0 < f <= 1.
                     The longer one must be 1.
@@ -298,7 +299,7 @@ def insertImage(*args, **kwargs) -> None:
     # ------------------------------------------------------------------------
     CheckParent(page)
     doc = page.parent
-    if not doc.isPDF:
+    if not doc.is_pdf:
         raise ValueError("not a PDF")
     if bool(filename) + bool(stream) + bool(pixmap) != 1:
         raise ValueError("need exactly one of filename, pixmap, stream")
@@ -805,7 +806,7 @@ def getToC(
     lvl = 1
     liste = []
     toc = recurse(olItem, liste, lvl)
-    if doc.isPDF and simple is False:
+    if doc.is_pdf and simple is False:
         doc._extend_toc_items(toc)
     return toc
 
@@ -1043,7 +1044,7 @@ def setToC(
     """
     if doc.isClosed or doc.isEncrypted:
         raise ValueError("document closed or encrypted")
-    if not doc.isPDF:
+    if not doc.is_pdf:
         raise ValueError("not a PDF")
     if not toc:  # remove all entries
         return len(doc._delToC())
@@ -2795,7 +2796,7 @@ class Shape(object):
         CheckParent(page)
         self.page = page
         self.doc = page.parent
-        if not self.doc.isPDF:
+        if not self.doc.is_pdf:
             raise ValueError("not a PDF")
         self.height = page.MediaBoxSize.y
         self.width = page.MediaBoxSize.x
@@ -3732,7 +3733,7 @@ def apply_redactions(page: Page, images: int = 2) -> bool:
     doc = page.parent
     if doc.isEncrypted or doc.isClosed:
         raise ValueError("document closed or encrypted")
-    if not doc.isPDF:
+    if not doc.is_pdf:
         raise ValueError("not a PDF")
 
     redact_annots = []  # storage of annot values
@@ -3843,7 +3844,7 @@ def scrub(
         else:
             return None
 
-    if not doc.isPDF:  # only works for PDF
+    if not doc.is_pdf:  # only works for PDF
         raise ValueError("not a PDF")
     if doc.isEncrypted or doc.isClosed:
         raise ValueError("closed or encrypted doc")
@@ -4498,7 +4499,7 @@ def has_links(doc: Document) -> bool:
     """Check whether there are links on any page."""
     if doc.isClosed:
         raise ValueError("document closed")
-    if not doc.isPDF:
+    if not doc.is_pdf:
         raise ValueError("not a PDF")
     for i in range(doc.pageCount):
         for item in doc.page_annot_xrefs(i):
@@ -4511,7 +4512,7 @@ def has_annots(doc: Document) -> bool:
     """Check whether there are annotations on any page."""
     if doc.isClosed:
         raise ValueError("document closed")
-    if not doc.isPDF:
+    if not doc.is_pdf:
         raise ValueError("not a PDF")
     for i in range(doc.pageCount):
         for item in doc.page_annot_xrefs(i):

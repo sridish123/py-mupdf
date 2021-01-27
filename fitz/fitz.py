@@ -2913,7 +2913,7 @@ def annot_preprocess(page: "Page") -> int:
         Old page rotation value. Temporarily sets rotation to 0 when required.
     """
     CheckParent(page)
-    if not page.parent.isPDF:
+    if not page.parent.is_pdf:
         raise ValueError("not a PDF")
     old_rotation = page.rotation
     if old_rotation != 0:
@@ -3587,19 +3587,19 @@ class Document(object):
         Notes:
             Basic usages:
             open() - new PDF document
-            open(filename) - string or pathlib.Path, must have supported
-                    file extension.
-            open(type, buffer) - type: valid extension, buffer: bytes object.
+            open(filename) - string, pathlib.Path, or file object.
+            open(filename, fileype=type) - overwrite filename extension.
+            open(type, buffer) - type: extension, buffer: bytes object.
             open(stream=buffer, filetype=type) - keyword version of previous.
-            open(filename, fileype=type) - filename with unrecognized extension.
-            rect, width, height, fontsize: layout reflowable document
-            on open (e.g. EPUB). Ignored if n/a.
+            Parameters rect, width, height, fontsize: layout reflowable
+                 document on open (e.g. EPUB). Ignored if n/a.
         """
-
         if not filename or type(filename) is str:
             pass
+        elif hasattr(filename, "name"):
+            filename = filename.name
         else:
-            filename = str(filename)  # takes care of pathlib.Path
+            raise ValueError("bad filename")
 
         if stream:
             if not (filename or filetype):
@@ -4109,12 +4109,12 @@ class Document(object):
         return _fitz.Document__getPDFfileid(self)
 
     @property
-    def isPDF(self) -> AnyType:
+    def is_pdf(self) -> AnyType:
         """Check for PDF."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_isPDF(self)
+        return _fitz.Document_is_pdf(self)
 
     @property
     def _hasXrefStream(self) -> AnyType:
@@ -4354,7 +4354,7 @@ class Document(object):
         """Build sub-pdf with page numbers in the list."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
-        if not self.isPDF:
+        if not self.is_pdf:
             raise ValueError("not a PDF")
         if not hasattr(pyliste, "__getitem__"):
             raise ValueError("sequence required")
@@ -4455,36 +4455,36 @@ class Document(object):
 
         return val
 
-    def isStream(self, xref: int = 0) -> AnyType:
+    def is_stream(self, xref: int = 0) -> AnyType:
         """Check if xref is a stream object."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_isStream(self, xref)
+        return _fitz.Document_is_stream(self, xref)
 
     def need_appearances(self, value: AnyType = None) -> AnyType:
         """Get/set the NeedAppearances value."""
         if self.isClosed:
             raise ValueError("document closed")
-        if not self.isFormPDF:
+        if not self.is_form_pdf:
             return None
 
         return _fitz.Document_need_appearances(self, value)
 
-    def getSigFlags(self) -> int:
+    def get_sigflags(self) -> int:
         """Get the /SigFlags value."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_getSigFlags(self)
+        return _fitz.Document_get_sigflags(self)
 
     @property
-    def isFormPDF(self) -> AnyType:
+    def is_form_pdf(self) -> AnyType:
         """Check if PDF Form document."""
         if self.isClosed:
             raise ValueError("document closed")
 
-        return _fitz.Document_isFormPDF(self)
+        return _fitz.Document_is_form_pdf(self)
 
     @property
     def FormFonts(self) -> AnyType:
@@ -4816,7 +4816,7 @@ class Document(object):
         """Retrieve a list of fonts used on a page."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
-        if not self.isPDF:
+        if not self.is_pdf:
             return ()
         val = self._getPageInfo(pno, 1)
         if full is False:
@@ -4829,7 +4829,7 @@ class Document(object):
         """Retrieve a list of images used on a page."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
-        if not self.isPDF:
+        if not self.is_pdf:
             return ()
         val = self._getPageInfo(pno, 2)
         if full is False:
@@ -4842,7 +4842,7 @@ class Document(object):
         """Retrieve a list of XObjects used on a page."""
         if self.isClosed or self.isEncrypted:
             raise ValueError("document closed or encrypted")
-        if not self.isPDF:
+        if not self.is_pdf:
             return ()
         val = self._getPageInfo(pno, 3)
         return val
@@ -4893,7 +4893,7 @@ class Document(object):
 
     def deletePage(self, pno: int = -1):
         """Delete one page from a PDF."""
-        if not self.isPDF:
+        if not self.is_pdf:
             raise ValueError("not a PDF")
         if self.isClosed:
             raise ValueError("document closed")
@@ -4917,7 +4917,7 @@ class Document(object):
 
     def deletePageRange(self, from_page: int = -1, to_page: int = -1):
         """Delete pages from a PDF."""
-        if not self.isPDF:
+        if not self.is_pdf:
             raise ValueError("not a PDF")
         if self.isClosed:
             raise ValueError("document closed")
@@ -5245,7 +5245,7 @@ class Page(object):
     ) -> "Annot":
 
         CheckParent(self)
-        if not self.parent.isPDF:
+        if not self.parent.is_pdf:
             raise ValueError("not a PDF")
 
         val = _fitz.Page__add_text_marker(self, quads, annot_type)
@@ -5643,7 +5643,7 @@ class Page(object):
         """Add a 'Widget' (form field)."""
         CheckParent(self)
         doc = self.parent
-        if not doc.isPDF:
+        if not doc.is_pdf:
             raise ValueError("not a PDF")
         widget._validate()
         annot = self._addWidget(widget.field_type, widget.field_name)
@@ -5860,7 +5860,7 @@ class Page(object):
             val.thisown = True
             val.parent = weakref.proxy(self)  # owning page object
             self._annot_refs[id(val)] = val
-            if self.parent.isPDF:
+            if self.parent.is_pdf:
                 link_id = [x for x in self.annot_xrefs() if x[1] == PDF_ANNOT_LINK][0]
                 val.xref = link_id[0]
                 val.id = link_id[2]
@@ -6164,11 +6164,19 @@ class Page(object):
 
         return _fitz.Page_get_contents(self)
 
-    def set_contents(self, xref: int) -> AnyType:
-        """Set an xref as the (only) /Contents object."""
+    def set_contents(self, xref: int) -> None:
+        """Set object at 'xref' as the page's /Contents."""
         CheckParent(self)
-
-        return _fitz.Page_set_contents(self, xref)
+        doc = self.parent
+        if doc.isClosed:
+            raise ValueError("document closed")
+        if not doc.is_pdf:
+            raise ValueError("not a PDF")
+        if not xref in range(1, doc.xref_length()):
+            raise ValueError("bad xref")
+        if not doc.is_stream(xref):
+            raise ValueError("xref is no stream")
+        doc.xref_set_key(self.xref, "Contents", "%i 0 R" % xref)
 
     @property
     def is_wrapped(self):
@@ -6184,16 +6192,12 @@ class Page(object):
         self.was_wrapped = True  # cheap check next time
         return True
 
-    _isWrapped = is_wrapped
-
     def wrap_contents(self):
         if self.is_wrapped:  # avoid unnecessary wrapping
             return
         TOOLS._insert_contents(self, b"q\n", False)
         TOOLS._insert_contents(self, b"\nQ", True)
         self.was_wrapped = True  # indicate not needed again
-
-    wrapContents = wrap_contents
 
     def links(self, kinds=None):
         """Generator over the links of a page.
@@ -7959,7 +7963,7 @@ class TextWriter(object):
 
         return val
 
-    def writeText(
+    def write_text(
         self,
         page: "Page",
         color: AnyType = None,
@@ -7996,7 +8000,7 @@ class TextWriter(object):
         if color is None:
             color = self.color
 
-        val = _fitz.TextWriter_writeText(
+        val = _fitz.TextWriter_write_text(
             self, page, color, opacity, overlay, morph, render_mode, oc
         )
 
@@ -8061,7 +8065,10 @@ class TextWriter(object):
     def __del__(self):
         if not type(self) is TextWriter:
             return
-        self.__swig_destroy__(self)
+        try:
+            self.__swig_destroy__(self)
+        except:
+            pass
 
 
 # Register TextWriter in _fitz:
