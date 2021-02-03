@@ -19,7 +19,8 @@ jobs:
     - docker
     env: PIP=pip
     before_script:
-    - CIBW_BEFORE_ALL_LINUX: "docker run --rm --privileged multiarch/qemu-user-static --reset -p yes"
+    - docker pull tonistiigi/binfmt
+    - docker run --privileged --rm tonistiigi/binfmt --install arm64
     - export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no
       HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip"
     - export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
