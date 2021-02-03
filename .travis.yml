@@ -43,7 +43,7 @@ install:
 - cp fitz/_config.h mupdf/include/mupdf/fitz/config.h
 
 script:
-- CIBW_ARCHS_LINUX: "aarch64"
+- export CIBW_ARCHS_LINUX="aarch64"
 - export CIBW_SKIP="pp* cp27-* cp35-* *i686"
 - export CIBW_TEST_COMMAND="python -c 'import fitz;print(fitz.__doc__)'"
 - cibuildwheel --output-dir wheelhouse
