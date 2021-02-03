@@ -9165,9 +9165,10 @@ SWIGINTERN PyObject *Document_xref_set_key(struct Document *self,int xref,char c
         }
 SWIGINTERN PyObject *Document__extend_toc_items(struct Document *self,PyObject *items){
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *)self);
-            pdf_obj *bm, *col;
+            pdf_obj *bm, *col, *obj;
             int count, flags;
-            PyObject *item=NULL, *itemdict=NULL, *xrefs, *bold, *italic, *collapse;
+            PyObject *item=NULL, *itemdict=NULL, *xrefs, *bold, *italic, *collapse, *zoom;
+            zoom = PyUnicode_FromString("zoom");
             bold = PyUnicode_FromString("bold");
             italic = PyUnicode_FromString("italic");
             collapse = PyUnicode_FromString("collapse");
@@ -9178,7 +9179,7 @@ SWIGINTERN PyObject *Document__extend_toc_items(struct Document *self,PyObject *
                 if (!olroot) goto finished;
                 pdf_obj *first = pdf_dict_get(gctx, olroot, PDF_NAME(First));
                 if (!first) goto finished;
-                xrefs = PyList_New(0);
+                xrefs = PyList_New(0);  // pre-allocate an empty list
                 xrefs = JM_outline_xrefs(gctx, first, xrefs);
                 Py_ssize_t i, n = PySequence_Size(xrefs);
                 if (!n) goto finished;
@@ -9217,6 +9218,15 @@ SWIGINTERN PyObject *Document__extend_toc_items(struct Document *self,PyObject *
                         PyTuple_SET_ITEM(color, 2, Py_BuildValue("f", pdf_to_real(gctx, pdf_array_get(gctx, col, 2))));
                         DICT_SETITEM_DROP(itemdict, dictkey_color, color);
                     }
+                    float z=0;
+                    obj = pdf_dict_get(gctx, bm, PDF_NAME(Dest));
+                    if (!obj || !pdf_is_array(gctx, obj)) {
+                        obj = pdf_dict_getl(gctx, bm, PDF_NAME(A), PDF_NAME(D), NULL);
+                    }
+                    if (pdf_is_array(gctx, obj) && pdf_array_len(gctx, obj) == 5) {
+                        z = pdf_to_real(gctx, pdf_array_get(gctx, obj, 4));
+                    }
+                    DICT_SETITEM_DROP(itemdict, zoom, Py_BuildValue("f", z));
                     PyList_SetItem(item, 3, itemdict);
                     PyList_SetItem(items, i, item);
                     pdf_drop_obj(gctx, bm);
@@ -9229,6 +9239,7 @@ SWIGINTERN PyObject *Document__extend_toc_items(struct Document *self,PyObject *
                 Py_CLEAR(bold);
                 Py_CLEAR(italic);
                 Py_CLEAR(collapse);
+                Py_CLEAR(zoom);
                 pdf_drop_obj(gctx, bm);
                 PyErr_Clear();
             }
@@ -12066,9 +12077,9 @@ SWIGINTERN PyObject *Page_set_cropbox(struct Page *self,PyObject *rect){
                 fz_rect cropbox = fz_empty_rect;
                 fz_rect r = JM_rect_from_py(rect);
                 cropbox.x0 = r.x0;
-                cropbox.y0 = mediabox.y1 - r.y1;
                 cropbox.x1 = r.x1;
-                cropbox.y1 = mediabox.y1 - r.y0;
+                cropbox.y0 = mediabox.y1 - r.y1 + mediabox.y0;
+                cropbox.y1 = mediabox.y1 - r.y0 + mediabox.y0;
                 pdf_dict_put_drop(gctx, page->obj, PDF_NAME(CropBox),
                                   pdf_new_rect(gctx, page->doc, cropbox));
             }

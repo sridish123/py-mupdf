@@ -3596,6 +3596,8 @@ class Document(object):
         """
         if not filename or type(filename) is str:
             pass
+        elif hasattr(filename, "absolute"):
+            filename = str(filename)
         elif hasattr(filename, "name"):
             filename = filename.name
         else:
@@ -4892,7 +4894,7 @@ class Document(object):
             raise ValueError("bad page number(s)")
 
         # remove TOC bookmarks pointing to deleted page
-        old_toc = self.getToC()
+        old_toc = self.get_toc()
         for i, item in enumerate(old_toc):
             if item[2] == pno + 1:
                 self.del_toc_item(i)
@@ -4918,7 +4920,7 @@ class Document(object):
         if not f <= t < page_count:
             raise ValueError("bad page number(s)")
 
-        old_toc = self.getToC()
+        old_toc = self.get_toc()
         for i, item in enumerate(old_toc):
             if f + 1 <= item[2] <= t + 1:
                 self.del_toc_item(i)

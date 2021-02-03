@@ -831,7 +831,7 @@ def set_toc_item(
     title: OptStr = None,
     to: point_like = None,
     filename: OptStr = None,
-    zoom: int = 0,
+    zoom: float = 0,
 ) -> None:
     """Update TOC item by index.
 
@@ -978,8 +978,8 @@ def getDestStr(xref: int, ddict: dict) -> str:
     """
     if not ddict:
         return ""
-    str_goto = "/A<</S/GoTo/D[%i 0 R/XYZ %g %g %i]>>"
-    str_gotor1 = "/A<</S/GoToR/D[%s /XYZ %s %s %s]/F<</F%s/UF%s/Type/Filespec>>>>"
+    str_goto = "/A<</S/GoTo/D[%i 0 R/XYZ %g %g %g]>>"
+    str_gotor1 = "/A<</S/GoToR/D[%s /XYZ %g %g %g]/F<</F%s/UF%s/Type/Filespec>>>>"
     str_gotor2 = "/A<</S/GoToR/D%s/F<</F%s/UF%s/Type/Filespec>>>>"
     str_launch = "/A<</S/Launch/F<</F%s/UF%s/Type/Filespec>>>>"
     str_uri = "/A<</S/URI/URI%s>>"
