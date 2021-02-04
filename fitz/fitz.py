@@ -102,9 +102,9 @@ except ImportError:
 
 
 VersionFitz = "1.18.0"
-VersionBind = "1.18.7"
-VersionDate = "2021-01-31 00:00:01"
-version = (VersionBind, VersionFitz, "202101310001")
+VersionBind = "1.18.8"
+VersionDate = "2021-02-03 19:56:11"
+version = (VersionBind, VersionFitz, "20210203195611")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -4195,8 +4195,10 @@ class Document(object):
             pass
         elif hasattr(filename, "open"):  # assume: pathlib.Path
             filename = str(filename)
-        elif not hasattr(filename, "seek"):  # assume: file pointer
-            raise ValueError("filename must be str, Path or file pointer")
+        elif hasattr(filename, "name"):  # assume: file object
+            filename = filename.name
+        elif not hasattr(filename, "seek"):  # assume file object
+            raise ValueError("filename must be str, Path or file object")
         if filename == self.name and not incremental:
             raise ValueError("save to original must be incremental")
         if self.page_count < 1:
