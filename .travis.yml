@@ -43,7 +43,7 @@ install:
 - cp fitz/_config.h mupdf/include/mupdf/fitz/config.h
 
 script:
-- export CIBW_ARCHS_LINUX="x86_64 aarch64"
+#- export CIBW_ARCHS_LINUX="x86_64 aarch64"
 #- export CIBW_ARCHS_MACOS="x86_64 universal2"
 - export CIBW_SKIP="pp* cp27-* cp35-* *i686"
 - export CIBW_TEST_COMMAND="python -c 'import fitz;print(fitz.__doc__)'"

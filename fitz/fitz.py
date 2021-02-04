@@ -6001,6 +6001,7 @@ class Page(object):
         overlay: int = 1,
         oc: int = 0,
         xref: int = 0,
+        alpha: int = 0,
         matrix: AnyType = None,
         _imgname: OptStr = None,
         _imgpointer: AnyType = None,
@@ -6014,6 +6015,7 @@ class Page(object):
             overlay,
             oc,
             xref,
+            alpha,
             matrix,
             _imgname,
             _imgpointer,
@@ -6511,6 +6513,18 @@ class Pixmap(object):
         """Set color of all pixels in bbox."""
 
         return _fitz.Pixmap_setRect(self, bbox, color)
+
+    @property
+    def is_monochrome(self) -> AnyType:
+        """Check if pixmap is monochrome."""
+
+        return _fitz.Pixmap_is_monochrome(self)
+
+    @property
+    def digest(self) -> AnyType:
+        """MD5 digest of pixmap (bytes)."""
+
+        return _fitz.Pixmap_digest(self)
 
     @property
     def stride(self) -> AnyType:

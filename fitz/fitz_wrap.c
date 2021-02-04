@@ -12332,7 +12332,7 @@ SWIGINTERN PyObject *Page__show_pdf_page(struct Page *self,struct Page *fz_srcpa
             }
             return Py_BuildValue("i", rc_xref);
         }
-SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,struct Pixmap *pixmap,PyObject *stream,PyObject *imask,int overlay,int oc,int xref,PyObject *matrix,char const *_imgname,PyObject *_imgpointer){
+SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,struct Pixmap *pixmap,PyObject *stream,PyObject *imask,int overlay,int oc,int xref,int alpha,PyObject *matrix,char const *_imgname,PyObject *_imgpointer){
             pdf_page *page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             pdf_document *pdf;
             fz_pixmap *pm = NULL;
@@ -12354,8 +12354,7 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                 //-------------------------------------------------------------
                 // create the image
                 //-------------------------------------------------------------
-                if (filename || EXISTS(stream) || EXISTS(_imgpointer))
-                {
+                if (filename || EXISTS(stream) || EXISTS(_imgpointer)) {
                     if (filename) {
                         image = fz_new_image_from_file(gctx, filename);
                     } else if (EXISTS(stream)) {
@@ -12378,11 +12377,11 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                         fz_drop_image(gctx, image);
                         image = zimg;
                         zimg = NULL;
-                    } else {
-                        pix = fz_get_pixmap_from_image(gctx, image, NULL, NULL, 0, 0);
-                        pix->xres = xres;
-                        pix->yres = yres;
-                        if (pix->alpha == 1) {  // have alpha: create an SMask
+                    } else if (alpha == 1) {
+                            // have alpha: create an SMask
+                            pix = fz_get_pixmap_from_image(gctx, image, NULL, NULL, 0, 0);
+                            pix->xres = xres;
+                            pix->yres = yres;
                             pm = fz_convert_pixmap(gctx, pix, NULL, NULL, NULL, fz_default_color_params, 1);
                             pm->alpha = 0;
                             pm->colorspace = fz_keep_colorspace(gctx, fz_device_gray(gctx));
@@ -12391,10 +12390,6 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                             fz_drop_image(gctx, image);
                             image = zimg;
                             zimg = NULL;
-                        } else {
-                            fz_drop_pixmap(gctx, pix);
-                            pix = NULL;
-                        }
                     }
                 } else {  // pixmap specified
                     fz_pixmap *arg_pix = (fz_pixmap *) pixmap;
@@ -13053,6 +13048,14 @@ SWIGINTERN PyObject *Pixmap_setRect(struct Pixmap *self,PyObject *bbox,PyObject 
                 return NULL;
             }
             return rc;
+        }
+SWIGINTERN PyObject *Pixmap_is_monochrome(struct Pixmap *self){
+            return JM_BOOL(fz_is_pixmap_monochrome(gctx, (fz_pixmap *) self));
+        }
+SWIGINTERN PyObject *Pixmap_digest(struct Pixmap *self){
+            unsigned char digest[16];
+            fz_md5_pixmap(gctx, (fz_pixmap *) self, digest);
+            return Py_BuildValue("y", digest);
         }
 SWIGINTERN PyObject *Pixmap_stride(struct Pixmap *self){
             return PyLong_FromSize_t((size_t) fz_pixmap_stride(gctx, (fz_pixmap *) self));
@@ -20778,9 +20781,10 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   int arg6 = (int) 1 ;
   int arg7 = (int) 0 ;
   int arg8 = (int) 0 ;
-  PyObject *arg9 = (PyObject *) NULL ;
-  char *arg10 = (char *) NULL ;
-  PyObject *arg11 = (PyObject *) NULL ;
+  int arg9 = (int) 0 ;
+  PyObject *arg10 = (PyObject *) NULL ;
+  char *arg11 = (char *) NULL ;
+  PyObject *arg12 = (PyObject *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res2 ;
@@ -20794,13 +20798,15 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   int ecode7 = 0 ;
   int val8 ;
   int ecode8 = 0 ;
-  int res10 ;
-  char *buf10 = 0 ;
-  int alloc10 = 0 ;
-  PyObject *swig_obj[11] ;
+  int val9 ;
+  int ecode9 = 0 ;
+  int res11 ;
+  char *buf11 = 0 ;
+  int alloc11 = 0 ;
+  PyObject *swig_obj[12] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Page__insertImage", 1, 11, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Page__insertImage", 1, 12, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page__insertImage" "', argument " "1"" of type '" "struct Page *""'"); 
@@ -20848,20 +20854,27 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
     arg8 = (int)(val8);
   }
   if (swig_obj[8]) {
-    arg9 = swig_obj[8];
+    ecode9 = SWIG_AsVal_int(swig_obj[8], &val9);
+    if (!SWIG_IsOK(ecode9)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode9), "in method '" "Page__insertImage" "', argument " "9"" of type '" "int""'");
+    } 
+    arg9 = (int)(val9);
   }
   if (swig_obj[9]) {
-    res10 = SWIG_AsCharPtrAndSize(swig_obj[9], &buf10, NULL, &alloc10);
-    if (!SWIG_IsOK(res10)) {
-      SWIG_exception_fail(SWIG_ArgError(res10), "in method '" "Page__insertImage" "', argument " "10"" of type '" "char const *""'");
-    }
-    arg10 = (char *)(buf10);
+    arg10 = swig_obj[9];
   }
   if (swig_obj[10]) {
-    arg11 = swig_obj[10];
+    res11 = SWIG_AsCharPtrAndSize(swig_obj[10], &buf11, NULL, &alloc11);
+    if (!SWIG_IsOK(res11)) {
+      SWIG_exception_fail(SWIG_ArgError(res11), "in method '" "Page__insertImage" "', argument " "11"" of type '" "char const *""'");
+    }
+    arg11 = (char *)(buf11);
+  }
+  if (swig_obj[11]) {
+    arg12 = swig_obj[11];
   }
   {
-    result = (PyObject *)Page__insertImage(arg1,(char const *)arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,(char const *)arg10,arg11);
+    result = (PyObject *)Page__insertImage(arg1,(char const *)arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10,(char const *)arg11,arg12);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -20869,11 +20882,11 @@ SWIGINTERN PyObject *_wrap_Page__insertImage(PyObject *SWIGUNUSEDPARM(self), PyO
   }
   resultobj = result;
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  if (alloc10 == SWIG_NEWOBJ) free((char*)buf10);
+  if (alloc11 == SWIG_NEWOBJ) free((char*)buf11);
   return resultobj;
 fail:
   if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  if (alloc10 == SWIG_NEWOBJ) free((char*)buf10);
+  if (alloc11 == SWIG_NEWOBJ) free((char*)buf11);
   return NULL;
 }
 
@@ -22150,6 +22163,52 @@ SWIGINTERN PyObject *_wrap_Pixmap_setRect(PyObject *SWIGUNUSEDPARM(self), PyObje
       return NULL;
     }
   }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Pixmap_is_monochrome(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Pixmap *arg1 = (struct Pixmap *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Pixmap, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Pixmap_is_monochrome" "', argument " "1"" of type '" "struct Pixmap *""'"); 
+  }
+  arg1 = (struct Pixmap *)(argp1);
+  result = (PyObject *)Pixmap_is_monochrome(arg1);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Pixmap_digest(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Pixmap *arg1 = (struct Pixmap *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Pixmap, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Pixmap_digest" "', argument " "1"" of type '" "struct Pixmap *""'"); 
+  }
+  arg1 = (struct Pixmap *)(argp1);
+  result = (PyObject *)Pixmap_digest(arg1);
   resultobj = result;
   return resultobj;
 fail:
@@ -27642,6 +27701,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "Pixmap_setOrigin", _wrap_Pixmap_setOrigin, METH_VARARGS, NULL},
 	 { "Pixmap_setResolution", _wrap_Pixmap_setResolution, METH_VARARGS, NULL},
 	 { "Pixmap_setRect", _wrap_Pixmap_setRect, METH_VARARGS, NULL},
+	 { "Pixmap_is_monochrome", _wrap_Pixmap_is_monochrome, METH_O, NULL},
+	 { "Pixmap_digest", _wrap_Pixmap_digest, METH_O, NULL},
 	 { "Pixmap_stride", _wrap_Pixmap_stride, METH_O, NULL},
 	 { "Pixmap_xres", _wrap_Pixmap_xres, METH_O, NULL},
 	 { "Pixmap_yres", _wrap_Pixmap_yres, METH_O, NULL},

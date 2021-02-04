@@ -240,7 +240,7 @@ def insertImage(*args, **kwargs) -> None:
     overlay = bool(kwargs.get("overlay", True))
 
     def calc_hash(stream):
-        m = hashlib.sha1()
+        m = hashlib.md5()
         m.update(stream)
         return m.digest()
 
@@ -336,31 +336,30 @@ def insertImage(*args, **kwargs) -> None:
     # to the actual C-level function (_imgpointer), and set all other
     # parameters to None.
     # -------------------------------------------------------------------------
+
+    if pixmap:
+        w = pixmap.width
+        h = pixmap.height
+        alpha = pixmap.alpha
+        digest = calc_hash(pixmap.samples)
+    elif stream:
+        pix = Pixmap(stream)
+        w = pix.width
+        h = pix.height
+        alpha = pix.alpha
+        digest = calc_hash(pix.samples)
+        del pix
+        if type(stream) is io.BytesIO:
+            stream = stream.getvalue()
+    else:
+        pix = Pixmap(filename)
+        w = pix.width
+        h = pix.height
+        alpha = pix.alpha
+        digest = calc_hash(pix.samples)
+        del pix
+
     if keep_proportion is True:  # for this we need the image dimension
-        if pixmap:  # this is the easy case
-            w = pixmap.width
-            h = pixmap.height
-            digest = calc_hash(pixmap.samples)
-
-        elif stream:  # use tool to access the information
-            # we also pass through the generated fz_image address
-            if type(stream) is io.BytesIO:
-                stream = stream.getvalue()
-            img_prof = TOOLS.image_profile(stream, keep_image=True)
-            w, h = img_prof["width"], img_prof["height"]
-            digest = calc_hash(stream)
-            stream = None  # make sure this arg is NOT used
-            _imgpointer = img_prof["image"]  # pointer to fz_image
-
-        else:  # worst case: must read the file
-            stream = open(filename, "rb").read()
-            digest = calc_hash(stream)
-            img_prof = TOOLS.image_profile(stream, keep_image=True)
-            w, h = img_prof["width"], img_prof["height"]
-            stream = None  # make sure this arg is NOT used
-            filename = None  # make sure this arg is NOT used
-            _imgpointer = img_prof["image"]  # pointer to fz_image
-
         maxf = max(w, h)
         fw = w / maxf
         fh = h / maxf
@@ -393,6 +392,7 @@ def insertImage(*args, **kwargs) -> None:
         overlay=overlay,
         oc=oc,  # optional content object
         xref=xref,
+        alpha=alpha,
         _imgname=_imgname,  # generated PDF resource name
         _imgpointer=_imgpointer,  # address of fz_image
     )
