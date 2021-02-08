@@ -123,7 +123,7 @@ long_desc = "\n".join(long_dtab)
 
 setup(
     name="PyMuPDF",
-    version="1.18.8",
+    version="1.18.9",
     description="Python bindings for the PDF rendering library MuPDF",
     long_description=long_desc,
     classifiers=classifier,
@@ -132,4 +132,6 @@ setup(
     author_email="jorj.x.mckie@outlook.de",
     ext_modules=[module],
     py_modules=["fitz.fitz", "fitz.utils", "fitz.__main__"],
+    license="GNU AFFERO GPL 3.0",
+    data_files=["COPYING", "GNU AFFERO GPL V3", "README.md"],
 )
