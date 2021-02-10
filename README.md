@@ -37,6 +37,8 @@ For **PDF documents,** there exists a plethorea of additional features: they can
 
 * Images and fonts can be extracted or inserted.
     > You may want to have a look at [this](https://github.com/pymupdf/PyMuPDF-Utilities/blob/master/examples/image-maintenance.py) cool GUI example script, which lets you **_insert, delete, replace_** or **_re-position_** images under your visual control.
+    
+    > Since v1.18.8 there is a new experimental `Document` method `subset_fonts()`, which automatically builds subsets based on the usage of all eligible fonts in the document. Especially for new documents, this can lead to significant file size reductions. The method was developed in cooperation with our user @cuteufo - again thanks a lot for the contribution.
 * Embedded files are fully supported.
 * PDFs can be reformatted to support double-sided printing, posterizing, applying logos or watermarks
 * Password protection is fully supported: decryption, encryption, encryption method selection, permmission level and user / owner password setting.
@@ -100,7 +102,7 @@ If you are looking to make your own binary, consult this [Wiki page](https://git
 Earlier versions are available in the [releases](https://github.com/pymupdf/PyMuPDF/releases) directory.
 
 # License
-PyMuPDF is distributed under GNU GPL V3. Because you will implicitely also be using MuPDF, its license GNU AFFERO GPL V3 applies as well. Copies of both are included in this repository.
+PyMuPDF is distributed under the license of MuPDF, GNU AFFERO GPL V3.0.
 
 # Contact
 Please submit questions, comments or issues [here](https://github.com/pymupdf/PyMuPDF/issues), or directly contact the authors via their e-mail addresses.

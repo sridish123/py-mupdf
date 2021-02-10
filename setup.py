@@ -133,5 +133,4 @@ setup(
     ext_modules=[module],
     py_modules=["fitz.fitz", "fitz.utils", "fitz.__main__"],
     license="GNU AFFERO GPL 3.0",
-    data_files=["COPYING", "GNU AFFERO GPL V3", "README.md"],
 )
