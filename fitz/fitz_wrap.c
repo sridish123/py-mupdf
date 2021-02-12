@@ -5420,6 +5420,9 @@ void JM_append_rune(fz_context *ctx, fz_buffer *buff, int ch)
 // Switch for computing glyph of fontsize height
 static int small_glyph_heights = 0;
 
+// Switch for returning fontnames including subset prefix
+static int subset_fontnames = 0;
+
 // re-compute char quad if ascender/descender values make no sense
 static fz_quad
 JM_char_quad(fz_context *ctx, fz_stext_line *line, fz_stext_char *ch)
@@ -5787,7 +5790,10 @@ JM_font_name(fz_context *ctx, fz_font *font)
 {
     const char *name = fz_font_name(ctx, font);
     const char *s = strchr(name, '+');
-    return s ? s + 1 : name;
+    if (subset_fontnames || s == NULL || s-name != 6) {
+        return name;
+    }
+    return s + 1;
 }
 
 
@@ -12790,9 +12796,15 @@ SWIGINTERN struct Pixmap *new_Pixmap__SWIG_5(PyObject *imagedata){
             fz_image *img = NULL;
             fz_pixmap *pm = NULL;
             PyObject *fname = NULL;
+            PyObject *name = PyUnicode_FromString("name");
             fz_try(gctx) {
                 if (PyObject_HasAttrString(imagedata, "resolve")) {
                     fname = PyObject_CallMethod(imagedata, "__str__", NULL);
+                    if (fname) {
+                        img = fz_new_image_from_file(gctx, JM_StrAsChar(fname));
+                    }
+                } else if (PyObject_HasAttr(imagedata, name)) {
+                    fname = PyObject_GetAttr(imagedata, name);
                     if (fname) {
                         img = fz_new_image_from_file(gctx, JM_StrAsChar(fname));
                     }
@@ -12813,6 +12825,7 @@ SWIGINTERN struct Pixmap *new_Pixmap__SWIG_5(PyObject *imagedata){
             }
             fz_always(gctx) {
                 Py_CLEAR(fname);
+                Py_CLEAR(name);
                 fz_drop_image(gctx, img);
                 fz_drop_buffer(gctx, res);
             }
@@ -14379,7 +14392,7 @@ SWIGINTERN PyObject *DisplayList_run(struct DisplayList *self,struct DeviceWrapp
 SWIGINTERN PyObject *DisplayList_rect(struct DisplayList *self){
             return JM_py_from_rect(fz_bound_display_list(gctx, (fz_display_list *) self));
         }
-SWIGINTERN struct Pixmap *DisplayList_getPixmap(struct DisplayList *self,PyObject *matrix,struct Colorspace *colorspace,int alpha,PyObject *clip){
+SWIGINTERN struct Pixmap *DisplayList_get_pixmap(struct DisplayList *self,PyObject *matrix,struct Colorspace *colorspace,int alpha,PyObject *clip){
             fz_colorspace *cs = NULL;
             fz_pixmap *pix = NULL;
 
@@ -14863,6 +14876,17 @@ SWIGINTERN PyObject *Tools_set_small_glyph_heights(struct Tools *self,PyObject *
                 small_glyph_heights = 0;
             }
             return JM_BOOL(small_glyph_heights);
+        }
+SWIGINTERN PyObject *Tools_set_subset_fontnames(struct Tools *self,PyObject *on){
+            if (!on || on == Py_None) {
+                return JM_BOOL(subset_fontnames);
+            }
+            if (PyObject_IsTrue(on)) {
+                subset_fontnames = 1;
+            } else {
+                subset_fontnames = 0;
+            }
+            return JM_BOOL(subset_fontnames);
         }
 SWIGINTERN PyObject *Tools_store_shrink(struct Tools *self,int percent){
             if (percent >= 100) {
@@ -25116,7 +25140,7 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_DisplayList_getPixmap(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_DisplayList_get_pixmap(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct DisplayList *arg1 = (struct DisplayList *) 0 ;
   PyObject *arg2 = (PyObject *) NULL ;
@@ -25132,10 +25156,10 @@ SWIGINTERN PyObject *_wrap_DisplayList_getPixmap(PyObject *SWIGUNUSEDPARM(self),
   PyObject *swig_obj[5] ;
   struct Pixmap *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "DisplayList_getPixmap", 1, 5, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "DisplayList_get_pixmap", 1, 5, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_DisplayList, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DisplayList_getPixmap" "', argument " "1"" of type '" "struct DisplayList *""'"); 
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "DisplayList_get_pixmap" "', argument " "1"" of type '" "struct DisplayList *""'"); 
   }
   arg1 = (struct DisplayList *)(argp1);
   if (swig_obj[1]) {
@@ -25144,14 +25168,14 @@ SWIGINTERN PyObject *_wrap_DisplayList_getPixmap(PyObject *SWIGUNUSEDPARM(self),
   if (swig_obj[2]) {
     res3 = SWIG_ConvertPtr(swig_obj[2], &argp3,SWIGTYPE_p_Colorspace, 0 |  0 );
     if (!SWIG_IsOK(res3)) {
-      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "DisplayList_getPixmap" "', argument " "3"" of type '" "struct Colorspace *""'"); 
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "DisplayList_get_pixmap" "', argument " "3"" of type '" "struct Colorspace *""'"); 
     }
     arg3 = (struct Colorspace *)(argp3);
   }
   if (swig_obj[3]) {
     ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
     if (!SWIG_IsOK(ecode4)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "DisplayList_getPixmap" "', argument " "4"" of type '" "int""'");
+      SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "DisplayList_get_pixmap" "', argument " "4"" of type '" "int""'");
     } 
     arg4 = (int)(val4);
   }
@@ -25159,7 +25183,7 @@ SWIGINTERN PyObject *_wrap_DisplayList_getPixmap(PyObject *SWIGUNUSEDPARM(self),
     arg5 = swig_obj[4];
   }
   {
-    result = (struct Pixmap *)DisplayList_getPixmap(arg1,arg2,arg3,arg4,arg5);
+    result = (struct Pixmap *)DisplayList_get_pixmap(arg1,arg2,arg3,arg4,arg5);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -26476,6 +26500,32 @@ SWIGINTERN PyObject *_wrap_Tools_set_small_glyph_heights(PyObject *SWIGUNUSEDPAR
     arg2 = swig_obj[1];
   }
   result = (PyObject *)Tools_set_small_glyph_heights(arg1,arg2);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_Tools_set_subset_fontnames(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Tools *arg1 = (struct Tools *) 0 ;
+  PyObject *arg2 = (PyObject *) NULL ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Tools_set_subset_fontnames", 1, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools_set_subset_fontnames" "', argument " "1"" of type '" "struct Tools *""'"); 
+  }
+  arg1 = (struct Tools *)(argp1);
+  if (swig_obj[1]) {
+    arg2 = swig_obj[1];
+  }
+  result = (PyObject *)Tools_set_subset_fontnames(arg1,arg2);
   resultobj = result;
   return resultobj;
 fail:
@@ -27859,7 +27909,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "new_DisplayList", _wrap_new_DisplayList, METH_O, NULL},
 	 { "DisplayList_run", _wrap_DisplayList_run, METH_VARARGS, NULL},
 	 { "DisplayList_rect", _wrap_DisplayList_rect, METH_O, NULL},
-	 { "DisplayList_getPixmap", _wrap_DisplayList_getPixmap, METH_VARARGS, NULL},
+	 { "DisplayList_get_pixmap", _wrap_DisplayList_get_pixmap, METH_VARARGS, NULL},
 	 { "DisplayList_get_textpage", _wrap_DisplayList_get_textpage, METH_VARARGS, NULL},
 	 { "DisplayList_swigregister", DisplayList_swigregister, METH_O, NULL},
 	 { "DisplayList_swiginit", DisplayList_swiginit, METH_VARARGS, NULL},
@@ -27905,6 +27955,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools_set_icc", _wrap_Tools_set_icc, METH_VARARGS, NULL},
 	 { "Tools_set_annot_stem", _wrap_Tools_set_annot_stem, METH_VARARGS, NULL},
 	 { "Tools_set_small_glyph_heights", _wrap_Tools_set_small_glyph_heights, METH_VARARGS, NULL},
+	 { "Tools_set_subset_fontnames", _wrap_Tools_set_subset_fontnames, METH_VARARGS, NULL},
 	 { "Tools_store_shrink", _wrap_Tools_store_shrink, METH_VARARGS, NULL},
 	 { "Tools_store_size", _wrap_Tools_store_size, METH_O, NULL},
 	 { "Tools_store_maxsize", _wrap_Tools_store_maxsize, METH_O, NULL},

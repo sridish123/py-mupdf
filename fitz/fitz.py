@@ -103,8 +103,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.9"
-VersionDate = "2021-02-06 08:12:06"
-version = (VersionBind, VersionFitz, "20210206081206")
+VersionDate = "2021-02-12 16:13:28"
+version = (VersionBind, VersionFitz, "20210212161328")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -2866,7 +2866,7 @@ def get_highlight_selection(
         return []
 
     # extract text of page, clip only, no images, expand ligatures
-    blocks = page.getText(
+    blocks = page.get_text(
         "dict",
         flags=0,
         clip=clip,
@@ -6415,10 +6415,8 @@ class Pixmap(object):
         """Output as image in format determined by filename extension.
 
         Args:
-            output: (str) only use to override filename extension. Default is PNG.
+            output: (str) only use to overrule filename extension. Default is PNG.
                     Others are PNM, PGM, PPM, PBM, PAM, PSD, PS.
-        Returns:
-            Bytes object.
         """
         valid_formats = {
             "png": 1,
@@ -6432,6 +6430,12 @@ class Pixmap(object):
             "psd": 5,
             "ps": 6,
         }
+        if type(filename) is str:
+            pass
+        elif hasattr(filename, "absolute"):
+            filename = str(filename)
+        elif hasattr(filename, "name"):
+            filename = filename.name
         if output is None:
             _, ext = os.path.splitext(filename)
             output = ext[1:]
@@ -7671,14 +7675,14 @@ class DisplayList(object):
 
         return val
 
-    def getPixmap(
+    def get_pixmap(
         self,
         matrix: AnyType = None,
         colorspace: "Colorspace" = None,
         alpha: int = 0,
         clip: rect_like = None,
     ) -> "Pixmap":
-        val = _fitz.DisplayList_getPixmap(self, matrix, colorspace, alpha, clip)
+        val = _fitz.DisplayList_get_pixmap(self, matrix, colorspace, alpha, clip)
         val.thisown = True
 
         return val
@@ -8262,6 +8266,11 @@ class Tools(object):
         """Set / unset small glyph heights."""
 
         return _fitz.Tools_set_small_glyph_heights(self, on)
+
+    def set_subset_fontnames(self, on: AnyType = None) -> AnyType:
+        """Set / unset returning fontnames with their subset prefix."""
+
+        return _fitz.Tools_set_subset_fontnames(self, on)
 
     def store_shrink(self, percent: int) -> AnyType:
         """Free 'percent' of current store size."""
