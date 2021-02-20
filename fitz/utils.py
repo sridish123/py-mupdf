@@ -3948,7 +3948,7 @@ def scrub(
             doc.xref_set_key(xref, "Metadata", "null")
 
 
-def fillTextbox(
+def fill_textbox(
     writer: TextWriter,
     rect: rect_like,
     text: typing.Union[str, list],
@@ -3958,6 +3958,7 @@ def fillTextbox(
     lineheight: OptFloat = None,
     align: int = 0,
     warn: bool = True,
+    right_to_left=False,
 ) -> tuple:
     """Fill a rectangle with text.
 
@@ -3972,14 +3973,53 @@ def fillTextbox(
         align: (int) 0 = left, 1 = center, 2 = right, 3 = justify
         warn: (bool) just warn on text overflow, else raise exception.
     """
-    textlen = lambda x: font.text_length(x, fontsize)  # just for abbreviation
-
     rect = Rect(rect)
     if rect.isEmpty or rect.isInfinite:
         raise ValueError("fill rect must be finite and not empty.")
-
     if type(font) is not Font:
         font = Font("helv")
+    textlen = lambda x: font.text_length(x, fontsize)  # abbreviation
+    append_this = lambda pos, text: writer.append(
+        pos, text, font=font, fontsize=fontsize
+    )
+    tolerance = fontsize * 0.2
+    space_len = textlen(" ")
+    std_width = rect.width - tolerance
+    std_start = rect.x0 + tolerance
+
+    def norm_words(width, words):
+        """Cut any word in pieces that is longer than 'width'."""
+        nwords = []
+        for w in words:
+            if textlen(w) <= width:  # nothing to do - copy over
+                nwords.append(w)
+                continue
+            while True:  # shorten word from the end, char by char
+                nw = ""  # tail of word lands here
+                while textlen(w) > width:
+                    nw = w[-1] + nw
+                    w = w[:-1]
+                nwords.append(w)
+                w = nw
+                if w == "":
+                    break
+        return nwords
+
+    def output_justify(start, line):
+        """Justified output of a line."""
+        # ignore leading / trailing / multiple spaces
+        words = [w for w in line.split(" ") if w != ""]
+        nwords = len(words)
+        if nwords < 2:  # single word cannot be justified
+            append_this(start, words[0])
+            return
+        tl = sum([textlen(w) for w in words])  # total word lengths
+        gaps = nwords - 1  # number of word gaps
+        gapl = (std_width - tl) / gaps  # width of each gap
+        for w in words:
+            _, lp = append_this(start, w)  # output one word
+            start.x = lp.x + gapl  # next start at word end plus gap
+        return
 
     asc = font.ascender
     dsc = font.descender
@@ -3991,18 +4031,17 @@ def fillTextbox(
     else:
         lheight = lineheight
 
-    tolerance = fontsize * 0.25
-    width = rect.width - tolerance  # available horizontal space
+    width = std_width  # available horizontal space
 
-    len_space = textlen(" ")  # width of space character
-
-    # starting point of the text
+    # starting point of text
     if pos is not None:
         pos = Point(pos)
         if not pos in rect:
             raise ValueError("'pos' must be inside 'rect'")
     else:  # default is just below rect top-left
         pos = rect.tl + (tolerance, fontsize * asc)
+    if not pos in rect:
+        raise ValueError("Text must start in rectangle.")
 
     # calculate displacement factor for alignment
     if align == TEXT_ALIGN_CENTER:
@@ -4014,121 +4053,85 @@ def fillTextbox(
 
     # split in lines if just a string was given
     if type(text) not in (tuple, list):
-        text = text.splitlines()
+        textlines = text.splitlines()
+    else:
+        textlines = []
+        for line in text:
+            textlines.extend(line.splitlines())
 
-    text = " \n".join(text).split(" ")  # split in words, preserve line breaks
+    max_lines = int((rect.y1 - pos.y) / (lheight * fontsize))
 
-    # compute lists of words and word lengths
-    words = []  # recomputed list of words
-    len_words = []  # corresponding lengths
-
-    for word in text:
-        # fill the lists of words and their lengths
-        # this splits words longer than width into chunks, which each are
-        # treated as words themselves.
-        if word.startswith("\n"):
-            len_word = textlen(word[1:])
-        else:
-            len_word = textlen(word)
-        if len_word <= width:  # simple case: word not longer than a line
-            words.append(word)
-            len_words.append(len_word)
+    new_lines = []  # the final list of textbox lines
+    no_justify = []  # do not justify these output lines
+    for i, line in enumerate(textlines):
+        if line in ("", " "):
+            new_lines.append((line, space_len))
+            width = rect.width - tolerance
+            no_justify.append((len(new_lines) - 1))
             continue
-        # deal with an extra long word
-        w = word[0]  # start with 1st char
-        l = textlen(w)  # and its length
-        for i in range(1, len(word)):
-            nl = textlen(word[i])  # next char length
-            if l + nl > width:  # if too long
-                words.append(w)  # append what we have so far
-                len_words.append(l)
-                w = word[i]  # start over with new char
-                l = nl  # and its length
-            else:  # if still fitting
-                w += word[i]  # just append char
-                l += nl  # and add its length
-        words.append(w)  # output tail of long word
-        len_words.append(l)  # output length of long word tail
-
-    idx = 0  # index of current word processed
-    line_ctr = 0  # counter for output lines
-    end_idx = len(words)  # number of words
-
-    # -------------------------------------------------------------------------
-    # each loop outputs one line
-    # -------------------------------------------------------------------------
-    while True:
-        if idx >= end_idx:  # all words processed
-            break
-
-        # compute the new insertion point
-        if line_ctr == 0 and len_words[0] >= rect.x1 - pos.x and idx == 0:
-            line_ctr = 1  # first word wont fit in first line: take next one
-
-        if line_ctr == 0:  # first line in rect
-            start = pos
+        if i == 0:
             width = rect.x1 - pos.x
         else:
-            start = Point(rect.x0 + tolerance, pos.y + fontsize * lheight * line_ctr)
             width = rect.width - tolerance
 
-        if start.y > rect.y1:  # landed below rectangle area
-            if warn:
-                print("Warning: only fitting %i of %i total words." % (idx, end_idx))
-                break
+        if right_to_left:  # reverses Arabic / Hebrew text front to back
+            line = writer.clean_rtl(line)
+        tl = textlen(line)
+        if textlen(line) <= width:  # line short enough
+            new_lines.append((line, tl))
+            no_justify.append((len(new_lines) - 1))
+            continue
+
+        # we need to split the line in fitting parts
+        words = line.split(" ")  # the words in the line
+
+        # cut in parts any words that are longer than rect width
+        words = norm_words(std_width, words)
+
+        j = 1
+        while len(words) > 0:
+            line0 = " ".join(words[:-j]) if j > 0 else " ".join(words)
+            tl = textlen(line0)
+            if tl <= width:
+                new_lines.append((line0, tl))  # shortened line fits
+                if j == 0:  # this was the last part of line
+                    no_justify.append((len(new_lines) - 1))
+                    break
+                del words[:-j]
+                j = 0
+                width = rect.width - tolerance
             else:
-                raise ValueError("only fitting %i of %i total words." % (idx, end_idx))
+                j += 1
 
-        word = words[idx]  # get first word for the line
-        if word.startswith("\n"):  # remove any leading line breaks
-            word = word[1:]
+    nlines = len(new_lines)
+    if nlines > max_lines:
+        msg = "Only fitting %i of %i lines." % (max_lines, nlines)
+        if warn:
+            print("Warning: " + msg)
+        else:
+            raise ValueError(msg)
 
-        line = [word]  # list of words fitting in this line
-        len_line = [len_words[idx]]  # list of word lengths
-
-        exhausted = False  # switch indicating we are done
-        justify = True  # enable text justify as default
-        next_words = range(idx + 1, end_idx)  # remaining words in text
-
-        for i in next_words:  # try adding more words to the line
-            nw = words[i]  # next word
-            if nw.startswith("\n"):  # forced line break
-                justify = False  # do not justify this current line
-                break
-            tl = len_space + len_words[i]
-            if tl + sum(len_line) + (len(line) - 1) * len_space > width:  # won't fit
-                break
-            line.append(nw)  # append new word
-            len_line.append(len_words[i])  # add its length
-            if i >= end_idx - 1:  # if we exhausted the words
-                justify = False  # do not justify current line
-                exhausted = True  # and turn on switch
-
-        # finished preparing a line
-        if align != TEXT_ALIGN_JUSTIFY:  # trivial alignments
-            fin_len = sum(len_line) + (len(line) - 1) * len_space
-            d = (width - fin_len) * factor  # takes care of alignment
-            start.x += d
-            writer.append(start, " ".join(line), font, fontsize)
-        else:  # take care of justified alignment
-            writer.append(start, line[0], font, fontsize)  # always 1st word
-            if len(line) > 1:  # more than one word in the line
-                if justify is False:  # if no justify use space as gap
-                    gap = len_space
-                else:
-                    gap = (width - sum(len_line)) / (len(line) - 1)
-                this_gap = len_line[0] + gap  # gap for 2nd word
-                for j in range(1, len(line)):
-                    writer.append(start + (this_gap, 0), line[j], font, fontsize)
-                    this_gap += len_line[j] + gap  # gap for next word
-
-        if len(next_words) == 0 or exhausted is True:  # no words left
+    lh = fontsize * lheight
+    start = Point()
+    for i, (line, tl) in enumerate(new_lines):
+        if i > max_lines:  # do not exceed space
             break
+        if right_to_left:  # Arabic, Hebrew
+            line = "".join(reversed(line))
+        if i == 0:  # may have different start for first line
+            start = pos
 
-        idx = i  # number of next word to read
-        line_ctr += 1  # line counter
-
-    return (idx, end_idx)  # return count of processed words, total words
+        if align == TEXT_ALIGN_JUSTIFY and i not in no_justify and tl < std_width:
+            output_justify(start, line)
+            start.x = std_start
+            start.y += lh
+            continue
+        if i > 0 or pos.x == std_start:  # left, center, right alignments
+            start.x += (width - tl) * factor
+        append_this(start, line)
+        start.x = std_start
+        start.y += lh
+    return (nlines, max_lines)
 
 
 # ------------------------------------------------------------------------

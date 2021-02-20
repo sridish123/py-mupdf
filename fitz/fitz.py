@@ -3626,6 +3626,7 @@ class Document(object):
 
         self.is_closed = False
         self.is_encrypted = False
+        self.isEncrypted = False
         self.metadata = None
         self.FontInfos = []
         self.Graftmaps = {}
@@ -3644,6 +3645,7 @@ class Document(object):
             self._graft_id = TOOLS.gen_id()
             if self.needs_pass is True:
                 self.is_encrypted = True
+                self.isEncrypted = True
             else:  # we won't init until doc is decrypted
                 self.init_doc()
 
@@ -4173,6 +4175,7 @@ class Document(object):
 
         if val:  # the doc is decrypted successfully and we init the outline
             self.is_encrypted = False
+            self.isEncrypted = False
             self.init_doc()
             self.thisown = True
 
@@ -7917,6 +7920,7 @@ class TextWriter(object):
         font: "Font" = None,
         fontsize: float = 11,
         language: OptStr = None,
+        right_to_left: int = 0,
     ) -> AnyType:
 
         """Store 'text' at point 'pos' using 'font' and 'fontsize'."""
@@ -7926,8 +7930,14 @@ class TextWriter(object):
             font = Font("helv")
         if not font.is_writable:
             raise ValueError("Unsupported font '%s'." % font.name)
+        if right_to_left:
+            text = self.clean_rtl(text)
+            text = "".join(reversed(text))
+            right_to_left = 0
 
-        val = _fitz.TextWriter_append(self, pos, text, font, fontsize, language)
+        val = _fitz.TextWriter_append(
+            self, pos, text, font, fontsize, language, right_to_left
+        )
 
         self.last_point = Point(val[-2:]) * self.ctm
         self.text_rect = self._bbox * self.ctm
@@ -7944,6 +7954,52 @@ class TextWriter(object):
             self.append(pos, c, font=font, fontsize=fontsize, language=language)
             pos.y += lheight
         return self.text_rect, self.last_point
+
+    def clean_rtl(self, text):
+        """Revert the sequence of Latin text parts.
+
+        Text with right-to-left writing direction (Arabic, Hebrew) often
+        contains Latin parts, which are written in left-to-right: numbers, names,
+        etc. For output as PDF text we need *everything* in right-to-left.
+        E.g. an input like "<arabic> ABCDE FG HIJ <arabic> KL <arabic>" will be
+        converted to "<arabic> JIH GF EDCBA <arabic> LK <arabic>". The Arabic
+        parts remain untouched.
+
+        Args:
+            text: str
+        Returns:
+            Massaged string.
+        """
+        if not text:
+            return text
+        # split into words at space boundaries
+        words = text.split(" ")
+        idx = []
+        for i in range(len(words)):
+            w = words[i]
+            # revert character sequence for Latin only words
+            if not (len(w) < 2 or max([ord(c) for c in w]) > 255):
+                words[i] = "".join(reversed(w))
+                idx.append(i)  # stored index of Latin word
+
+        # adjacent Latin words must revert their sequence, too
+        idx2 = []  # store indices of adjacent Latin words
+        for i in range(len(idx)):
+            if idx2 == []:  # empty yet?
+                idx2.append(idx[i])  # store Latin word number
+
+            elif idx[i] > idx2[-1] + 1:  # large gap to last?
+                if len(idx2) > 1:  # at least two consecutives?
+                    words[idx2[0] : idx2[-1] + 1] = reversed(
+                        words[idx2[0] : idx2[-1] + 1]
+                    )  # revert their sequence
+                idx2 = [idx[i]]  # re-initialize
+
+            elif idx[i] == idx2[-1] + 1:  # new adjacent Latin word
+                idx2.append(idx[i])
+
+        text = " ".join(words)
+        return text
 
     @property
     def _bbox(self) -> AnyType:
@@ -7970,7 +8026,7 @@ class TextWriter(object):
             color: override text color.
             opacity: override transparency.
             overlay: put in foreground or background.
-            morph: tuple(Point, Matrix), apply Matrix with fixpoint Point.
+            morph: tuple(Point, Matrix), apply a matrix with a fixpoint.
             render_mode: (int) PDF render mode operator 'Tr'.
         """
 

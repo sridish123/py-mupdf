@@ -12629,7 +12629,6 @@ SWIGINTERN PyObject *Page__insertFont(struct Page *self,char *fontname,char *bfn
                 }
                 font_obj = pdf_new_indirect(gctx, pdf, xref, 0);
                 pdf_dict_puts_drop(gctx, fonts, fontname, font_obj);
-                Finished:;
             }
             fz_always(gctx) {
                 ;
@@ -14682,13 +14681,13 @@ SWIGINTERN struct TextWriter *new_TextWriter(PyObject *page_rect,float opacity,P
             }
             return (struct TextWriter *) text;
         }
-SWIGINTERN PyObject *TextWriter_append(struct TextWriter *self,PyObject *pos,char *text,struct Font *font,float fontsize,char *language){
+SWIGINTERN PyObject *TextWriter_append(struct TextWriter *self,PyObject *pos,char *text,struct Font *font,float fontsize,char *language,int right_to_left){
             fz_text_language lang = fz_text_language_from_string(language);
             fz_point p = JM_point_from_py(pos);
             fz_matrix trm = fz_make_matrix(fontsize, 0, 0, fontsize, p.x, p.y);
-            int bidi_level = 0, markup_dir = 0, wmode = 0;
+            int markup_dir = 0, wmode = 0;
             fz_try(gctx) {
-                trm = fz_show_string(gctx, (fz_text *) self, (fz_font *) font, trm, text, wmode, bidi_level, markup_dir, lang);
+                trm = fz_show_string(gctx, (fz_text *) self, (fz_font *) font, trm, text, wmode, right_to_left, markup_dir, lang);
             }
             fz_catch(gctx) {
                 return NULL;
@@ -25669,6 +25668,7 @@ SWIGINTERN PyObject *_wrap_TextWriter_append(PyObject *SWIGUNUSEDPARM(self), PyO
   struct Font *arg4 = (struct Font *) NULL ;
   float arg5 = (float) 11 ;
   char *arg6 = (char *) NULL ;
+  int arg7 = (int) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int res3 ;
@@ -25681,10 +25681,12 @@ SWIGINTERN PyObject *_wrap_TextWriter_append(PyObject *SWIGUNUSEDPARM(self), PyO
   int res6 ;
   char *buf6 = 0 ;
   int alloc6 = 0 ;
-  PyObject *swig_obj[6] ;
+  int val7 ;
+  int ecode7 = 0 ;
+  PyObject *swig_obj[7] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "TextWriter_append", 3, 6, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "TextWriter_append", 3, 7, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_TextWriter, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextWriter_append" "', argument " "1"" of type '" "struct TextWriter *""'"); 
@@ -25717,8 +25719,15 @@ SWIGINTERN PyObject *_wrap_TextWriter_append(PyObject *SWIGUNUSEDPARM(self), PyO
     }
     arg6 = (char *)(buf6);
   }
+  if (swig_obj[6]) {
+    ecode7 = SWIG_AsVal_int(swig_obj[6], &val7);
+    if (!SWIG_IsOK(ecode7)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode7), "in method '" "TextWriter_append" "', argument " "7"" of type '" "int""'");
+    } 
+    arg7 = (int)(val7);
+  }
   {
-    result = (PyObject *)TextWriter_append(arg1,arg2,arg3,arg4,arg5,arg6);
+    result = (PyObject *)TextWriter_append(arg1,arg2,arg3,arg4,arg5,arg6,arg7);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
