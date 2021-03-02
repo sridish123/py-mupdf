@@ -9226,10 +9226,12 @@ SWIGINTERN PyObject *Document_xref_get_key(struct Document *self,int xref,char c
                 if (!INRANGE(xref, 1, xreflen-1))
                     THROWMSG(gctx, "bad xref");
                 obj = pdf_load_object(gctx, pdf, xref);
+                if (!obj) {
+                    goto not_found;
+                }
                 subobj = pdf_dict_getp(gctx, obj, key);
                 if (!subobj) {
-                    rc = Py_BuildValue("ss", "null", "null");
-                    goto finished;
+                    goto not_found;
                 }
                 char *type;
                 if (pdf_is_indirect(gctx, subobj)) {
@@ -9260,10 +9262,17 @@ SWIGINTERN PyObject *Document_xref_get_key(struct Document *self,int xref,char c
                 }
                 rc = Py_BuildValue("sO", type, text);
                 Py_DECREF(text);
+                goto finished;
+
+                not_found:;
+                rc = Py_BuildValue("ss", "null", "null");
                 finished:;
             }
-            fz_catch(gctx) {
+            fz_always(gctx) {
+                pdf_drop_obj(gctx, obj);
                 fz_drop_buffer(gctx, res);
+            }
+            fz_catch(gctx) {
                 return NULL;
             }
             return rc;
@@ -12564,7 +12573,7 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                     img_xref = pdf_to_num(gctx, ref);
                 }
                 if (oc) JM_add_oc_object(gctx, pdf, ref, oc);
-                
+
                 pdf_dict_puts_drop(gctx, xobject, _imgname, ref);  // update XObject
                 // make contents stream that invokes the image
                 nres = fz_new_buffer(gctx, 50);
@@ -14485,7 +14494,7 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
                             fz_rect linerect = fz_empty_rect;
                             for (ch = line->first_char; ch; ch = ch->next) {
                                 fz_rect cbbox = JM_char_bbox(gctx, line, ch);
-                                if (!fz_contains_rect(tp_rect, cbbox) && 
+                                if (!fz_contains_rect(tp_rect, cbbox) &&
                                     !fz_is_infinite_rect(tp_rect)) {
                                     continue;
                                 }
@@ -15095,7 +15104,7 @@ SWIGINTERN PyObject *Tools__invert_matrix(struct Tools *self,PyObject *matrix){
                 a = -src.e * dst.a - src.f * dst.c;
                 dst.f = -src.e * dst.b - src.f * dst.d;
                 dst.e = a;
-                return Py_BuildValue("(i, O)", 0, JM_py_from_matrix(dst));
+                return Py_BuildValue("iN", 0, JM_py_from_matrix(dst));
             }
             return Py_BuildValue("(i, ())", 1);
         }
