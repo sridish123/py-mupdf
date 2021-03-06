@@ -25,6 +25,16 @@ if fitz.VersionFitz != fitz.TOOLS.mupdf_version():
 # copy functions in 'utils' to their respective fitz classes
 import fitz.utils
 
+
+# ------------------------------------------------------------------------------
+# General
+# ------------------------------------------------------------------------------
+fitz.recover_quad = fitz.utils.recover_quad
+fitz.recover_bbox_quad = fitz.utils.recover_bbox_quad
+fitz.recover_line_quad = fitz.utils.recover_line_quad
+fitz.recover_span_quad = fitz.utils.recover_span_quad
+fitz.recover_char_quad = fitz.utils.recover_char_quad
+
 # ------------------------------------------------------------------------------
 # Document
 # ------------------------------------------------------------------------------

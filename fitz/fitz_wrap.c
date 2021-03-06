@@ -2785,12 +2785,14 @@ static swig_module_info swig_module = {swig_types, 15, 0, 0, 0, 0};
 void JM_delete_widget(fz_context *ctx, pdf_page *page, pdf_annot *annot);
 static void JM_get_page_labels(fz_context *ctx, PyObject *liste, pdf_obj *nums);
 
-// additional headers from MuPDF ----------------------------------------------
+// additional headers ----------------------------------------------
 pdf_obj *pdf_lookup_page_loc(fz_context *ctx, pdf_document *doc, int needle, pdf_obj **parentp, int *indexp);
 fz_pixmap *fz_scale_pixmap(fz_context *ctx, fz_pixmap *src, float x, float y, float w, float h, const fz_irect *clip);
 int fz_pixmap_size(fz_context *ctx, fz_pixmap *src);
 void fz_subsample_pixmap(fz_context *ctx, fz_pixmap *tile, int factor);
 void fz_copy_pixmap_rect(fz_context *ctx, fz_pixmap *dest, fz_pixmap *src, fz_irect b, const fz_default_colorspaces *default_cs);
+static const float JM_font_ascender(fz_context *ctx, fz_font *font);
+static const float JM_font_descender(fz_context *ctx, fz_font *font);
 
 // end of additional MuPDF headers --------------------------------------------
 
@@ -3929,7 +3931,7 @@ fz_buffer *JM_compress_buffer(fz_context *ctx, fz_buffer *inbuffer)
 //----------------------------------------------------------------------------
 void JM_update_stream(fz_context *ctx, pdf_document *doc, pdf_obj *obj, fz_buffer *buffer, int compress)
 {
-    
+
     fz_buffer *nres = NULL;
     size_t len = fz_buffer_storage(ctx, buffer, NULL);
     size_t nlen = len;
@@ -5374,6 +5376,36 @@ pdf_annot *JM_get_annot_by_xref(fz_context *ctx, pdf_page *page, int xref)
 
 
 
+
+// Switch for computing glyph of fontsize height
+static int small_glyph_heights = 0;
+
+// Switch for returning fontnames including subset prefix
+static int subset_fontnames = 0;
+
+// Unset ascender / descender corrections
+static int skip_quad_corrections = 0;
+
+// need own versions of ascender / descender
+static const float
+JM_font_ascender(fz_context *ctx, fz_font *font)
+{
+    if (skip_quad_corrections) {
+        return 0.8f;
+    }
+    return fz_font_ascender(ctx, font);
+}
+
+static const float
+JM_font_descender(fz_context *ctx, fz_font *font)
+{
+    if (skip_quad_corrections) {
+        return -0.2f;
+    }
+    return fz_font_descender(ctx, font);
+}
+
+
 //-----------------------------------------------------------------------------
 // Make a text page directly from an fz_page
 //-----------------------------------------------------------------------------
@@ -5417,23 +5449,22 @@ void JM_append_rune(fz_context *ctx, fz_buffer *buff, int ch)
     }
 }
 
-// Switch for computing glyph of fontsize height
-static int small_glyph_heights = 0;
-
-// Switch for returning fontnames including subset prefix
-static int subset_fontnames = 0;
 
 // re-compute char quad if ascender/descender values make no sense
 static fz_quad
 JM_char_quad(fz_context *ctx, fz_stext_line *line, fz_stext_char *ch)
 {
+    if (skip_quad_corrections) {  // no special handling
+        return ch->quad;
+    }
     if (line->wmode) {  // never touch vertical write mode
         return ch->quad;
     }
-    float asc = fz_font_ascender(ctx, ch->font);
-    float dsc = fz_font_descender(ctx, ch->font);
+    fz_font *font = ch->font;
+    float asc = JM_font_ascender(ctx, font);
+    float dsc = JM_font_descender(ctx, font);
     if (asc - dsc >= 1 && small_glyph_heights == 0) {  // no problem
-        return ch->quad;
+       return ch->quad;
     }
     /* ------------------------------
     Re-compute quad with adjusted ascender / descender values:
@@ -5443,7 +5474,7 @@ JM_char_quad(fz_context *ctx, fz_stext_line *line, fz_stext_char *ch)
     float c, s, fsize = ch->size;
     fz_matrix trm1, trm2, xlate1, xlate2;
     fz_quad quad;
-    fz_rect bbox = fz_font_bbox(ctx, ch->font);
+    fz_rect bbox = fz_font_bbox(ctx, font);
     float fwidth = bbox.x1 - bbox.x0;
     if (asc < 1e-3) {  // probably Tesseract glyphless font
         dsc = -0.1f;
@@ -5827,8 +5858,8 @@ JM_make_spanlist(fz_context *ctx, PyObject *line_dict,
         style.size = ch->size;
         style.flags = flags;
         style.font = JM_font_name(ctx, ch->font);
-        style.asc = fz_font_ascender(ctx, ch->font);
-        style.desc = fz_font_descender(ctx, ch->font);
+        style.asc = JM_font_ascender(ctx, ch->font);
+        style.desc = JM_font_descender(ctx, ch->font);
         style.color = ch->color;
 
         if (style.size != old_style.size ||
@@ -14533,6 +14564,7 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
                 PyErr_Clear();
             }
             fz_catch(gctx) {
+                Py_CLEAR(lines);
                 return NULL;
             }
             return lines;
@@ -14895,6 +14927,17 @@ SWIGINTERN PyObject *Tools_set_subset_fontnames(struct Tools *self,PyObject *on)
                 subset_fontnames = 0;
             }
             return JM_BOOL(subset_fontnames);
+        }
+SWIGINTERN PyObject *Tools_unset_quad_corrections(struct Tools *self,PyObject *on){
+            if (!on || on == Py_None) {
+                return JM_BOOL(skip_quad_corrections);
+            }
+            if (PyObject_IsTrue(on)) {
+                skip_quad_corrections = 1;
+            } else {
+                skip_quad_corrections = 0;
+            }
+            return JM_BOOL(skip_quad_corrections);
         }
 SWIGINTERN PyObject *Tools_store_shrink(struct Tools *self,int percent){
             if (percent >= 100) {
@@ -26551,6 +26594,32 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Tools_unset_quad_corrections(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Tools *arg1 = (struct Tools *) 0 ;
+  PyObject *arg2 = (PyObject *) NULL ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Tools_unset_quad_corrections", 1, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools_unset_quad_corrections" "', argument " "1"" of type '" "struct Tools *""'"); 
+  }
+  arg1 = (struct Tools *)(argp1);
+  if (swig_obj[1]) {
+    arg2 = swig_obj[1];
+  }
+  result = (PyObject *)Tools_unset_quad_corrections(arg1,arg2);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Tools_store_shrink(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
@@ -27974,6 +28043,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools_set_annot_stem", _wrap_Tools_set_annot_stem, METH_VARARGS, NULL},
 	 { "Tools_set_small_glyph_heights", _wrap_Tools_set_small_glyph_heights, METH_VARARGS, NULL},
 	 { "Tools_set_subset_fontnames", _wrap_Tools_set_subset_fontnames, METH_VARARGS, NULL},
+	 { "Tools_unset_quad_corrections", _wrap_Tools_unset_quad_corrections, METH_VARARGS, NULL},
 	 { "Tools_store_shrink", _wrap_Tools_store_shrink, METH_VARARGS, NULL},
 	 { "Tools_store_size", _wrap_Tools_store_size, METH_O, NULL},
 	 { "Tools_store_maxsize", _wrap_Tools_store_maxsize, METH_O, NULL},
