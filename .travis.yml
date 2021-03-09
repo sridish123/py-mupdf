@@ -45,7 +45,7 @@ install:
 script:
 #- export CIBW_ARCHS_LINUX="x86_64 aarch64"
 #- export CIBW_ARCHS_MACOS="x86_64 universal2"
-- export CIBW_SKIP="pp* cp27-* cp35-* *i686"
+- export CIBW_BUILD="cp39-macosx_universal2 cp39-macosx_arm64 cp39-manylinux_aarch64"
 - export CIBW_TEST_COMMAND="python -c 'import fitz;print(fitz.__doc__)'"
 - cibuildwheel --output-dir wheelhouse
 
@@ -56,6 +56,6 @@ deploy:
   skip_cleanup: true
   local_dir: wheelhouse
   repo: pymupdf/PyMuPDF-wheels
-  target_branch: $TRAVIS_OS_NAME
+  target_branch: $TRAVIS_OS_NAME-extra
   on:
     repo: JorjMcKie/py-mupdf
