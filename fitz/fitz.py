@@ -103,8 +103,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.10"
-VersionDate = "2021-03-02 06:04:00"
-version = (VersionBind, VersionFitz, "20210302060400")
+VersionDate = "2021-03-10 09:43:15"
+version = (VersionBind, VersionFitz, "20210310094315")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT

@@ -5524,6 +5524,12 @@ static fz_rect
 JM_char_bbox(fz_context *ctx, fz_stext_line *line, fz_stext_char *ch)
 {
     fz_rect r = fz_rect_from_quad(JM_char_quad(ctx, line, ch));
+    if (!line->wmode) {
+        return r;
+    }
+    if (r.y1 < r.y0 + ch->size) {
+        r.y0 = r.y1 - ch->size;
+    }
     return r;
 }
 
