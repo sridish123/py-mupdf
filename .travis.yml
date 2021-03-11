@@ -35,7 +35,7 @@ jobs:
     before_script:
     - export CIBW_ARCHS_MACOS="arm64"
     - export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no
-      prefix=/usr/local install && cd .. && $PIP install --upgrade pip"
+      ARCHFLAGS="-arch arm64 -arch x86_64" prefix=/usr/local install && cd .. && $PIP install --upgrade pip"
     - export CIBW_ENVIRONMENT='CFLAGS=-fPIC'
 
 install:
