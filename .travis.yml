@@ -17,7 +17,9 @@ jobs:
     python: '3.7'
     services:
     - docker
-    env: PIP=pip
+    env:
+    - PIP=pip
+    - ARCHFLAGS: "-arch arm64 -arch x86_64"
     before_script:
     - docker pull tonistiigi/binfmt
     - docker run --privileged --rm tonistiigi/binfmt --install arm64
@@ -28,14 +30,16 @@ jobs:
   - os: osx
     osx_image: xcode12.2
     language: shell
-    env: PIP=pip3
+    env:
+    - PIP=pip3
+    - ARCHFLAGS: "-arch arm64 -arch x86_64"
     before_install:
     - brew update
     - sudo mkdir -p /usr/local/man && sudo chmod a+rw /usr/local/man
     before_script:
     - export CIBW_ARCHS_MACOS="arm64"
     - export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no
-      ARCHFLAGS="-arch arm64 -arch x86_64" prefix=/usr/local install && cd .. && $PIP install --upgrade pip"
+      prefix=/usr/local install && cd .. && $PIP install --upgrade pip"
     - export CIBW_ENVIRONMENT='CFLAGS=-fPIC'
 
 install:
