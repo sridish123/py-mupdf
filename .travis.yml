@@ -19,6 +19,7 @@ jobs:
     - docker
     env:
       ARCHFLAGS: "-arch arm64 -arch x86_64"
+      PIP: pip
     before_script:
     - docker pull tonistiigi/binfmt
     - docker run --privileged --rm tonistiigi/binfmt --install arm64
