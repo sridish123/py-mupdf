@@ -19,8 +19,8 @@ jobs:
     - docker
     env: PIP=pip
     before_script:
-    #- docker pull tonistiigi/binfmt
-    #- docker run --privileged --rm tonistiigi/binfmt --install arm64
+    - docker pull tonistiigi/binfmt
+    - docker run --privileged --rm tonistiigi/binfmt --install arm64
     - export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no
       HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip"
     - export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
@@ -32,8 +32,10 @@ jobs:
     - brew update
     - sudo mkdir -p /usr/local/man && sudo chmod a+rw /usr/local/man
     before_script:
+    - docker pull tonistiigi/binfmt
+    - docker run --privileged --rm tonistiigi/binfmt --install arm64
     - export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no
-      prefix=/usr/local install && cd .."
+      prefix=/usr/local install && cd .. && $PIP install --upgrade pip"
     - export CIBW_ENVIRONMENT='CFLAGS=-fPIC'
 
 install:
@@ -43,9 +45,9 @@ install:
 - cp fitz/_config.h mupdf/include/mupdf/fitz/config.h
 
 script:
-#- export CIBW_ARCHS_LINUX="x86_64 aarch64"
-#- export CIBW_ARCHS_MACOS="x86_64 universal2"
-- export CIBW_SKIP="pp* cp27-* cp35-* *i686"
+- export CIBW_ARCHS_LINUX="aarch64"
+- export CIBW_ARCHS_MACOS="arm64"
+- export CIBW_BUILD="cp39-macosx_arm64 cp39-manylinux_aarch64"
 - export CIBW_TEST_COMMAND="python -c 'import fitz;print(fitz.__doc__)'"
 - cibuildwheel --output-dir wheelhouse
 
@@ -56,6 +58,6 @@ deploy:
   skip_cleanup: true
   local_dir: wheelhouse
   repo: pymupdf/PyMuPDF-wheels
-  target_branch: $TRAVIS_OS_NAME
+  target_branch: $TRAVIS_OS_NAME-extra
   on:
     repo: JorjMcKie/py-mupdf
