@@ -18,8 +18,8 @@ jobs:
     services:
     - docker
     env:
-    - PIP=pip
-    - ARCHFLAGS: "-arch arm64 -arch x86_64"
+      PIP: pip
+      ARCHFLAGS: "-arch arm64 -arch x86_64"
     before_script:
     - docker pull tonistiigi/binfmt
     - docker run --privileged --rm tonistiigi/binfmt --install arm64
@@ -31,8 +31,8 @@ jobs:
     osx_image: xcode12.2
     language: shell
     env:
-    - PIP=pip3
-    - ARCHFLAGS: "-arch arm64 -arch x86_64"
+      PIP: pip3
+      ARCHFLAGS: "-arch arm64 -arch x86_64"
     before_install:
     - brew update
     - sudo mkdir -p /usr/local/man && sudo chmod a+rw /usr/local/man
