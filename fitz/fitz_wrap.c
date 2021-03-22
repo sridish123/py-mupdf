@@ -9228,13 +9228,18 @@ SWIGINTERN PyObject *Document_xref_get_keys(struct Document *self,int xref){
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *)self);
             pdf_obj *obj=NULL;
             PyObject *rc = NULL;
+            int i, n;
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
-                if (!INRANGE(xref, 1, xreflen-1))
+                if (!INRANGE(xref, 1, xreflen-1) && xref != -1)
                     THROWMSG(gctx, "bad xref");
-                obj = pdf_load_object(gctx, pdf, xref);
-                int i, n = pdf_dict_len(gctx, obj);
+                if (xref > 0) {
+                    obj = pdf_load_object(gctx, pdf, xref);
+                } else {
+                    obj = pdf_trailer(gctx, pdf);
+                }
+                n = pdf_dict_len(gctx, obj);
                 rc = PyTuple_New(n);
                 if (!n) goto finished;
                 for (i = 0; i < n; i++) {
@@ -9244,7 +9249,9 @@ SWIGINTERN PyObject *Document_xref_get_keys(struct Document *self,int xref){
                 finished:;
             }
             fz_always(gctx) {
-                pdf_drop_obj(gctx, obj);
+                if (xref > 0) {
+                    pdf_drop_obj(gctx, obj);
+                }
             }
             fz_catch(gctx) {
                 return NULL;
@@ -9260,9 +9267,13 @@ SWIGINTERN PyObject *Document_xref_get_key(struct Document *self,int xref,char c
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
-                if (!INRANGE(xref, 1, xreflen-1))
+                if (!INRANGE(xref, 1, xreflen-1) && xref != -1)
                     THROWMSG(gctx, "bad xref");
-                obj = pdf_load_object(gctx, pdf, xref);
+                if (xref > 0) {
+                    obj = pdf_load_object(gctx, pdf, xref);
+                } else {
+                    obj = pdf_trailer(gctx, pdf);
+                }
                 if (!obj) {
                     goto not_found;
                 }
@@ -9306,7 +9317,9 @@ SWIGINTERN PyObject *Document_xref_get_key(struct Document *self,int xref,char c
                 finished:;
             }
             fz_always(gctx) {
-                pdf_drop_obj(gctx, obj);
+                if (xref > 0) {
+                    pdf_drop_obj(gctx, obj);
+                }
                 fz_drop_buffer(gctx, res);
             }
             fz_catch(gctx) {

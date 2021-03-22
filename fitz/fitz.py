@@ -103,8 +103,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.10"
-VersionDate = "2021-03-10 09:43:15"
-version = (VersionBind, VersionFitz, "20210310094315")
+VersionDate = "2021-03-22 05:51:27"
+version = (VersionBind, VersionFitz, "20210322055127")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -1335,27 +1335,16 @@ class Quad(object):
 
         return False
 
+    width = property(lambda self: max(abs(self.ul - self.ur), abs(self.ll - self.lr)))
+    height = property(lambda self: max(abs(self.ul - self.ll), abs(self.ur - self.lr)))
+
     @property
     def isEmpty(self):
         """Check whether all quad corners are on the same line.
 
-        The is the case exactly if more than one corner angle is zero.
+        The is the case if its width or height is zero.
         """
-        count = 0
-        if abs(TOOLS._sine_between(self.ul, self.ur, self.lr)) < EPSILON:
-            count += 1
-        if abs(TOOLS._sine_between(self.ur, self.lr, self.ll)) < EPSILON:
-            count += 1
-        if abs(TOOLS._sine_between(self.lr, self.ll, self.ul)) < EPSILON:
-            count += 1
-        if abs(TOOLS._sine_between(self.ll, self.ul, self.ur)) < EPSILON:
-            count += 1
-        if count <= 2:
-            return False
-        return True
-
-    width = property(lambda self: max(abs(self.ul - self.ur), abs(self.ll - self.lr)))
-    height = property(lambda self: max(abs(self.ul - self.ll), abs(self.ur - self.lr)))
+        return self.width < EPSILON or self.height < EPSILON
 
     @property
     def rect(self):
@@ -3732,7 +3721,7 @@ class Document(object):
         return _fitz.Document_get_outline_xrefs(self)
 
     def xref_get_keys(self, xref: int) -> AnyType:
-        """Get the keys of PDF dict object at 'xref'."""
+        """Get the keys of PDF dict object at 'xref'. Use -1 for the PDF trailer."""
         if self.is_closed:
             raise ValueError("document closed")
 

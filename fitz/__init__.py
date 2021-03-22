@@ -269,6 +269,10 @@ def restore_aliases():
     fitz.TextWriter.writeText = fitz.TextWriter.write_text
     fitz.TextWriter.fillTextbox = fitz.TextWriter.fill_textbox
 
+    # deprecated DisplayList aliases
+    fitz.DisplayList.getPixmap = fitz.DisplayList.get_pixmap
+    fitz.DisplayList.getTextPage = fitz.DisplayList.get_textpage
+
 
 fitz.__doc__ = """
 PyMuPDF %s: Python bindings for the MuPDF %s library.

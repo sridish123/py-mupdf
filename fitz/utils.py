@@ -4589,7 +4589,7 @@ def recover_bbox_quad(line_dir: tuple, span: dict, bbox: tuple) -> Quad:
 
     height = d * span["size"]  # the quad's rectangle height
     # The following are distances from the bbox corners, at wich we find the
-    # respective quad points. The calculation depends on in which circle
+    # respective quad points. The calculation depends, on in which circle
     # quadrant the text writing angle is positioned.
     hs = height * sin
     hc = height * cos
@@ -4651,31 +4651,30 @@ def recover_line_quad(line: dict, spans: list = None) -> Quad:
         raise ValueError("bad span list")
     line_dir = line["dir"]  # text direction
     cos, sin = line_dir
-    derot = Matrix(cos, -sin, sin, cos, 0, 0)  # de-rotates
-    rot = Matrix(cos, sin, -sin, cos, 0, 0)  # rotates
-    q0 = recover_quad(line_dir, spans[0])  # quad of first span
+    q0 = fitz.recover_quad(line_dir, spans[0])  # quad of first span
 
     if len(spans) > 1:  # get quad of last span
-        q1 = recover_quad(line_dir, spans[-1])
+        q1 = fitz.recover_quad(line_dir, spans[-1])
     else:
         q1 = q0  # last = first
 
     line_ll = q0.ll  # lower-left of line quad
     line_lr = q1.lr  # lower-right of line quad
 
-    # map base line to x-axis such that line_ll goes to (0, 0)
-    x_lr = line_lr * Matrix(1, 0, 0, 1, -line_ll.x, -line_ll.y) * derot
+    mat0 = fitz.planishLine(line_ll, line_lr)
 
-    small = TOOLS.set_small_glyph_heights()  # small glyph heights?
+    # map base line to x-axis such that line_ll goes to (0, 0)
+    x_lr = line_lr * mat0
+
+    small = fitz.TOOLS.set_small_glyph_heights()  # small glyph heights?
 
     h = max(
         [s["size"] * (1 if small else s["ascender"] - s["descender"]) for s in spans]
     )
 
-    line_rect = Rect(0, -h, x_lr.x, 0)  # line rectangle
+    line_rect = fitz.Rect(0, -h, x_lr.x, 0)  # line rectangle
     line_quad = line_rect.quad  # make it a quad and:
-    line_quad *= rot  # rotate back and shift back
-    line_quad *= Matrix(1, 0, 0, 1, line_ll.x, line_ll.y)
+    line_quad *= ~mat0
     return line_quad
 
 
@@ -4701,10 +4700,6 @@ def recover_span_quad(line_dir: tuple, span: dict, chars: list = None) -> Quad:
     if not hasattr(span, "chars"):
         raise ValueError("need 'rawdict' option to sub-select chars")
 
-    cos, sin = line_dir  # writing direction
-    derot = Matrix(cos, -sin, sin, cos, 0, 0)  # de-rotates
-    rot = Matrix(cos, sin, -sin, cos, 0, 0)  # rotates
-
     q0 = recover_char_quad(line_dir, span, chars[0])  # quad of first char
     if len(chars) > 1:  # get quad of last char
         q1 = recover_char_quad(line_dir, span, chars[-1])
@@ -4713,17 +4708,16 @@ def recover_span_quad(line_dir: tuple, span: dict, chars: list = None) -> Quad:
 
     span_ll = q0.ll  # lower-left of span quad
     span_lr = q1.lr  # lower-right of span quad
-
+    mat0 = planishLine(span_ll, span_lr)
     # map base line to x-axis such that span_ll goes to (0, 0)
-    x_lr = span_lr * Matrix(1, 0, 0, 1, -span_ll.x, -span_ll.y) * derot
+    x_lr = span_lr * mat0
 
     small = TOOLS.set_small_glyph_heights()  # small glyph heights?
     h = span["size"] * (1 if small else span["ascender"] - span["descender"])
 
     span_rect = Rect(0, -h, x_lr.x, 0)  # line rectangle
     span_quad = span_rect.quad  # make it a quad and:
-    span_quad *= rot  # rotate back and shift back
-    span_quad *= Matrix(1, 0, 0, 1, span_ll.x, span_ll.y)
+    span_quad *= ~mat0  # rotate back and shift back
     return span_quad
 
 
@@ -4745,7 +4739,6 @@ def recover_char_quad(line_dir: tuple, span: dict, char: dict) -> Quad:
         raise ValueError("bad span argument")
     if type(char) is not dict:
         raise ValueError("bad span argument")
-    cos, sin = line_dir
     bbox = Rect(char["bbox"])
     return recover_bbox_quad(line_dir, span, bbox)
 
