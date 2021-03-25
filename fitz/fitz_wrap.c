@@ -3251,6 +3251,7 @@ PyObject *dictkey_id;
 PyObject *dictkey_image;
 PyObject *dictkey_length;
 PyObject *dictkey_lines;
+PyObject *dictkey_matrix;
 PyObject *dictkey_modDate;
 PyObject *dictkey_name;
 PyObject *dictkey_number;
@@ -3292,11 +3293,11 @@ JM_INT_ITEM(PyObject *obj, Py_ssize_t idx, int *result)
 }
 
 static int
-JM_FLOAT_ITEM(PyObject *obj, Py_ssize_t idx, float *result)
+JM_FLOAT_ITEM(PyObject *obj, Py_ssize_t idx, double *result)
 {
     PyObject *temp = PySequence_ITEM(obj, idx);
     if (!temp) return 1;
-    *result = (float) PyFloat_AsDouble(temp);
+    *result = PyFloat_AsDouble(temp);
     Py_DECREF(temp);
     if (PyErr_Occurred()) {
         PyErr_Clear();
@@ -3304,6 +3305,21 @@ JM_FLOAT_ITEM(PyObject *obj, Py_ssize_t idx, float *result)
     }
     return 0;
 }
+
+
+static fz_point
+JM_normalize_vector(float x, float y)
+{
+    double px = x, py = y, len = (double) (x * x + y * y);
+
+    if (len != 0) {
+        len = sqrt(len);
+        px /= len;
+        py /= len;
+    }
+    return fz_make_point((float) px, (float) py);
+}
+
 
 //-----------------------------------------------------------------------------
 // PySequence to fz_rect. Default: infinite rect
@@ -3314,12 +3330,12 @@ JM_rect_from_py(PyObject *r)
     if (!r || !PySequence_Check(r) || PySequence_Size(r) != 4)
         return fz_infinite_rect;
     Py_ssize_t i;
-    float f[4];
+    double f[4];
 
     for (i = 0; i < 4; i++)
         if (JM_FLOAT_ITEM(r, i, &f[i]) == 1) return fz_infinite_rect;
 
-    return fz_make_rect(f[0], f[1], f[2], f[3]);
+    return fz_make_rect((float) f[0], (float) f[1], (float) f[2], (float) f[3]);
 }
 
 //-----------------------------------------------------------------------------
@@ -3365,7 +3381,7 @@ static fz_point
 JM_point_from_py(PyObject *p)
 {
     fz_point p0 = fz_make_point(0, 0);
-    float x, y;
+    double x, y;
 
     if (!p || !PySequence_Check(p) || PySequence_Size(p) != 2)
         return p0;
@@ -3373,7 +3389,7 @@ JM_point_from_py(PyObject *p)
     if (JM_FLOAT_ITEM(p, 0, &x) == 1) return p0;
     if (JM_FLOAT_ITEM(p, 1, &y) == 1) return p0;
 
-    return fz_make_point(x, y);
+    return fz_make_point((float) x, (float) y);
 }
 
 //-----------------------------------------------------------------------------
@@ -3393,7 +3409,7 @@ static fz_matrix
 JM_matrix_from_py(PyObject *m)
 {
     Py_ssize_t i;
-    float a[6];
+    double a[6];
 
     if (!m || !PySequence_Check(m) || PySequence_Size(m) != 6)
         return fz_identity;
@@ -3401,7 +3417,7 @@ JM_matrix_from_py(PyObject *m)
     for (i = 0; i < 6; i++)
         if (JM_FLOAT_ITEM(m, i, &a[i]) == 1) return fz_identity;
 
-    return fz_make_matrix(a[0], a[1], a[2], a[3], a[4], a[5]);
+    return fz_make_matrix((float) a[0], (float) a[1], (float) a[2], (float) a[3], (float) a[4], (float) a[5]);
 }
 
 //-----------------------------------------------------------------------------
@@ -3422,7 +3438,7 @@ JM_quad_from_py(PyObject *r)
 {
     fz_quad q = fz_make_quad(0, 0, 0, 0, 0, 0, 0, 0);
     fz_point p[4];
-    float test;
+    double test, x, y;
     Py_ssize_t i;
     PyObject *obj = NULL;
 
@@ -3437,8 +3453,9 @@ JM_quad_from_py(PyObject *r)
         if (!obj || !PySequence_Check(obj) || PySequence_Size(obj) != 2)
             goto exit_result;  // invalid: cancel the rest
 
-        if (JM_FLOAT_ITEM(obj, 0, &p[i].x) == 1) goto exit_result;
-        if (JM_FLOAT_ITEM(obj, 1, &p[i].y) == 1) goto exit_result;
+        if (JM_FLOAT_ITEM(obj, 0, &x) == 1) goto exit_result;
+        if (JM_FLOAT_ITEM(obj, 1, &y) == 1) goto exit_result;
+        p[i] = fz_make_point((float) x, (float) y);
 
         Py_CLEAR(obj);
     }
@@ -3836,7 +3853,7 @@ void JM_color_FromSequence(PyObject *color, int *n, float col[4])
         return;
     }
 
-    float mcol[4] = {0,0,0,0}; // local color storage
+    double mcol[4] = {0,0,0,0}; // local color storage
     Py_ssize_t i;
     for (i = 0; i < len; i++) {
         rc = JM_FLOAT_ITEM(color, i, &mcol[i]);
@@ -3845,7 +3862,7 @@ void JM_color_FromSequence(PyObject *color, int *n, float col[4])
 
     *n = len;
     for (i = 0; i < len; i++)
-        col[i] = mcol[i];
+        col[i] = (float) mcol[i];
     return;
 }
 
@@ -6005,19 +6022,21 @@ static void JM_make_image_block(fz_context *ctx, fz_stext_block *block, PyObject
         if (!bytes)
             bytes = JM_BinFromChar("");
         DICT_SETITEM_DROP(block_dict, dictkey_width,
-                          Py_BuildValue("i", w));
+                        Py_BuildValue("i", w));
         DICT_SETITEM_DROP(block_dict, dictkey_height,
-                          Py_BuildValue("i", h));
+                        Py_BuildValue("i", h));
         DICT_SETITEM_DROP(block_dict, dictkey_ext,
-                          Py_BuildValue("s", ext));
+                        Py_BuildValue("s", ext));
         DICT_SETITEM_DROP(block_dict, dictkey_colorspace,
-                          Py_BuildValue("i", n));
+                        Py_BuildValue("i", n));
         DICT_SETITEM_DROP(block_dict, dictkey_xres,
-                          Py_BuildValue("i", image->xres));
+                        Py_BuildValue("i", image->xres));
         DICT_SETITEM_DROP(block_dict, dictkey_yres,
-                          Py_BuildValue("i", image->xres));
+                        Py_BuildValue("i", image->xres));
         DICT_SETITEM_DROP(block_dict, dictkey_bpc,
-                          Py_BuildValue("i", (int) image->bpc));
+                        Py_BuildValue("i", (int) image->bpc));
+        DICT_SETITEM_DROP(block_dict, dictkey_matrix,
+                        JM_py_from_matrix(block->u.i.transform));
         DICT_SETITEM_DROP(block_dict, dictkey_image, bytes);
 
         fz_drop_buffer(ctx, freebuf);
@@ -6906,7 +6925,7 @@ void JM_set_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
     if (value && PySequence_Check(value)) {
         n = PySequence_Size(value);
         fill_col = pdf_new_array(ctx, pdf, n);
-        float col = 0;
+        double col = 0;
         for (i = 0; i < n; i++) {
             JM_FLOAT_ITEM(value, i, &col);
             pdf_array_push_real(ctx, fill_col, col);
@@ -6937,7 +6956,7 @@ void JM_set_widget_properties(fz_context *ctx, pdf_annot *annot, PyObject *Widge
     if (value && PySequence_Check(value)) {
         n = PySequence_Size(value);
         border_col = pdf_new_array(ctx, pdf, n);
-        float col = 0;
+        double col = 0;
         for (i = 0; i < n; i++) {
             JM_FLOAT_ITEM(value, i, &col);
             pdf_array_push_real(ctx, border_col, col);
@@ -10850,34 +10869,23 @@ SWIGINTERN PyObject *Document_xref_object(struct Document *self,int xref,int com
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
-                if (!INRANGE(xref, 1, xreflen-1))
+                if (!INRANGE(xref, 1, xreflen-1) && xref != -1)
                     THROWMSG(gctx, "bad xref");
-                obj = pdf_load_object(gctx, pdf, xref);
+                if (xref > 0) {
+                    obj = pdf_load_object(gctx, pdf, xref);
+                } else {
+                    obj = pdf_trailer(gctx, pdf);
+                }
                 res = JM_object_to_buffer(gctx, pdf_resolve_indirect(gctx, obj), compressed, ascii);
                 text = JM_EscapeStrFromBuffer(gctx, res);
             }
             fz_always(gctx) {
-                pdf_drop_obj(gctx, obj);
+                if (xref > 0) {
+                    pdf_drop_obj(gctx, obj);
+                }
                 fz_drop_buffer(gctx, res);
             }
             fz_catch(gctx) return EMPTY_STRING;
-            return text;
-        }
-SWIGINTERN PyObject *Document_pdf_trailer(struct Document *self,int compressed,int ascii){
-            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
-            if (!pdf) Py_RETURN_NONE;
-            PyObject *text = NULL;
-            fz_buffer *res=NULL;
-            fz_try(gctx) {
-                res = JM_object_to_buffer(gctx, pdf_trailer(gctx, pdf), compressed, ascii);
-                text = JM_EscapeStrFromBuffer(gctx, res);
-            }
-            fz_always(gctx) {
-                fz_drop_buffer(gctx, res);
-            }
-            fz_catch(gctx) {
-                return PyUnicode_FromString("PDF trailer damaged");
-            }
             return text;
         }
 SWIGINTERN PyObject *Document_xref_stream_raw(struct Document *self,int xref){
@@ -11197,7 +11205,7 @@ SWIGINTERN PyObject *Document__update_toc_item(struct Document *self,int xref,ch
             pdf_obj *item = NULL;
             pdf_obj *obj = NULL;
             Py_ssize_t i;
-            float f;
+            double f;
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
             fz_try(gctx) {
                 item = pdf_new_indirect(gctx, pdf, xref, 0);
@@ -15197,23 +15205,29 @@ SWIGINTERN PyObject *Tools__sine_between(struct Tools *self,PyObject *C,PyObject
             fz_point c = JM_point_from_py(C);
             fz_point p = JM_point_from_py(P);
             fz_point q = JM_point_from_py(Q);
-            fz_point s = fz_normalize_vector(fz_make_point(q.x - p.x, q.y - p.y));
+            fz_point s = JM_normalize_vector(q.x - p.x, q.y - p.y);
             fz_matrix m1 = fz_make_matrix(1, 0, 0, 1, -p.x, -p.y);
             fz_matrix m2 = fz_make_matrix(s.x, -s.y, s.y, s.x, 0, 0);
             m1 = fz_concat(m1, m2);
             c = fz_transform_point(c, m1);
-            c = fz_normalize_vector(c);
+            c = JM_normalize_vector(c.x, c.y);
             return Py_BuildValue("f", c.y);
         }
 SWIGINTERN PyObject *Tools__hor_matrix(struct Tools *self,PyObject *C,PyObject *P){
-            // calculate matrix m that maps line CP to the x-axis,
-            // such that C * m = (0, 0), and target line has same length.
             fz_point c = JM_point_from_py(C);
             fz_point p = JM_point_from_py(P);
-            fz_point s = fz_normalize_vector(fz_make_point(p.x - c.x, p.y - c.y));
+
+            // compute (cosine, sine) of vector P-C with double precision:
+            fz_point s = JM_normalize_vector(p.x - c.x, p.y - c.y);
+
             fz_matrix m1 = fz_make_matrix(1, 0, 0, 1, -c.x, -c.y);
             fz_matrix m2 = fz_make_matrix(s.x, -s.y, s.y, s.x, 0, 0);
             return JM_py_from_matrix(fz_concat(m1, m2));
+        }
+SWIGINTERN PyObject *Tools__point_in_quad(struct Tools *self,PyObject *P,PyObject *Q){
+            fz_point p = JM_point_from_py(P);
+            fz_quad q = JM_quad_from_py(Q);
+            return JM_BOOL(fz_is_point_inside_quad(p, q));
         }
 SWIGINTERN PyObject *Tools_set_font_width(struct Tools *self,struct Document *doc,int xref,int width){
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *) doc);
@@ -18231,54 +18245,6 @@ SWIGINTERN PyObject *_wrap_Document_xref_object(PyObject *SWIGUNUSEDPARM(self), 
   }
   {
     result = (PyObject *)Document_xref_object(arg1,arg2,arg3,arg4);
-    if (!result) {
-      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
-      return NULL;
-    }
-  }
-  resultobj = result;
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_Document_pdf_trailer(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  struct Document *arg1 = (struct Document *) 0 ;
-  int arg2 = (int) 0 ;
-  int arg3 = (int) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int val2 ;
-  int ecode2 = 0 ;
-  int val3 ;
-  int ecode3 = 0 ;
-  PyObject *swig_obj[3] ;
-  PyObject *result = 0 ;
-  
-  if (!SWIG_Python_UnpackTuple(args, "Document_pdf_trailer", 1, 3, swig_obj)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document_pdf_trailer" "', argument " "1"" of type '" "struct Document *""'"); 
-  }
-  arg1 = (struct Document *)(argp1);
-  if (swig_obj[1]) {
-    ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
-    if (!SWIG_IsOK(ecode2)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "Document_pdf_trailer" "', argument " "2"" of type '" "int""'");
-    } 
-    arg2 = (int)(val2);
-  }
-  if (swig_obj[2]) {
-    ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
-    if (!SWIG_IsOK(ecode3)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Document_pdf_trailer" "', argument " "3"" of type '" "int""'");
-    } 
-    arg3 = (int)(val3);
-  }
-  {
-    result = (PyObject *)Document_pdf_trailer(arg1,arg2,arg3);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -27646,6 +27612,32 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Tools__point_in_quad(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Tools *arg1 = (struct Tools *) 0 ;
+  PyObject *arg2 = (PyObject *) 0 ;
+  PyObject *arg3 = (PyObject *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[3] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Tools__point_in_quad", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools__point_in_quad" "', argument " "1"" of type '" "struct Tools *""'"); 
+  }
+  arg1 = (struct Tools *)(argp1);
+  arg2 = swig_obj[1];
+  arg3 = swig_obj[2];
+  result = (PyObject *)Tools__point_in_quad(arg1,arg2,arg3);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Tools_set_font_width(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
@@ -27823,7 +27815,6 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document_del_xml_metadata", _wrap_Document_del_xml_metadata, METH_O, NULL},
 	 { "Document_set_xml_metadata", _wrap_Document_set_xml_metadata, METH_VARARGS, NULL},
 	 { "Document_xref_object", _wrap_Document_xref_object, METH_VARARGS, NULL},
-	 { "Document_pdf_trailer", _wrap_Document_pdf_trailer, METH_VARARGS, NULL},
 	 { "Document_xref_stream_raw", _wrap_Document_xref_stream_raw, METH_VARARGS, NULL},
 	 { "Document_xref_stream", _wrap_Document_xref_stream, METH_VARARGS, NULL},
 	 { "Document_update_object", _wrap_Document_update_object, METH_VARARGS, NULL},
@@ -28096,6 +28087,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools__measure_string", _wrap_Tools__measure_string, METH_VARARGS, NULL},
 	 { "Tools__sine_between", _wrap_Tools__sine_between, METH_VARARGS, NULL},
 	 { "Tools__hor_matrix", _wrap_Tools__hor_matrix, METH_VARARGS, NULL},
+	 { "Tools__point_in_quad", _wrap_Tools__point_in_quad, METH_VARARGS, NULL},
 	 { "Tools_set_font_width", _wrap_Tools_set_font_width, METH_VARARGS, NULL},
 	 { "new_Tools", _wrap_new_Tools, METH_NOARGS, NULL},
 	 { "delete_Tools", _wrap_delete_Tools, METH_O, NULL},
@@ -28968,6 +28960,7 @@ SWIG_init(void) {
   dictkey_image = PyUnicode_InternFromString("image");
   dictkey_length = PyUnicode_InternFromString("length");
   dictkey_lines = PyUnicode_InternFromString("lines");
+  dictkey_matrix = PyUnicode_InternFromString("matrix");
   dictkey_modDate = PyUnicode_InternFromString("modDate");
   dictkey_name = PyUnicode_InternFromString("name");
   dictkey_number = PyUnicode_InternFromString("number");
