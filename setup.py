@@ -1,7 +1,9 @@
 import os
 import re
 import sys
-from distutils.core import Extension, setup
+from setuptools import Extension, setup
+
+# from distutils.core import Extension, setup
 
 DEFAULT = [
     "mupdf",

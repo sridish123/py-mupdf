@@ -7681,8 +7681,10 @@ JM_image_filter(fz_context * ctx, void *opaque, fz_matrix ctm, const char *name,
 {
     fz_quad q = fz_transform_quad(fz_quad_from_rect(fz_unit_rect), ctm);
     PyObject *q_py = JM_py_from_quad(q);
-    PyList_Append(img_info, Py_BuildValue("sO", name, q_py));
+    PyObject *ctm_py = JM_py_from_matrix(ctm);
+    PyList_Append(img_info, Py_BuildValue("sOO", name, q_py, ctm_py));
     Py_DECREF(q_py);
+    Py_DECREF(ctm_py);
     return NULL;
 }
 
@@ -11663,7 +11665,7 @@ SWIGINTERN PyObject *Page_bound(struct Page *self){
             fz_rect rect = fz_bound_page(gctx, (fz_page *) self);
             return JM_py_from_rect(rect);
         }
-SWIGINTERN PyObject *Page_get_image_bbox(struct Page *self,PyObject *name){
+SWIGINTERN PyObject *Page_get_image_bbox(struct Page *self,PyObject *name,int transform){
             pdf_page *pdf_page = pdf_page_from_fz_page(gctx, (fz_page *) self);
             PyObject *rc =NULL;
             fz_try(gctx) {
@@ -19266,19 +19268,29 @@ SWIGINTERN PyObject *_wrap_Page_get_image_bbox(PyObject *SWIGUNUSEDPARM(self), P
   PyObject *resultobj = 0;
   struct Page *arg1 = (struct Page *) 0 ;
   PyObject *arg2 = (PyObject *) 0 ;
+  int arg3 = (int) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
-  PyObject *swig_obj[2] ;
+  int val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Page_get_image_bbox", 2, 2, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Page_get_image_bbox", 2, 3, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Page, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Page_get_image_bbox" "', argument " "1"" of type '" "struct Page *""'"); 
   }
   arg1 = (struct Page *)(argp1);
   arg2 = swig_obj[1];
-  result = (PyObject *)Page_get_image_bbox(arg1,arg2);
+  if (swig_obj[2]) {
+    ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
+    if (!SWIG_IsOK(ecode3)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "Page_get_image_bbox" "', argument " "3"" of type '" "int""'");
+    } 
+    arg3 = (int)(val3);
+  }
+  result = (PyObject *)Page_get_image_bbox(arg1,arg2,arg3);
   resultobj = result;
   return resultobj;
 fail:
@@ -28960,7 +28972,7 @@ SWIG_init(void) {
   dictkey_image = PyUnicode_InternFromString("image");
   dictkey_length = PyUnicode_InternFromString("length");
   dictkey_lines = PyUnicode_InternFromString("lines");
-  dictkey_matrix = PyUnicode_InternFromString("matrix");
+  dictkey_matrix = PyUnicode_InternFromString("transform");
   dictkey_modDate = PyUnicode_InternFromString("modDate");
   dictkey_name = PyUnicode_InternFromString("name");
   dictkey_number = PyUnicode_InternFromString("number");

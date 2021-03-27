@@ -103,8 +103,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.11"
-VersionDate = "2021-03-25 18:42:57"
-version = (VersionBind, VersionFitz, "20210325184257")
+VersionDate = "2021-03-27 09:01:42"
+version = (VersionBind, VersionFitz, "20210327090142")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -5110,7 +5110,7 @@ class Page(object):
 
     rect = property(bound, doc="page rectangle")
 
-    def get_image_bbox(self, name: AnyType) -> AnyType:
+    def get_image_bbox(self, name: AnyType, transform: int = 0) -> AnyType:
 
         """Get rectangle occupied by image 'name'.
 
@@ -5136,16 +5136,33 @@ class Page(object):
             else:
                 raise ValueError("found more than one image of that name.")
 
-        val = _fitz.Page_get_image_bbox(self, name)
+        val = _fitz.Page_get_image_bbox(self, name, transform)
 
         if not bool(val):
             return inf_rect
         rc = inf_rect
         for v in val:
             if v[0] == item[-3]:
-                rc = Quad(v[1]).rect
+                bbox = Quad(v[1]).rect * self.transformation_matrix
+                m = Matrix(v[2])
+                if transform == 0:
+                    rc = bbox
+                else:
+                    m.b *= -1
+                    m.c *= -1
+                    if min(m.a, m.d) > 0:
+                        m.f = bbox.y0
+                    elif m.b < 0 < m.c:
+                        m.f = bbox.y1
+                        m.e = bbox.x0
+                    elif max(m.a, m.d) < 0:
+                        m.f = bbox.y1
+                    elif m.b > 0 > m.c:
+                        m.f = bbox.y0
+                        m.e = bbox.x1
+                    rc = (bbox, m)
                 break
-        val = rc * self.transformation_matrix
+        val = rc
 
         return val
 
