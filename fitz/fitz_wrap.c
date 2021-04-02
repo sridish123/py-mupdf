@@ -7681,10 +7681,8 @@ JM_image_filter(fz_context * ctx, void *opaque, fz_matrix ctm, const char *name,
 {
     fz_quad q = fz_transform_quad(fz_quad_from_rect(fz_unit_rect), ctm);
     PyObject *q_py = JM_py_from_quad(q);
-    PyObject *ctm_py = JM_py_from_matrix(ctm);
-    PyList_Append(img_info, Py_BuildValue("sOO", name, q_py, ctm_py));
+    PyList_Append(img_info, Py_BuildValue("sO", name, q_py));
     Py_DECREF(q_py);
-    Py_DECREF(ctm_py);
     return NULL;
 }
 
@@ -7756,7 +7754,8 @@ JM_image_reporter(fz_context *ctx, pdf_page *page)
     pdf_obj *new_res;
     fz_buffer *buffer;
     int struct_parents;
-
+    fz_matrix ctm = fz_identity;
+    pdf_page_transform(gctx, page, NULL, &ctm);
     struct_parents_obj = pdf_dict_get(ctx, page->obj, PDF_NAME(StructParents));
     struct_parents = -1;
     if (pdf_is_number(ctx, struct_parents_obj))
@@ -7765,7 +7764,7 @@ JM_image_reporter(fz_context *ctx, pdf_page *page)
     contents = pdf_page_contents(ctx, page);
     old_res = pdf_page_resources(ctx, page);
     img_info = PyList_New(0);
-    JM_filter_content_stream(ctx, doc, contents, old_res, fz_identity, &filter, struct_parents, &buffer, &new_res);
+    JM_filter_content_stream(ctx, doc, contents, old_res, ctm, &filter, struct_parents, &buffer, &new_res);
     fz_drop_buffer(ctx, buffer);
     pdf_drop_obj(ctx, new_res);
     PyObject *rc = PySequence_Tuple(img_info);
@@ -8245,6 +8244,7 @@ int JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
 {
     int i, rc = 1, n = pdf_dict_len(ctx, dict);
     fz_rect bbox;
+    fz_matrix mat;
     pdf_obj *o = NULL, *m = NULL;
     for (i = 0; i < n; i++) {
         pdf_obj *imagedict;
@@ -8265,22 +8265,24 @@ int JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
 
         o = pdf_dict_get(ctx, imagedict, PDF_NAME(BBox));
         m = pdf_dict_get(ctx, imagedict, PDF_NAME(Matrix));
+        if (m) {
+            mat = pdf_to_matrix(ctx, m);
+        } else {
+            mat = fz_identity;
+        }
         if (o) {
-            if (m) {
-                bbox = fz_transform_rect(pdf_to_rect(ctx, o), pdf_to_matrix(ctx, m));
-            } else {
-                bbox = pdf_to_rect(ctx, o);
-            }
+            bbox = fz_transform_rect(pdf_to_rect(ctx, o), mat);
         } else {
             bbox = fz_infinite_rect;
         }
         int xref = pdf_to_num(ctx, imagedict);
 
-        PyObject *entry = PyTuple_New(4);
+        PyObject *entry = PyTuple_New(5);
         PyTuple_SET_ITEM(entry, 0, Py_BuildValue("i", xref));
         PyTuple_SET_ITEM(entry, 1, Py_BuildValue("s", pdf_to_name(ctx, refname)));
         PyTuple_SET_ITEM(entry, 2, Py_BuildValue("i", stream_xref));
         PyTuple_SET_ITEM(entry, 3, JM_py_from_rect(bbox));
+        PyTuple_SET_ITEM(entry, 4, JM_py_from_matrix(mat));
         LIST_APPEND_DROP(imagelist, entry);
     }
     return rc;
@@ -14571,7 +14573,7 @@ SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
                     } else if (fz_contains_rect(tp_rect, block->bbox) || fz_is_infinite_rect(tp_rect)) {
                         fz_image *img = block->u.i.image;
                         fz_colorspace *cs = img->colorspace;
-                        text = PyUnicode_FromFormat("<image: %s, width %d, height %d, bpc %d>", fz_colorspace_name(gctx, cs), img->w, img->h, img->bpc);
+                        text = PyUnicode_FromFormat("<image: %s, width: %d, height: %d, bpc: %d>", fz_colorspace_name(gctx, cs), img->w, img->h, img->bpc);
                         blockrect = fz_union_rect(blockrect, block->bbox);
                     }
                     if (!fz_is_empty_rect(blockrect)) {

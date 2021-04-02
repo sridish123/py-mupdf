@@ -103,8 +103,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.11"
-VersionDate = "2021-03-27 09:01:42"
-version = (VersionBind, VersionFitz, "20210327090142")
+VersionDate = "2021-04-02 05:41:25"
+version = (VersionBind, VersionFitz, "20210402054125")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -4859,7 +4859,8 @@ class Document(object):
         if not self.is_pdf:
             return ()
         val = self._getPageInfo(pno, 3)
-        return val
+        rc = [(v[0], v[1], v[2], Rect(v[3]), Matrix(v[4])) for v in val]
+        return rc
 
     def copy_page(self, pno: int, to: int = -1):
         """Copy a page within a PDF document.
@@ -5120,10 +5121,17 @@ class Page(object):
         doc = self.parent
         if doc.is_closed or doc.is_encrypted:
             raise ValueError("document closed or encrypted")
+
         inf_rect = Rect(1, 1, -1, -1)
+        null_mat = Matrix()
+        if transform == 1:
+            rc = (inf_rect, null_mat)
+        else:
+            rc = inf_rect
+
         if type(name) in (list, tuple):
             if not type(name[-1]) is int:
-                raise ValueError("need a full page image list item")
+                raise ValueError("need item of full page image list")
             item = name
         else:
             imglist = [
@@ -5132,36 +5140,36 @@ class Page(object):
             if len(imglist) == 1:
                 item = imglist[0]
             elif imglist == []:
-                raise ValueError("no valid image found")
+                raise ValueError("bad image name")
             else:
-                raise ValueError("found more than one image of that name.")
+                raise ValueError("found multiple images named '%s'." % name)
+        xref = item[-1]
+        if xref != 0:
+            xobjs = [x for x in self.get_xobjects() if x[0] == xref and x[2] == 0]
+            if xobjs == []:
+                raise ValueError("image in unsupported Form XObject")
 
         val = _fitz.Page_get_image_bbox(self, name, transform)
 
         if not bool(val):
-            return inf_rect
-        rc = inf_rect
+            return rc
+
         for v in val:
-            if v[0] == item[-3]:
-                bbox = Quad(v[1]).rect * self.transformation_matrix
-                m = Matrix(v[2])
-                if transform == 0:
-                    rc = bbox
-                else:
-                    m.b *= -1
-                    m.c *= -1
-                    if min(m.a, m.d) > 0:
-                        m.f = bbox.y0
-                    elif m.b < 0 < m.c:
-                        m.f = bbox.y1
-                        m.e = bbox.x0
-                    elif max(m.a, m.d) < 0:
-                        m.f = bbox.y1
-                    elif m.b > 0 > m.c:
-                        m.f = bbox.y0
-                        m.e = bbox.x1
-                    rc = (bbox, m)
+            if v[0] != item[-3]:
+                continue
+            q = Quad(v[1])
+            bbox = q.rect
+            if transform == 0:
+                rc = bbox
                 break
+
+            hm = Matrix(TOOLS._hor_matrix(q.ll, q.lr))
+            h = abs(q.ll - q.ul)
+            w = abs(q.ur - q.ul)
+            m0 = Matrix(1 / w, 0, 0, 1 / h, 0, 0)
+            m = ~(hm * m0)
+            rc = (bbox, m)
+            break
         val = rc
 
         return val
@@ -6334,6 +6342,11 @@ class Page(object):
         """List of images defined in the page object."""
         CheckParent(self)
         return self.parent.get_page_images(self.number, full=full)
+
+    def get_xobjects(self):
+        """List of xobjects defined in the page object."""
+        CheckParent(self)
+        return self.parent.get_page_xobjects(self.number)
 
     def read_contents(self):
         """All /Contents streams concatenated to one bytes object."""
