@@ -2794,10 +2794,11 @@ void fz_copy_pixmap_rect(fz_context *ctx, fz_pixmap *dest, fz_pixmap *src, fz_ir
 static const float JM_font_ascender(fz_context *ctx, fz_font *font);
 static const float JM_font_descender(fz_context *ctx, fz_font *font);
 
-// end of additional MuPDF headers --------------------------------------------
+// end of additional headers --------------------------------------------
 
 PyObject *JM_mupdf_warnings_store;
-PyObject *JM_mupdf_show_errors;
+static int JM_mupdf_show_errors;
+static int JM_mupdf_show_warnings;
 
 
 
@@ -3686,14 +3687,18 @@ void JM_valid_chars(fz_context *ctx, fz_font *font, void *arr)
 void JM_mupdf_warning(void *user, const char *message)
 {
     LIST_APPEND_DROP(JM_mupdf_warnings_store, JM_EscapeStrFromStr(message));
+    if (JM_mupdf_show_warnings) {
+        PySys_WriteStderr("mupdf: %s\n", message);
+    }
 }
 
 // redirect MuPDF errors
 void JM_mupdf_error(void *user, const char *message)
 {
     LIST_APPEND_DROP(JM_mupdf_warnings_store, JM_EscapeStrFromStr(message));
-    if (JM_mupdf_show_errors == Py_True)
+    if (JM_mupdf_show_errors) {
         PySys_WriteStderr("mupdf: %s\n", message);
+    }
 }
 
 // a simple tracer
@@ -6037,6 +6042,8 @@ static void JM_make_image_block(fz_context *ctx, fz_stext_block *block, PyObject
                         Py_BuildValue("i", (int) image->bpc));
         DICT_SETITEM_DROP(block_dict, dictkey_matrix,
                         JM_py_from_matrix(block->u.i.transform));
+        DICT_SETITEM_DROP(block_dict, dictkey_size,
+                        Py_BuildValue("n", (Py_ssize_t) fz_image_size(ctx, image)));
         DICT_SETITEM_DROP(block_dict, dictkey_image, bytes);
 
         fz_drop_buffer(ctx, freebuf);
@@ -8277,12 +8284,11 @@ int JM_gather_forms(fz_context *ctx, pdf_document *doc, pdf_obj *dict,
         }
         int xref = pdf_to_num(ctx, imagedict);
 
-        PyObject *entry = PyTuple_New(5);
+        PyObject *entry = PyTuple_New(4);
         PyTuple_SET_ITEM(entry, 0, Py_BuildValue("i", xref));
         PyTuple_SET_ITEM(entry, 1, Py_BuildValue("s", pdf_to_name(ctx, refname)));
         PyTuple_SET_ITEM(entry, 2, Py_BuildValue("i", stream_xref));
         PyTuple_SET_ITEM(entry, 3, JM_py_from_rect(bbox));
-        PyTuple_SET_ITEM(entry, 4, JM_py_from_matrix(mat));
         LIST_APPEND_DROP(imagelist, entry);
     }
     return rc;
@@ -12555,7 +12561,7 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
             fz_matrix mat = JM_matrix_from_py(matrix); // pre-calculated
             fz_compressed_buffer *cbuf1 = NULL;
             int img_xref = 0;
-
+            int xres, yres, w, h, bpc;
             const char *template = "\nq\n%g %g %g %g %g %g cm\n/%s Do\nQ\n";
             fz_image *zimg = NULL, *image = NULL;
             fz_try(gctx) {
@@ -12574,7 +12580,9 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                     } else {  // fz_image pointer has been handed in
                         image = (fz_image *)PyLong_AsVoidPtr(_imgpointer);
                     }
-                    int xres, yres, w = image->w, h = image->h, bpc = image->bpc;
+                    w = image->w;
+                    h = image->h;
+                    bpc = image->bpc;
                     fz_colorspace *colorspace = image->colorspace;
                     fz_image_resolution(image, &xres, &yres);
                     if (EXISTS(imask)) {
@@ -12585,6 +12593,8 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                         zimg = fz_new_image_from_compressed_buffer(gctx, w, h,
                                     bpc, colorspace, xres, yres, 1, 0, NULL,
                                     NULL, cbuf1, mask);
+                        zimg->xres = xres;
+                        zimg->yres = yres;
                         fz_drop_image(gctx, image);
                         image = zimg;
                         zimg = NULL;
@@ -12595,23 +12605,37 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                             pix->yres = yres;
                             pm = fz_convert_pixmap(gctx, pix, NULL, NULL, NULL, fz_default_color_params, 1);
                             pm->alpha = 0;
-                            pm->colorspace = fz_keep_colorspace(gctx, fz_device_gray(gctx));
+                            pm->colorspace = NULL; //fz_keep_colorspace(gctx, fz_device_gray(gctx));
+                            pm->xres = xres;
+                            pm->yres = yres;
                             mask = fz_new_image_from_pixmap(gctx, pm, NULL);
+                            mask->xres = xres;
+                            mask->yres = yres;
                             zimg = fz_new_image_from_pixmap(gctx, pix, mask);
+                            zimg->xres = xres;
+                            zimg->yres = yres;
                             fz_drop_image(gctx, image);
                             image = zimg;
                             zimg = NULL;
                     }
                 } else {  // pixmap specified
                     fz_pixmap *arg_pix = (fz_pixmap *) pixmap;
+                    xres = arg_pix->xres;
+                    yres = arg_pix->yres;
                     if (arg_pix->alpha == 0) {
                         image = fz_new_image_from_pixmap(gctx, arg_pix, NULL);
                     } else {  // pixmap has alpha: create an SMask
                         pm = fz_convert_pixmap(gctx, arg_pix, NULL, NULL, NULL, fz_default_color_params, 1);
+                        pm->xres = xres;
+                        pm->yres = yres;
                         pm->alpha = 0;
-                        pm->colorspace = fz_keep_colorspace(gctx, fz_device_gray(gctx));
+                        pm->colorspace = NULL; //fz_keep_colorspace(gctx, fz_device_gray(gctx));
                         mask = fz_new_image_from_pixmap(gctx, pm, NULL);
+                        mask->xres = xres;
+                        mask->yres = yres;
                         image = fz_new_image_from_pixmap(gctx, arg_pix, mask);
+                        image->xres = xres;
+                        image->yres = yres;
                     }
                 }
 
@@ -14529,6 +14553,56 @@ SWIGINTERN PyObject *TextPage__getNewBlockList(struct TextPage *self,PyObject *p
             }
             Py_RETURN_NONE;
         }
+SWIGINTERN PyObject *TextPage_extractIMGINFO(struct TextPage *self){
+            fz_stext_block *block;
+            int block_n = -1;
+            fz_stext_page *this_tpage = (fz_stext_page *) self;
+            PyObject *rc = NULL, *block_dict = NULL;
+            fz_try(gctx) {
+                rc = PyList_New(0);
+                for (block = this_tpage->first_block; block; block = block->next) {
+                    block_n++;
+                    if (block->type == FZ_STEXT_BLOCK_TEXT) {
+                        continue;
+                    }
+                    fz_image *img = block->u.i.image;
+                    fz_colorspace *cs = img->colorspace;
+                    block_dict = PyDict_New();
+                    DICT_SETITEM_DROP(block_dict, dictkey_number, Py_BuildValue("i", block_n));
+                    DICT_SETITEM_DROP(block_dict, dictkey_bbox,
+                                    JM_py_from_rect(block->bbox));
+                    DICT_SETITEM_DROP(block_dict, dictkey_matrix,
+                                    JM_py_from_matrix(block->u.i.transform));
+                    DICT_SETITEM_DROP(block_dict, dictkey_width,
+                                    Py_BuildValue("i", img->w));
+                    DICT_SETITEM_DROP(block_dict, dictkey_height,
+                                    Py_BuildValue("i", img->h));
+                    DICT_SETITEM_DROP(block_dict, dictkey_colorspace,
+                                    Py_BuildValue("i",
+                                    fz_colorspace_n(gctx, cs)));
+                    DICT_SETITEM_DROP(block_dict, dictkey_cs_name,
+                                    Py_BuildValue("s",
+                                    fz_colorspace_name(gctx, cs)));
+                    DICT_SETITEM_DROP(block_dict, dictkey_xres,
+                                    Py_BuildValue("i", img->xres));
+                    DICT_SETITEM_DROP(block_dict, dictkey_yres,
+                                    Py_BuildValue("i", img->xres));
+                    DICT_SETITEM_DROP(block_dict, dictkey_bpc,
+                                    Py_BuildValue("i", (int) img->bpc));
+                    DICT_SETITEM_DROP(block_dict, dictkey_size,
+                                    Py_BuildValue("n", (Py_ssize_t) fz_image_size(gctx, img)));
+                    LIST_APPEND_DROP(rc, block_dict);
+                }
+            }
+            fz_always(gctx) {
+            }
+            fz_catch(gctx) {
+                Py_CLEAR(rc);
+                Py_CLEAR(block_dict);
+                return NULL;
+            }
+            return rc;
+        }
 SWIGINTERN PyObject *TextPage_extractBLOCKS(struct TextPage *self){
             fz_stext_block *block;
             fz_stext_line *line;
@@ -14769,7 +14843,7 @@ SWIGINTERN PyObject *TextWriter_append(struct TextWriter *self,PyObject *pos,cha
 SWIGINTERN PyObject *TextWriter__bbox(struct TextWriter *self){
             return JM_py_from_rect(fz_bound_text(gctx, (fz_text *) self, NULL, fz_identity));
         }
-SWIGINTERN PyObject *TextWriter_write_text(struct TextWriter *self,struct Page *page,PyObject *color,float opacity,int overlay,PyObject *morph,int render_mode,int oc){
+SWIGINTERN PyObject *TextWriter_write_text(struct TextWriter *self,struct Page *page,PyObject *color,float opacity,int overlay,PyObject *morph,PyObject *matrix,int render_mode,int oc){
             pdf_page *pdfpage = pdf_page_from_fz_page(gctx, (fz_page *) page);
             fz_rect mediabox = fz_bound_page(gctx, (fz_page *) page);
             pdf_obj *resources = NULL;
@@ -15133,13 +15207,27 @@ SWIGINTERN void Tools_reset_mupdf_warnings(struct Tools *self){
             Py_CLEAR(JM_mupdf_warnings_store);
             JM_mupdf_warnings_store = PyList_New(0);
         }
-SWIGINTERN PyObject *Tools_mupdf_display_errors(struct Tools *self,PyObject *value){
-            if (value == Py_True)
-                JM_mupdf_show_errors = Py_True;
-            else if (value == Py_False)
-                JM_mupdf_show_errors = Py_False;
-            Py_INCREF(JM_mupdf_show_errors);
-            return JM_mupdf_show_errors;
+SWIGINTERN PyObject *Tools_mupdf_display_errors(struct Tools *self,PyObject *on){
+            if (!on || on == Py_None) {
+                return JM_BOOL(JM_mupdf_show_errors);
+            }
+            if (PyObject_IsTrue(on)) {
+                JM_mupdf_show_errors = 1;
+            } else {
+                JM_mupdf_show_errors = 0;
+            }
+            return JM_BOOL(JM_mupdf_show_errors);
+        }
+SWIGINTERN PyObject *Tools_mupdf_display_warnings(struct Tools *self,PyObject *on){
+            if (!on || on == Py_None) {
+                return JM_BOOL(JM_mupdf_show_warnings);
+            }
+            if (PyObject_IsTrue(on)) {
+                JM_mupdf_show_warnings = 1;
+            } else {
+                JM_mupdf_show_warnings = 0;
+            }
+            return JM_BOOL(JM_mupdf_show_warnings);
         }
 SWIGINTERN PyObject *Tools__transform_rect(struct Tools *self,PyObject *rect,PyObject *matrix){
             return JM_py_from_rect(fz_transform_rect(JM_rect_from_py(rect), JM_matrix_from_py(matrix)));
@@ -25437,6 +25525,35 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_TextPage_extractIMGINFO(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct TextPage *arg1 = (struct TextPage *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  PyObject *result = 0 ;
+  
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_TextPage, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextPage_extractIMGINFO" "', argument " "1"" of type '" "struct TextPage *""'"); 
+  }
+  arg1 = (struct TextPage *)(argp1);
+  {
+    result = (PyObject *)TextPage_extractIMGINFO(arg1);
+    if (!result) {
+      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
+      return NULL;
+    }
+  }
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_TextPage_extractBLOCKS(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct TextPage *arg1 = (struct TextPage *) 0 ;
@@ -25826,8 +25943,9 @@ SWIGINTERN PyObject *_wrap_TextWriter_write_text(PyObject *SWIGUNUSEDPARM(self),
   float arg4 = (float) -1 ;
   int arg5 = (int) 1 ;
   PyObject *arg6 = (PyObject *) NULL ;
-  int arg7 = (int) 0 ;
+  PyObject *arg7 = (PyObject *) NULL ;
   int arg8 = (int) 0 ;
+  int arg9 = (int) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   void *argp2 = 0 ;
@@ -25836,14 +25954,14 @@ SWIGINTERN PyObject *_wrap_TextWriter_write_text(PyObject *SWIGUNUSEDPARM(self),
   int ecode4 = 0 ;
   int val5 ;
   int ecode5 = 0 ;
-  int val7 ;
-  int ecode7 = 0 ;
   int val8 ;
   int ecode8 = 0 ;
-  PyObject *swig_obj[8] ;
+  int val9 ;
+  int ecode9 = 0 ;
+  PyObject *swig_obj[9] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "TextWriter_write_text", 2, 8, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "TextWriter_write_text", 2, 9, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_TextWriter, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "TextWriter_write_text" "', argument " "1"" of type '" "struct TextWriter *""'"); 
@@ -25875,11 +25993,7 @@ SWIGINTERN PyObject *_wrap_TextWriter_write_text(PyObject *SWIGUNUSEDPARM(self),
     arg6 = swig_obj[5];
   }
   if (swig_obj[6]) {
-    ecode7 = SWIG_AsVal_int(swig_obj[6], &val7);
-    if (!SWIG_IsOK(ecode7)) {
-      SWIG_exception_fail(SWIG_ArgError(ecode7), "in method '" "TextWriter_write_text" "', argument " "7"" of type '" "int""'");
-    } 
-    arg7 = (int)(val7);
+    arg7 = swig_obj[6];
   }
   if (swig_obj[7]) {
     ecode8 = SWIG_AsVal_int(swig_obj[7], &val8);
@@ -25888,8 +26002,15 @@ SWIGINTERN PyObject *_wrap_TextWriter_write_text(PyObject *SWIGUNUSEDPARM(self),
     } 
     arg8 = (int)(val8);
   }
+  if (swig_obj[8]) {
+    ecode9 = SWIG_AsVal_int(swig_obj[8], &val9);
+    if (!SWIG_IsOK(ecode9)) {
+      SWIG_exception_fail(SWIG_ArgError(ecode9), "in method '" "TextWriter_write_text" "', argument " "9"" of type '" "int""'");
+    } 
+    arg9 = (int)(val9);
+  }
   {
-    result = (PyObject *)TextWriter_write_text(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8);
+    result = (PyObject *)TextWriter_write_text(arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -27330,6 +27451,32 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_Tools_mupdf_display_warnings(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  struct Tools *arg1 = (struct Tools *) 0 ;
+  PyObject *arg2 = (PyObject *) NULL ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  PyObject *result = 0 ;
+  
+  if (!SWIG_Python_UnpackTuple(args, "Tools_mupdf_display_warnings", 1, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Tools, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Tools_mupdf_display_warnings" "', argument " "1"" of type '" "struct Tools *""'"); 
+  }
+  arg1 = (struct Tools *)(argp1);
+  if (swig_obj[1]) {
+    arg2 = swig_obj[1];
+  }
+  result = (PyObject *)Tools_mupdf_display_warnings(arg1,arg2);
+  resultobj = result;
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_Tools__transform_rect(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Tools *arg1 = (struct Tools *) 0 ;
@@ -28028,6 +28175,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "new_TextPage", _wrap_new_TextPage, METH_O, NULL},
 	 { "TextPage_search", _wrap_TextPage_search, METH_VARARGS, NULL},
 	 { "TextPage__getNewBlockList", _wrap_TextPage__getNewBlockList, METH_VARARGS, NULL},
+	 { "TextPage_extractIMGINFO", _wrap_TextPage_extractIMGINFO, METH_O, NULL},
 	 { "TextPage_extractBLOCKS", _wrap_TextPage_extractBLOCKS, METH_O, NULL},
 	 { "TextPage_extractWORDS", _wrap_TextPage_extractWORDS, METH_O, NULL},
 	 { "TextPage_rect", _wrap_TextPage_rect, METH_O, NULL},
@@ -28091,6 +28239,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "Tools__int_from_language", _wrap_Tools__int_from_language, METH_VARARGS, NULL},
 	 { "Tools_reset_mupdf_warnings", _wrap_Tools_reset_mupdf_warnings, METH_O, NULL},
 	 { "Tools_mupdf_display_errors", _wrap_Tools_mupdf_display_errors, METH_VARARGS, NULL},
+	 { "Tools_mupdf_display_warnings", _wrap_Tools_mupdf_display_warnings, METH_VARARGS, NULL},
 	 { "Tools__transform_rect", _wrap_Tools__transform_rect, METH_VARARGS, NULL},
 	 { "Tools__intersect_rect", _wrap_Tools__intersect_rect, METH_VARARGS, NULL},
 	 { "Tools__include_point_in_rect", _wrap_Tools__include_point_in_rect, METH_VARARGS, NULL},
@@ -28939,7 +29088,8 @@ SWIG_init(void) {
   // START redirect stdout/stderr
   //------------------------------------------------------------------------
   JM_mupdf_warnings_store = PyList_New(0);
-  JM_mupdf_show_errors = Py_True;
+  JM_mupdf_show_errors = 1;
+  JM_mupdf_show_warnings = 0;
   char user[] = "PyMuPDF";
   fz_set_warning_callback(gctx, JM_mupdf_warning, &user);
   fz_set_error_callback(gctx, JM_mupdf_error, &user);

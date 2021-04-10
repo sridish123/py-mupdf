@@ -103,8 +103,8 @@ except ImportError:
 
 VersionFitz = "1.18.0"
 VersionBind = "1.18.11"
-VersionDate = "2021-04-02 05:41:25"
-version = (VersionBind, VersionFitz, "20210402054125")
+VersionDate = "2021-04-10 04:00:00"
+version = (VersionBind, VersionFitz, "20210410040000")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -4859,7 +4859,7 @@ class Document(object):
         if not self.is_pdf:
             return ()
         val = self._getPageInfo(pno, 3)
-        rc = [(v[0], v[1], v[2], Rect(v[3]), Matrix(v[4])) for v in val]
+        rc = [(v[0], v[1], v[2], Rect(v[3])) for v in val]
         return rc
 
     def copy_page(self, pno: int, to: int = -1):
@@ -4961,6 +4961,43 @@ class Document(object):
     def saveIncr(self):
         """ Save PDF incrementally"""
         return self.save(self.name, incremental=True, encryption=PDF_ENCRYPT_KEEP)
+
+    def ez_save(
+        self,
+        filename,
+        garbage=3,
+        clean=False,
+        deflate=True,
+        deflate_images=True,
+        deflate_fonts=True,
+        incremental=False,
+        ascii=False,
+        expand=False,
+        linear=False,
+        pretty=False,
+        encryption=1,
+        permissions=-1,
+        owner_pw=None,
+        user_pw=None,
+    ):
+        """ Save PDF using some different defaults"""
+        return self.save(
+            filename,
+            garbage=garbage,
+            clean=clean,
+            deflate=deflate,
+            deflate_images=deflate_images,
+            deflate_fonts=deflate_fonts,
+            incremental=incremental,
+            ascii=ascii,
+            expand=expand,
+            linear=linear,
+            pretty=pretty,
+            encryption=encryption,
+            permissions=permissions,
+            owner_pw=owner_pw,
+            user_pw=user_pw,
+        )
 
     def reload_page(self, page: "Page") -> "Page":
         """Make a fresh copy of a page."""
@@ -7799,6 +7836,11 @@ class TextPage(object):
         self._getNewBlockList(page_dict, raw)
         return page_dict
 
+    def extractIMGINFO(self) -> AnyType:
+        """Return a list with image meta information."""
+
+        return _fitz.TextPage_extractIMGINFO(self)
+
     def extractBLOCKS(self) -> AnyType:
         """Return a list with text block information."""
 
@@ -8056,6 +8098,7 @@ class TextWriter(object):
         opacity: float = -1,
         overlay: int = 1,
         morph: AnyType = None,
+        matrix: AnyType = None,
         render_mode: int = 0,
         oc: int = 0,
     ) -> AnyType:
@@ -8068,6 +8111,7 @@ class TextWriter(object):
             opacity: override transparency.
             overlay: put in foreground or background.
             morph: tuple(Point, Matrix), apply a matrix with a fixpoint.
+            matrix: Matrix to be used instead of 'morph' argument.
             render_mode: (int) PDF render mode operator 'Tr'.
         """
 
@@ -8081,13 +8125,15 @@ class TextWriter(object):
                 or type(morph[1]) is not Matrix
             ):
                 raise ValueError("morph must be (Point, Matrix) or None")
+        if matrix != None and morph != None:
+            raise ValueError("only one of matrix, morph is allowed")
         if getattr(opacity, "__float__", None) is None or opacity == -1:
             opacity = self.opacity
         if color is None:
             color = self.color
 
         val = _fitz.TextWriter_write_text(
-            self, page, color, opacity, overlay, morph, render_mode, oc
+            self, page, color, opacity, overlay, morph, matrix, render_mode, oc
         )
 
         max_nums = val[0]
@@ -8114,6 +8160,7 @@ class TextWriter(object):
             p = morph[0] * self.ictm
             delta = Matrix(1, 1).preTranslate(p.x, p.y)
             matrix = ~delta * morph[1] * delta
+        if morph or matrix:
             new_cont_lines.append("%g %g %g %g %g %g cm" % JM_TUPLE(matrix))
 
         for line in old_cont_lines:
@@ -8532,10 +8579,15 @@ class Tools(object):
 
         return _fitz.Tools_reset_mupdf_warnings(self)
 
-    def mupdf_display_errors(self, value: AnyType = None) -> AnyType:
+    def mupdf_display_errors(self, on: AnyType = None) -> AnyType:
         """Set MuPDF error display to True or False."""
 
-        return _fitz.Tools_mupdf_display_errors(self, value)
+        return _fitz.Tools_mupdf_display_errors(self, on)
+
+    def mupdf_display_warnings(self, on: AnyType = None) -> AnyType:
+        """Set MuPDF warnings display to True or False."""
+
+        return _fitz.Tools_mupdf_display_warnings(self, on)
 
     def _transform_rect(self, rect: AnyType, matrix: AnyType) -> AnyType:
         return _fitz.Tools__transform_rect(self, rect, matrix)
