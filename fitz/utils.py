@@ -960,28 +960,30 @@ def getRectArea(*args) -> float:
     return f * rect.width * rect.height
 
 
-def setMetadata(doc: Document, m: dict) -> None:
-    """Set PDF /Info object.
+def set_metadata(doc: Document, m: dict) -> None:
+    """Update the PDF /Info object.
 
     Args:
         m: a dictionary like doc.metadata.
     """
+    if not doc.is_pdf:
+        raise ValueError("not a PDF")
     if doc.is_closed or doc.is_encrypted:
         raise ValueError("document closed or encrypted")
     if type(m) is not dict:
-        raise ValueError("bad metadata argument")
+        raise ValueError("bad metadata")
     keymap = {
-        "author": "/Author",
-        "producer": "/Producer",
-        "creator": "/Creator",
-        "title": "/Title",
+        "author": "Author",
+        "producer": "Producer",
+        "creator": "Creator",
+        "title": "Title",
         "format": None,
         "encryption": None,
-        "creationDate": "/CreationDate",
-        "modDate": "/ModDate",
-        "subject": "/Subject",
-        "keywords": "/Keywords",
-        "trapped": "/Trapped",
+        "creationDate": "CreationDate",
+        "modDate": "ModDate",
+        "subject": "Subject",
+        "keywords": "Keywords",
+        "trapped": "Trapped",
     }
     valid_keys = set(keymap.keys())
     diff_set = set(m.keys()).difference(valid_keys)
@@ -989,13 +991,15 @@ def setMetadata(doc: Document, m: dict) -> None:
         msg = "bad dict key(s): %s" % diff_set
         raise ValueError(msg)
 
-    d = "<<"
-    for k in m.keys():
-        if m[k] and keymap[k] and m[k] != "none":
-            x = m[k] if m[k].startswith("/") else getPDFstr(m[k])
-            d += keymap[k] + x
-    d += ">>"
-    doc._setMetadata(d)
+    if m != dict():
+        xref = doc.get_new_xref()  # get a new xref
+        doc.update_object(xref, "<<>>")  # fill it with empty object
+        for k in m.keys():
+            if m[k] and keymap[k] and m[k] != "none":
+                doc.xref_set_key(xref, keymap[k], getPDFstr(m[k]))
+        doc.xref_set_key(-1, "Info", "%i 0 R" % xref)
+    else:
+        doc.xref_set_key(-1, "Info", "null")
     doc.init_doc()
     return
 

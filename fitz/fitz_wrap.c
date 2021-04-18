@@ -2745,7 +2745,7 @@ static swig_module_info swig_module = {swig_types, 15, 0, 0, 0, 0};
 
 #define EMPTY_STRING PyUnicode_FromString("")
 #define EXISTS(x) (x != NULL && PyObject_IsTrue(x)==1)
-#define THROWMSG(ctx, msg) fz_throw(ctx, FZ_ERROR_GENERIC, msg)
+#define THROWMSG(gctx, msg) fz_throw(gctx, FZ_ERROR_GENERIC, msg)
 #define ASSERT_PDF(cond) if (cond == NULL) fz_throw(gctx, FZ_ERROR_GENERIC, "not a PDF")
 #define INRANGE(v, low, high) ((low) <= v && v <= (high))
 #define MAX(a, b) ((a) < (b)) ? (b) : (a)
@@ -4011,7 +4011,7 @@ fz_buffer *JM_BufferFromBytes(fz_context *ctx, PyObject *stream)
             c = PyBytes_AS_STRING(mybytes);
             len = (size_t) PyBytes_GET_SIZE(mybytes);
         }
-        // all the above leave c as NULL pointer if unsuccessful
+        // if none of the above, c is NULL and we return an empty buffer
         if (c) {
             res = fz_new_buffer_from_copied_data(ctx, (const unsigned char *) c, len);
         } else {
@@ -9330,12 +9330,13 @@ SWIGINTERN PyObject *Document_xref_get_key(struct Document *self,int xref,char c
                     type = "name";
                 } else if (pdf_is_string(gctx, subobj)) {
                     type = "string";
+                    text = JM_UnicodeFromStr(pdf_to_text_string(gctx, subobj));
                 } else {
                     type = "unknown";
                 }
                 if (!text) {
                     res = JM_object_to_buffer(gctx, subobj, 1, 0);
-                    text = JM_EscapeStrFromBuffer(gctx, res);
+                    text = JM_UnicodeFromBuffer(gctx, res);
                 }
                 rc = Py_BuildValue("sO", type, text);
                 Py_DECREF(text);
@@ -9359,10 +9360,11 @@ SWIGINTERN PyObject *Document_xref_get_key(struct Document *self,int xref,char c
 SWIGINTERN PyObject *Document_xref_set_key(struct Document *self,int xref,char const *key,char *value){
             pdf_document *pdf = pdf_specifics(gctx, (fz_document *)self);
             pdf_obj *obj = NULL, *new_obj = NULL;
+            int i, n;
             fz_try(gctx) {
                 ASSERT_PDF(pdf);
                 int xreflen = pdf_xref_len(gctx, pdf);
-                if (!INRANGE(xref, 1, xreflen-1))
+                if (!INRANGE(xref, 1, xreflen-1) && xref != -1)
                     THROWMSG(gctx, "bad xref");
                 if (strlen(value) == 0) {
                     THROWMSG(gctx, "bad 'value'");
@@ -9370,19 +9372,32 @@ SWIGINTERN PyObject *Document_xref_set_key(struct Document *self,int xref,char c
                 if (strlen(key) == 0) {
                     THROWMSG(gctx, "bad 'key'");
                 }
-                obj = pdf_load_object(gctx, pdf, xref);
+                if (xref != -1) {
+                    obj = pdf_load_object(gctx, pdf, xref);
+                } else {
+                    obj = pdf_trailer(gctx, pdf);
+                }
                 new_obj = JM_set_object_value(gctx, obj, key, value);
                 if (!new_obj) {
                     goto finished;  // did not work: skip update
                 }
-                pdf_drop_obj(gctx, obj);
-                obj = NULL;
-                pdf_update_object(gctx, pdf, xref, new_obj);
+                if (xref != -1) {
+                    pdf_drop_obj(gctx, obj);
+                    obj = NULL;
+                    pdf_update_object(gctx, pdf, xref, new_obj);
+                } else {
+                    n = pdf_dict_len(gctx, new_obj);
+                    for (i = 0; i < n; i++) {
+                        pdf_dict_put(gctx, obj, pdf_dict_get_key(gctx, new_obj, i), pdf_dict_get_val(gctx, new_obj, i));
+                    }
+                }
                 pdf->dirty = 1;
                 finished:;
             }
             fz_always(gctx) {
-                pdf_drop_obj(gctx, obj);
+                if (xref != -1) {
+                    pdf_drop_obj(gctx, obj);
+                }
                 pdf_drop_obj(gctx, new_obj);
                 PyErr_Clear();
             }
@@ -9929,7 +9944,7 @@ SWIGINTERN PyObject *Document__getMetadata(struct Document *self,char const *key
                 if(vsize > 1) {
                     value = JM_Alloc(char, vsize);
                     fz_lookup_metadata(gctx, doc, key, value, vsize);
-                    res = JM_EscapeStrFromStr(value);
+                    res = JM_UnicodeFromStr(value);
                     JM_Free(value);
                 } else {
                     res = EMPTY_STRING;
@@ -11005,34 +11020,6 @@ SWIGINTERN PyObject *Document_update_stream(struct Document *self,int xref,PyObj
             fz_catch(gctx)
                 return NULL;
             pdf->dirty = 1;
-            Py_RETURN_NONE;
-        }
-SWIGINTERN PyObject *Document__setMetadata(struct Document *self,char *text){
-            pdf_obj *info, *new_info, *new_info_ind;
-            int info_num = 0;               // will contain xref no of info object
-            pdf_document *pdf = pdf_specifics(gctx, (fz_document *) self);
-            fz_try(gctx) {
-                ASSERT_PDF(pdf);
-                // create new /Info object based on passed-in string
-                new_info = JM_pdf_obj_from_str(gctx, pdf, text);
-            }
-            fz_catch(gctx) {
-                return NULL;
-            }
-            pdf->dirty = 1;
-            // replace existing /Info object
-            info = pdf_dict_get(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Info));
-            if (info)
-            {
-                info_num = pdf_to_num(gctx, info);  // get xref no of old info
-                pdf_update_object(gctx, pdf, info_num, new_info);  // insert new
-                pdf_drop_obj(gctx, new_info);
-                Py_RETURN_NONE;
-            }
-            // create new indirect object from /Info object
-            new_info_ind = pdf_add_object(gctx, pdf, new_info);
-            // put this in the trailer dictionary
-            pdf_dict_put_drop(gctx, pdf_trailer(gctx, pdf), PDF_NAME(Info), new_info_ind);
             Py_RETURN_NONE;
         }
 SWIGINTERN PyObject *Document__make_page_map(struct Document *self){
@@ -12554,7 +12541,7 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
             pdf_document *pdf;
             fz_pixmap *pm = NULL;
             fz_pixmap *pix = NULL;
-            fz_image *mask = NULL;
+            fz_image *mask = NULL, *zimg = NULL, *image = NULL, *freethis = NULL;
             fz_separations *seps = NULL;
             pdf_obj *resources, *xobject, *ref;
             fz_buffer *nres = NULL,  *imgbuf = NULL, *maskbuf = NULL;
@@ -12563,7 +12550,6 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
             int img_xref = 0;
             int xres, yres, w, h, bpc;
             const char *template = "\nq\n%g %g %g %g %g %g cm\n/%s Do\nQ\n";
-            fz_image *zimg = NULL, *image = NULL;
             fz_try(gctx) {
                 if (xref > 0) {
                     goto image_exists;
@@ -12595,7 +12581,7 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                                     NULL, cbuf1, mask);
                         zimg->xres = xres;
                         zimg->yres = yres;
-                        fz_drop_image(gctx, image);
+                        freethis = image;
                         image = zimg;
                         zimg = NULL;
                     } else if (alpha == 1) {
@@ -12671,7 +12657,11 @@ SWIGINTERN PyObject *Page__insertImage(struct Page *self,char const *filename,st
                 nres = NULL;
             }
             fz_always(gctx) {
-                fz_drop_image(gctx, image);
+                if (freethis) {
+                    fz_drop_image(gctx, freethis);
+                } else {
+                    fz_drop_image(gctx, image);
+                }
                 fz_drop_image(gctx, mask);
                 fz_drop_image(gctx, zimg);
                 fz_drop_pixmap(gctx, pix);
@@ -12990,37 +12980,65 @@ SWIGINTERN PyObject *Pixmap_copyPixmap(struct Pixmap *self,struct Pixmap *src,Py
             }
             Py_RETURN_NONE;
         }
-SWIGINTERN PyObject *Pixmap_setAlpha(struct Pixmap *self,PyObject *alphavalues,int premultiply){
+SWIGINTERN PyObject *Pixmap_setAlpha(struct Pixmap *self,PyObject *alphavalues,int premultiply,PyObject *opaque){
             fz_buffer *res = NULL;
             fz_pixmap *pix = (fz_pixmap *) self;
+            int divisor = 65025; // 255*255
+            int denom;
             fz_try(gctx) {
-                if (pix->alpha == 0) THROWMSG(gctx, "pixmap has no alpha");
+                if (pix->alpha == 0) {
+                    THROWMSG(gctx, "pixmap has no alpha");
+                }
+                size_t i, k, j;
                 size_t n = fz_pixmap_colorants(gctx, pix);
-                size_t w = fz_pixmap_width(gctx, pix);
-                size_t h = fz_pixmap_height(gctx, pix);
+                size_t w = (size_t) fz_pixmap_width(gctx, pix);
+                size_t h = (size_t) fz_pixmap_height(gctx, pix);
                 size_t balen = w * h * (n+1);
+                int colors[4];
+                int zero_out = 0;
+                if (opaque && PySequence_Check(opaque) && PySequence_Size(opaque) == n) {
+                    for (i = 0; i < n; i++) {
+                        if (JM_INT_ITEM(opaque, i, &colors[i]) == 1) {
+                            THROWMSG(gctx, "bad opaque components");
+                        }
+                    }
+                    zero_out = 1;
+                }
                 unsigned char *data = NULL;
                 size_t data_len = 0;
-                if (alphavalues) {
+                if (alphavalues && PyObject_IsTrue(alphavalues)) {
                     res = JM_BufferFromBytes(gctx, alphavalues);
-                    if (res) {
-                        data_len = fz_buffer_storage(gctx, res, &data);
-                        if (data && data_len < w * h)
-                            THROWMSG(gctx, "not enough alpha values");
-                    }
-                    else THROWMSG(gctx, "bad type: 'alphavalues'");
+                    data_len = fz_buffer_storage(gctx, res, &data);
+                    if (data_len < w * h)
+                        THROWMSG(gctx, "bad alpha values");
                 }
-                size_t i = 0, k = 0, j = 0;
+                i = k = j = 0;
+                int data_fix = 255;
                 while (i < balen) {
+                    if (zero_out) {
+                        for (j = i; j < i+n; j++) {
+                            if (pix->samples[j] != (unsigned char) colors[j - i]) {
+                                data_fix = 255;
+                                break;
+                            } else {
+                                data_fix = 0;
+                            }
+                        }
+                    }
                     if (data_len) {
-                        pix->samples[i+n] = data[k];
-                        if (premultiply) {
-                            for (j = i; j < n; j++) {
-                                pix->samples[j] = pix->samples[j] * data[k] / 255 * data[k] / 255;
+                        if (data_fix == 0) {
+                            pix->samples[i+n] = 0;
+                        } else {
+                            pix->samples[i+n] = data[k];
+                        }
+                        if (premultiply == 1) {
+                            denom = (int) data[k] * (int) data[k];
+                            for (j = i; j < i+n; j++) {
+                                pix->samples[j] = pix->samples[j] * denom / divisor;
                             }
                         }
                     } else {
-                        pix->samples[i+n] = 255;
+                        pix->samples[i+n] = data_fix;
                     }
                     i += n+1;
                     k += 1;
@@ -18530,45 +18548,6 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_Document__setMetadata(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
-  PyObject *resultobj = 0;
-  struct Document *arg1 = (struct Document *) 0 ;
-  char *arg2 = (char *) 0 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int res2 ;
-  char *buf2 = 0 ;
-  int alloc2 = 0 ;
-  PyObject *swig_obj[2] ;
-  PyObject *result = 0 ;
-  
-  if (!SWIG_Python_UnpackTuple(args, "Document__setMetadata", 2, 2, swig_obj)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Document, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Document__setMetadata" "', argument " "1"" of type '" "struct Document *""'"); 
-  }
-  arg1 = (struct Document *)(argp1);
-  res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "Document__setMetadata" "', argument " "2"" of type '" "char *""'");
-  }
-  arg2 = (char *)(buf2);
-  {
-    result = (PyObject *)Document__setMetadata(arg1,arg2);
-    if (!result) {
-      PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
-      return NULL;
-    }
-  }
-  resultobj = result;
-  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  return resultobj;
-fail:
-  if (alloc2 == SWIG_NEWOBJ) free((char*)buf2);
-  return NULL;
-}
-
-
 SWIGINTERN PyObject *_wrap_Document__make_page_map(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   struct Document *arg1 = (struct Document *) 0 ;
@@ -22042,14 +22021,15 @@ SWIGINTERN PyObject *_wrap_Pixmap_setAlpha(PyObject *SWIGUNUSEDPARM(self), PyObj
   struct Pixmap *arg1 = (struct Pixmap *) 0 ;
   PyObject *arg2 = (PyObject *) NULL ;
   int arg3 = (int) 1 ;
+  PyObject *arg4 = (PyObject *) NULL ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   int val3 ;
   int ecode3 = 0 ;
-  PyObject *swig_obj[3] ;
+  PyObject *swig_obj[4] ;
   PyObject *result = 0 ;
   
-  if (!SWIG_Python_UnpackTuple(args, "Pixmap_setAlpha", 1, 3, swig_obj)) SWIG_fail;
+  if (!SWIG_Python_UnpackTuple(args, "Pixmap_setAlpha", 1, 4, swig_obj)) SWIG_fail;
   res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_Pixmap, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "Pixmap_setAlpha" "', argument " "1"" of type '" "struct Pixmap *""'"); 
@@ -22065,8 +22045,11 @@ SWIGINTERN PyObject *_wrap_Pixmap_setAlpha(PyObject *SWIGUNUSEDPARM(self), PyObj
     } 
     arg3 = (int)(val3);
   }
+  if (swig_obj[3]) {
+    arg4 = swig_obj[3];
+  }
   {
-    result = (PyObject *)Pixmap_setAlpha(arg1,arg2,arg3);
+    result = (PyObject *)Pixmap_setAlpha(arg1,arg2,arg3,arg4);
     if (!result) {
       PyErr_SetString(PyExc_RuntimeError, fz_caught_message(gctx));
       return NULL;
@@ -27980,7 +27963,6 @@ static PyMethodDef SwigMethods[] = {
 	 { "Document_xref_stream", _wrap_Document_xref_stream, METH_VARARGS, NULL},
 	 { "Document_update_object", _wrap_Document_update_object, METH_VARARGS, NULL},
 	 { "Document_update_stream", _wrap_Document_update_stream, METH_VARARGS, NULL},
-	 { "Document__setMetadata", _wrap_Document__setMetadata, METH_VARARGS, NULL},
 	 { "Document__make_page_map", _wrap_Document__make_page_map, METH_O, NULL},
 	 { "Document_fullcopy_page", _wrap_Document_fullcopy_page, METH_VARARGS, NULL},
 	 { "Document__move_copy_page", _wrap_Document__move_copy_page, METH_VARARGS, NULL},

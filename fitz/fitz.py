@@ -102,9 +102,9 @@ except ImportError:
 
 
 VersionFitz = "1.18.0"
-VersionBind = "1.18.12"
-VersionDate = "2021-04-10 04:00:00"
-version = (VersionBind, VersionFitz, "20210410040000")
+VersionBind = "1.18.13"
+VersionDate = "2021-04-16 15:39:43"
+version = (VersionBind, VersionFitz, "20210416153943")
 
 EPSILON = _fitz.EPSILON
 PDF_ANNOT_TEXT = _fitz.PDF_ANNOT_TEXT
@@ -4623,13 +4623,6 @@ class Document(object):
 
         return _fitz.Document_update_stream(self, xref, stream, new)
 
-    def _setMetadata(self, text: str) -> AnyType:
-        """Set old style metadata."""
-        if self.is_closed or self.is_encrypted:
-            raise ValueError("document closed or encrypted")
-
-        return _fitz.Document__setMetadata(self, text)
-
     def _make_page_map(self) -> AnyType:
         """Make an array page number -> page object."""
         if self.is_closed:
@@ -6438,12 +6431,15 @@ class Pixmap(object):
         return _fitz.Pixmap_copyPixmap(self, src, bbox)
 
     def setAlpha(
-        self, alphavalues: AnyType = None, premultiply: int = 1
+        self,
+        alphavalues: AnyType = None,
+        premultiply: int = 1,
+        opaque: AnyType = None,
     ) -> AnyType:
-        """Set alphas to values contained in a byte array.
+        """Set alpha channel to values contained in a byte array.
         If omitted, set alphas to 255."""
 
-        return _fitz.Pixmap_setAlpha(self, alphavalues, premultiply)
+        return _fitz.Pixmap_setAlpha(self, alphavalues, premultiply, opaque)
 
     def _getImageData(self, format: int) -> AnyType:
         return _fitz.Pixmap__getImageData(self, format)
