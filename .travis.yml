@@ -18,20 +18,12 @@ jobs:
     services:
     - docker
     env: PIP=pip
-    #before_script:
-    #- export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no
-     # HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip"
-    #- export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
   - os: linux
     arch: arm64
     python: '3.7'
     services:
     - docker
     env: PIP=pip
-    #before_script:
-    #- export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no
-    #  HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip"
-    #- export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
   - os: osx
     osx_image: xcode12.2
     language: shell
@@ -52,10 +44,9 @@ install:
 
 before_script:
   - if [ "$TRAVIS_OS_NAME" == "linux" ]; then 
-      export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip";
+      export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no && \
+      HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip";
       export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"';
-    else
-      echo "not running";
     fi
 
 script:
