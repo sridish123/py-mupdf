@@ -52,12 +52,12 @@ install:
 
 before_script:
 - |
-  if [ $os == linux ]; then
+  if [ $TRAVIS_OS_NAME == linux ]; then
     export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no
     HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip"
     export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
   else
-    echo $os && echo "not running"
+    echo "$TRAVIS_OS_NAME" && echo "not running"
   fi
 
 script:
