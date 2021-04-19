@@ -51,10 +51,11 @@ install:
 - cp fitz/_config.h mupdf/include/mupdf/fitz/config.h
 
 before_script:
-- if ( os = linux )
-- export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no
-  HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip"
-- export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
+- |
+ if ( os = linux )
+ export CIBW_BEFORE_BUILD="cd mupdf && make HAVE_X11=no
+ HAVE_GLFW=no HAVE_GLUT=no prefix=/usr/local install && cd .. && pip install --upgrade pip"
+ export CIBW_ENVIRONMENT='CFLAGS="-fPIC -std=gnu99"'
 
 script:
 - export CIBW_SKIP="pp* cp27-* cp35-* *i686"
